@@ -34,7 +34,38 @@
 </head>
 
 <body>
-    <div id="doc" class="markdown-body container-fluid"><h1 id="Zusammenfassung-Programmiersprachen"><a class="anchor hidden-xs" href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung-Programmiersprachen"><i class="fa fa-link"></i></a>Zusammenfassung Programmiersprachen</h1><p>Vorlesungsinhalte:</p><ul>
+    <div id="doc" class="markdown-body container-fluid"><h1 id="Zusammenfassung-Programmiersprachen"><a class="anchor hidden-xs" href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung-Programmiersprachen"><i class="fa fa-link"></i></a>Zusammenfassung Programmiersprachen</h1><p></p><div class="toc"><ul>
+<li><a href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung Programmiersprachen">Zusammenfassung Programmiersprachen</a><ul>
+<li><a href="#Vorlesungsinhalte" title="Vorlesungsinhalte">Vorlesungsinhalte</a></li>
+<li><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul>
+<li><a href="#Datentypen" title="Datentypen">Datentypen</a></li>
+<li><a href="#Objektorientierung" title="Objektorientierung">Objektorientierung</a></li>
+<li><a href="#Kontrollstrukturen" title="Kontrollstrukturen">Kontrollstrukturen</a></li>
+<li><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
+<li><a href="#REPL" title="REPL">REPL</a></li>
+<li><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
+<li><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
+<li><a href="#Lambda-Ausdrücke-und-Currying" title="Lambda-Ausdrücke und Currying">Lambda-Ausdrücke und Currying</a></li>
+</ul>
+</li>
+<li><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul>
+<li><a href="#Syntaktischer-Zucker-und-Desugaring" title="Syntaktischer Zucker und Desugaring">Syntaktischer Zucker und Desugaring</a></li>
+<li><a href="#Interpreter-mit-Desugaring" title="Interpreter mit Desugaring">Interpreter mit Desugaring</a></li>
+<li><a href="#Visitor-Implementation" title="Visitor-Implementation">Visitor-Implementation</a></li>
+</ul>
+</li>
+<li><a href="#Identifier" title="Identifier">Identifier</a><ul>
+<li><a href="#Mit-Environment" title="Mit Environment">Mit Environment</a></li>
+<li><a href="#Mit-Bindings" title="Mit Bindings">Mit Bindings</a></li>
+</ul>
+</li>
+<li><a href="#First-Order-Funktionen" title="First-Order-Funktionen">First-Order-Funktionen</a></li>
+<li><a href="#Effizientere-Bindings" title="Effizientere Bindings">Effizientere Bindings</a></li>
+<li><a href="#Lexikalisches-und-dynamisches-Scoping" title="Lexikalisches und dynamisches Scoping">Lexikalisches und dynamisches Scoping</a></li>
+</ul>
+</li>
+</ul>
+</div><p></p><h2 id="Vorlesungsinhalte"><a class="anchor hidden-xs" href="#Vorlesungsinhalte" title="Vorlesungsinhalte"><i class="fa fa-link"></i></a>Vorlesungsinhalte</h2><ul>
 <li>gutes Verständnis von Programmiersprachen (allgemein, über <em>Trends</em> hinweg) und deren Qualitäten, Vor- und Nachteile</li>
 <li>Fähigkeit, Programmiersprachen in Features zu zerlegen und diese einzeln zu verstehen und zu analysieren</li>
 <li>Implementieren von Programmiersprachen(-features) durch Interpreter in Scala</li>
@@ -69,7 +100,8 @@ assert(firstEntry == num)
 letters.foreach(println)
 nums.filter(_ &gt; <span class="hljs-number">3</span>).foreach(println)
 <span class="hljs-keyword">val</span> doubleNums = nums.map(_ * <span class="hljs-number">2</span>) 
-<span class="hljs-keyword">val</span> bools = nums.map(_ &lt; <span class="hljs-number">5</span>) 
+<span class="hljs-keyword">val</span> bools = nums.map(_ &lt; <span class="hljs-number">5</span>)
+<span class="hljs-keyword">val</span> squares = nums.map(math.pow(_,<span class="hljs-number">2</span>).toInt)
 <span class="hljs-keyword">val</span> sum = foldLeft(<span class="hljs-number">0</span>)(_ + _)
 <span class="hljs-keyword">val</span> prod = foldLeft(<span class="hljs-number">1</span>)(_ + _)
 </code></pre><ul>
@@ -303,9 +335,100 @@ assert(eval(b) == <span class="hljs-number">4</span>)
 assert((eval(c) == <span class="hljs-number">8</span>))
 <span class="hljs-keyword">val</span> d = <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">1</span>, <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>,<span class="hljs-number">1</span>), <span class="hljs-string">"x"</span>))
 assert((eval(d) == <span class="hljs-number">2</span>))
-</code></pre><p>Stößt die <code>eval</code>-Funktion auf einen Identifier, so ist dieser offensichtlich bei den bisherigen Substitutionen nicht ersetzt worden und ist frei. In diesem Fall wird also ein Fehler geworfen.</p><p>Bei der Substitution im <code>With</code>-Konstrukt darf die Substitution nur dann rekursiv im Rumpf angewendet werden, wenn der Identifier im <code>With</code> Konstrukt nicht gleich dem zu ersetzenden Identifier ist. Es muss aber immer im <code>xdef</code>-Ausdruck substituiert werden, denn auch hier sollen Identifier auftreten können, die Definition aus dem <code>With</code>-Ausdruck soll hier aber noch nicht gelten.</p><p>Der Ausdruck, durch den bei der Substitution der Identifier ersetzt wird, hat den Typ <code>Num</code>, ist also bereits vollständig ausgewertet und nicht vom Typ <code>Exp</code>. Zudem wird im <code>With</code>-Fall der <code>eval</code>-Funktion der <code>xdef</code>-Ausdruck ausgewertet, bevor die Substitution stattfindet. Die Bindung mit <code>With</code> ist also <em>eager</em> (<em>call by value</em>). Wäre dies nicht der Fall, so können Variablen ungewollt gebunden werden (<em>accidental capture</em>) und es ist eine komplexere Implementierung notwendig.</p><h2 id="First-Order-Funktionen"><a class="anchor hidden-xs" href="#First-Order-Funktionen" title="First-Order-Funktionen"><i class="fa fa-link"></i></a>First-Order Funktionen</h2><p>Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken:</p><pre><code class="scala hljs">
-</code></pre><div class="alert alert-success">
-<p>VL 3, 14:30</p>
+</code></pre><p>Stößt die <code>eval</code>-Funktion auf einen Identifier, so ist dieser offensichtlich bei den bisherigen Substitutionen nicht ersetzt worden und ist frei. In diesem Fall wird also ein Fehler geworfen.</p><p>Bei der Substitution im <code>With</code>-Konstrukt darf die Substitution nur dann rekursiv im Rumpf angewendet werden, wenn der Identifier im <code>With</code> Konstrukt nicht gleich dem zu ersetzenden Identifier ist. Es muss aber immer im <code>xdef</code>-Ausdruck substituiert werden, denn auch hier sollen Identifier auftreten können, die Definition aus dem <code>With</code>-Ausdruck soll hier aber noch nicht gelten.</p><p>Der Ausdruck, durch den bei der Substitution der Identifier ersetzt wird, hat den Typ <code>Num</code>, ist also bereits vollständig ausgewertet und nicht vom Typ <code>Exp</code>. Zudem wird im <code>With</code>-Fall der <code>eval</code>-Funktion der <code>xdef</code>-Ausdruck ausgewertet, bevor die Substitution stattfindet. Die Bindung mit <code>With</code> ist also <em>eager</em> (<em>call by value</em>). Wäre dies nicht der Fall, so können Variablen ungewollt gebunden werden (<em>accidental capture</em>) und es ist eine komplexere Implementierung notwendig.</p><h2 id="First-Order-Funktionen"><a class="anchor hidden-xs" href="#First-Order-Funktionen" title="First-Order-Funktionen"><i class="fa fa-link"></i></a>First-Order-Funktionen</h2><p>Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken (<em>Magic Literals</em> <img class="emoji" alt=":unamused:" src="https://cdnjs.cloudflare.com/ajax/libs/emojify.js/1.1.0/images/basic/unamused.png">). Unterscheiden sich die Teilausdrucke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke <code>3*5+1</code>, <code>2*5+1</code> und <code>7*5+1</code> lassen sich etwa mit <code>f(x) = x*5+1</code> schreiben als <code>f(3)</code>, <code>f(2)</code> und <code>f(7)</code>.</p><p>First-Order-Funktionen werden über einen Bezeichner aufgerufen, können aber nicht als Parameter übergeben werden.</p><p>Wir legen zwei Sprachkonstrukte für Funktionsaufrufe und Funktionsdefinitionen an, in einer globalen Map werden Funktionsbezeichnern Funktionsdefinitionen zugewiesen.</p><pre><code class="scala hljs"><span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Call</span>(<span class="hljs-params">f: <span class="hljs-type">Symbol</span>, args: <span class="hljs-type">List</span>[<span class="hljs-type">Exp</span>]</span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span></span>
+
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">FunDef</span>(<span class="hljs-params">args: <span class="hljs-type">List</span>[<span class="hljs-type">Symbol</span>], body: <span class="hljs-type">Exp</span></span>)</span>
+<span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">Funs</span> </span>= <span class="hljs-type">Map</span>[<span class="hljs-type">Symbol</span>, <span class="hljs-type">FunDef</span>]
+</code></pre><p>Die bereits implementierten Konstanten-Identifier und die Funktions-Identifier verwenden getrennte <em>Namespaces</em>, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergebung ist unabhängig voneinander. Es wird also in <code>Call</code> nur in den Argumenten substituiert, nicht im Funktionsnamen (denn der Funktionsname kann nicht durch einen Wert ersetzt werden):</p><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">subst</span></span>(body: <span class="hljs-type">Exp</span>, i: <span class="hljs-type">Symbol</span>, v: <span class="hljs-type">Num</span>) : <span class="hljs-type">Exp</span> = body <span class="hljs-keyword">match</span> {
+  <span class="hljs-comment">// ...</span>
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Call</span>(f,args) =&gt; <span class="hljs-type">Call</span>(f, args.map(subst(_,i,v)))
+}
+</code></pre><p>Der neue Match-Zweig in <code>eval</code> ist deutlich komplizierter:</p><ul>
+<li>Zuerst wird die Definition von <code>f</code> in <code>funs</code> nachgeschlagen. <code>args</code> ist die Liste der Argumente des Aufrufs mit Einträgen vom Typ <code>Exp</code>.</li>
+<li>Mit <code>map</code> werden alle Argumente in der Liste vollständig ausgewertet. <code>vArgs</code> ist die Liste der ausgewerteten Argumente mit Einträgen vom Typ <code>Int</code>.</li>
+<li>Als nächstes wird geprüft, dass die Argumentliste und die Parameterliste die selbe Länge besitzen, so dass bei Bedarf eine Fehlerbehandlung möglich ist.</li>
+<li>Nun wird für jeden Parameter in der Parameterliste eine Substitution auf dem Rumpf <code>fDef.body</code> mit dem entsprechenden Argument aus <code>vArgs</code> ausgeführt. Dies ist durch <code>zip</code> und <code>foldLeft</code> implementiert.</li>
+<li>Zuletzt wird <code>eval</code> rekursiv auf dem Rumpf, in dem alle Substitutionen durchgeführt wurden, aufgerufen.</li>
+</ul><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">eval</span></span>(funs: <span class="hljs-type">Funs</span>, e: <span class="hljs-type">Exp</span>) : <span class="hljs-type">Int</span> = e <span class="hljs-keyword">match</span> {
+  <span class="hljs-comment">// ...</span>
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Call</span>(f,args) =&gt; {
+    <span class="hljs-keyword">val</span> fDef = funs(f)
+    <span class="hljs-keyword">val</span> vArgs = args.map(eval(funs,_))
+    <span class="hljs-keyword">if</span> (fDef.args.size != vArgs.size)
+      sys.error(<span class="hljs-string">"Incorrect number of params in call to "</span> + f.name)
+    <span class="hljs-keyword">val</span> substBody = fDef.args.zip(vArgs).foldLeft(fDef.body)( 
+      (b,av) =&gt; subst(b, av._1, <span class="hljs-type">Num</span>(av._2)) )
+    <span class="hljs-comment">// Zip list of symbols and list of integers, fold resulting list of tuples.</span>
+    <span class="hljs-comment">// Begin with body, apply subst function for each tuple in zipped list.</span>
+    <span class="hljs-comment">// b is preliminary folding result (body still missing substitutions), </span>
+    <span class="hljs-comment">// av is tuple of parameter name and corresponding value.</span>
+    eval(funs, substBody)
+  }
+}
+</code></pre><p>Es ist nun möglich, nicht-terminierende Programme zu verfassen. Wird in der Definition einer Funktion die Funktion selbst aufgerufen, so entsteht eine Endlosschleife. Uns steht momentan noch kein Sprachkonstrukt zu Verfügung, um mit Abbruchbedingung Schleifen zu beenden.</p><pre><code class="scala hljs"><span class="hljs-keyword">val</span> fm = <span class="hljs-type">Map</span>(<span class="hljs-symbol">'square</span> -&gt; <span class="hljs-type">FunDef</span>(<span class="hljs-type">List</span>(<span class="hljs-symbol">'x</span>), <span class="hljs-type">Mul</span>(<span class="hljs-string">"x"</span>,<span class="hljs-string">"x"</span>)),
+             <span class="hljs-symbol">'succ</span> -&gt; <span class="hljs-type">FunDef</span>(<span class="hljs-type">List</span>(<span class="hljs-symbol">'x</span>), <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>,<span class="hljs-number">1</span>)),
+             <span class="hljs-symbol">'myAdd</span> -&gt; <span class="hljs-type">FunDef</span>(<span class="hljs-type">List</span>(<span class="hljs-symbol">'x</span>,<span class="hljs-symbol">'y</span>), <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>,<span class="hljs-string">"y"</span>)),
+             <span class="hljs-symbol">'forever</span> -&gt; <span class="hljs-type">FunDef</span>(<span class="hljs-type">List</span>(<span class="hljs-symbol">'x</span>), <span class="hljs-type">Call</span>(<span class="hljs-symbol">'forever</span>, <span class="hljs-type">List</span>(<span class="hljs-string">"x"</span>))))
+
+<span class="hljs-keyword">val</span> a = <span class="hljs-type">Call</span>(<span class="hljs-symbol">'square</span>, <span class="hljs-type">List</span>(<span class="hljs-type">Add</span>(<span class="hljs-number">1</span>,<span class="hljs-number">3</span>)))
+assert(eval(fm,a) == <span class="hljs-number">16</span>)
+<span class="hljs-keyword">val</span> b = <span class="hljs-type">Mul</span>(<span class="hljs-number">2</span>, <span class="hljs-type">Call</span>(<span class="hljs-symbol">'succ</span>, <span class="hljs-type">List</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">20</span>))))
+assert(eval(fm,b) == <span class="hljs-number">42</span>)
+<span class="hljs-keyword">val</span> c = <span class="hljs-type">Call</span>(<span class="hljs-symbol">'myAdd</span>, <span class="hljs-type">List</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">40</span>), <span class="hljs-type">Num</span>(<span class="hljs-number">2</span>)))
+assert(eval(fm,c) == <span class="hljs-number">42</span>)
+
+<span class="hljs-comment">// does not terminate</span>
+<span class="hljs-keyword">val</span> forever = <span class="hljs-type">Call</span>(<span class="hljs-symbol">'forever</span>, <span class="hljs-type">List</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">0</span>)))
+</code></pre><h2 id="Effizientere-Bindings"><a class="anchor hidden-xs" href="#Effizientere-Bindings" title="Effizientere-Bindings"><i class="fa fa-link"></i></a>Effizientere Bindings</h2><p>Unsere bisherige Implementierung von Substitution würde im Ausdruck</p><pre><code class="scala hljs"><span class="hljs-type">With</span>(<span class="hljs-string">"x"</span>, <span class="hljs-number">1</span>, <span class="hljs-type">With</span>(<span class="hljs-string">"y"</span>, <span class="hljs-number">2</span>, <span class="hljs-type">With</span>(<span class="hljs-string">"z"</span>, <span class="hljs-number">3</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>)))))
+</code></pre><p>folgende Schritte durchlaufen:</p><pre><code class="scala hljs"><span class="hljs-type">With</span>(<span class="hljs-string">"y"</span>, <span class="hljs-number">2</span>, <span class="hljs-type">With</span>(<span class="hljs-string">"z"</span>, <span class="hljs-number">3</span>, <span class="hljs-type">Add</span>(<span class="hljs-number">1</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>))))
+<span class="hljs-type">With</span>(<span class="hljs-string">"z"</span>, <span class="hljs-number">3</span>, <span class="hljs-type">Add</span>(<span class="hljs-number">1</span>, <span class="hljs-type">Add</span>(<span class="hljs-number">2</span>, <span class="hljs-string">"z"</span>)))
+<span class="hljs-type">Add</span>(<span class="hljs-number">1</span>, <span class="hljs-type">Add</span>(<span class="hljs-number">2</span>, <span class="hljs-number">3</span>))
+</code></pre><p>Dabei wird der Ausdruck <code>Add("x", Add("y", "z"))</code> insgesamt drei Mal traversiert, um für jedes <code>With</code> die Substitution durchzuführen. Die Komplexität bei Ausdrücken der Länge <span class="mathjax"><span class="MathJax_Preview" style="color: inherit;"></span><span class="MathJax" id="MathJax-Element-1-Frame" tabindex="0" style="position: relative;" data-mathml="<math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;><mi>n</mi></math>" role="presentation"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-1" style="width: 0.703em; display: inline-block;"><span style="display: inline-block; position: relative; width: 0.593em; height: 0px; font-size: 116%;"><span style="position: absolute; clip: rect(1.821em, 1000.57em, 2.597em, -1000em); top: -2.425em; left: 0em;"><span class="mrow" id="MathJax-Span-2"><span class="mi" id="MathJax-Span-3" style="font-family: MathJax_Math; font-style: italic;">n</span></span><span style="display: inline-block; width: 0px; height: 2.425em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.075em; border-left: 0px solid; width: 0px; height: 0.65em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>n</mi></math></span></span><script type="math/tex" id="MathJax-Element-1">n</script></span> ist also <span class="mathjax"><span class="MathJax_Preview" style="color: inherit;"></span><span class="MathJax" id="MathJax-Element-2-Frame" tabindex="0" style="position: relative;" data-mathml="<math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mi class=&quot;MJX-tex-caligraphic&quot; mathvariant=&quot;script&quot;>O</mi></mrow><mo stretchy=&quot;false&quot;>(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy=&quot;false&quot;>)</mo></math>" role="presentation"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-4" style="width: 3.02em; display: inline-block;"><span style="display: inline-block; position: relative; width: 2.586em; height: 0px; font-size: 116%;"><span style="position: absolute; clip: rect(1.375em, 1002.49em, 2.782em, -1000em); top: -2.371em; left: 0em;"><span class="mrow" id="MathJax-Span-5"><span class="texatom" id="MathJax-Span-6"><span class="mrow" id="MathJax-Span-7"><span class="mi" id="MathJax-Span-8" style="font-family: MathJax_Caligraphic;">O</span></span></span><span class="mo" id="MathJax-Span-9" style="font-family: MathJax_Main;">(</span><span class="msubsup" id="MathJax-Span-10"><span style="display: inline-block; position: relative; width: 1.029em; height: 0px;"><span style="position: absolute; clip: rect(3.383em, 1000.58em, 4.16em, -1000em); top: -3.987em; left: 0em;"><span class="mi" id="MathJax-Span-11" style="font-family: MathJax_Math; font-style: italic;">n</span><span style="display: inline-block; width: 0px; height: 3.987em;"></span></span><span style="position: absolute; top: -4.35em; left: 0.6em;"><span class="mn" id="MathJax-Span-12" style="font-size: 70.7%; font-family: MathJax_Main;">2</span><span style="display: inline-block; width: 0px; height: 3.987em;"></span></span></span></span><span class="mo" id="MathJax-Span-13" style="font-family: MathJax_Main;">)</span></span><span style="display: inline-block; width: 0px; height: 2.371em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.352em; border-left: 0px solid; width: 0px; height: 1.382em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><mrow class="MJX-TeXAtom-ORD"><mi class="MJX-tex-caligraphic" mathvariant="script">O</mi></mrow><mo stretchy="false">(</mo><msup><mi>n</mi><mn>2</mn></msup><mo stretchy="false">)</mo></math></span></span><script type="math/tex" id="MathJax-Element-2">\mathcal{O}(n^2)</script></span>. Wir suchen deshalb eine effizientere Art, um Substitution umzusetzen.</p><p>Statt beim Auftreten eines <code>With</code>-Ausdrucks direkt zu substituieren, wollen wir uns in einer zusätzlichen Datenstruktur merken, welche Substitutionen wir im weiteren Ausdruck vornehmen müssen, so dass der zusätzliche Durchlauf wegfällt.</p><p>Hierzu verwenden wir wieder (wie in <code>2a-Environments.scala</code>) eine <em>Environment</em>, aber anstatt diese getrennt definieren zu müssen, wird sie bei der Evaluation stetig angepasst. Tritt etwa ein <code>With</code>-Ausdruck auf, so wird der entsprechende Identifier mit dem Ergebnis der zugewiesenen Expression in die Map eingetragen (die zu Beginn der Auswertung leer ist).</p><pre><code class="scala hljs"><span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">Env</span> </span>= <span class="hljs-type">Map</span>[<span class="hljs-type">String</span>, <span class="hljs-type">Int</span>]
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">evalWithEnv</span></span>(funs: <span class="hljs-type">FunDef</span>, env: <span class="hljs-type">Env</span>, e: <span class="hljs-type">Exp</span>) : <span class="hljs-type">Int</span> = e <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Num</span>(n) =&gt; n
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Add</span>(l,r) =&gt; evalWithEnv(funs,env,l) + evalWithEnv(funs,env,r)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Mul</span>(l,r) =&gt; evalWithEnv(funs,env,l) * evalWithEnv(funs,env,r)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Id</span>(x) =&gt; env(x)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">With</span>(x,xdef,body) =&gt; 
+    evalWithEnv(funs, env+(x -&gt; evalWithEnv(funs,env,xdef)), body)
+}
+</code></pre><p>Das vorherige Beispiel wird nun folgendermaßen ausgewertet:</p><pre><code class="scala hljs"><span class="hljs-type">With</span>(<span class="hljs-string">"x"</span>, <span class="hljs-number">1</span>, <span class="hljs-type">With</span>(<span class="hljs-string">"y"</span>, <span class="hljs-number">2</span>, <span class="hljs-type">With</span>(<span class="hljs-string">"z"</span>, <span class="hljs-number">3</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>))))), <span class="hljs-type">Map</span>()
+<span class="hljs-type">With</span>(<span class="hljs-string">"y"</span>, <span class="hljs-number">2</span>, <span class="hljs-type">With</span>(<span class="hljs-string">"z"</span>, <span class="hljs-number">3</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>)))), <span class="hljs-type">Map</span>(<span class="hljs-string">"x"</span> -&gt; <span class="hljs-number">1</span>)
+<span class="hljs-type">With</span>(<span class="hljs-string">"z"</span>, <span class="hljs-number">3</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>))), <span class="hljs-type">Map</span>(<span class="hljs-string">"x"</span> -&gt; <span class="hljs-number">1</span>, <span class="hljs-string">"y"</span> -&gt; <span class="hljs-number">2</span>)
+<span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"y"</span>, <span class="hljs-string">"z"</span>)), <span class="hljs-type">Map</span>(<span class="hljs-string">"x"</span> -&gt; <span class="hljs-number">1</span>, <span class="hljs-string">"y"</span> -&gt; <span class="hljs-number">2</span>, <span class="hljs-string">"z"</span> -&gt; <span class="hljs-number">3</span>)
+</code></pre><p>Die Komplexität ist nun (unter der Annahme, dass die Map-Operationen in konstanter Zeit geschehen) linear zur Länge des Ausdrucks.</p><p>Das Scoping ist auch in dieser Implementation lexikalisch, da die Umgebung rekursiv weitergereicht wird und nicht global ist. Somit wird eine Bindung gilt eine Bindung nur in Unterausdrücken des bindenden Ausdruckes und nicht an anderen Stellen im Programm. Die <code>+</code>-Operation auf Maps fügt nicht nur Bindungen für neue Elemente ein, sondern ersetzt auch den Abbildungswert bei bereits enthaltenen Elementen:</p><pre><code class="scala hljs"><span class="hljs-keyword">var</span> m = <span class="hljs-type">Map</span>(<span class="hljs-string">"a"</span> -&gt; <span class="hljs-number">1</span>)
+m = m+(<span class="hljs-string">"b"</span> -&gt; <span class="hljs-number">2</span>)
+m = m+(<span class="hljs-string">"a"</span> -&gt; <span class="hljs-number">3</span>)
+m: <span class="hljs-type">Map</span>[<span class="hljs-type">String</span>,<span class="hljs-type">Int</span>] = <span class="hljs-type">Map</span>(<span class="hljs-string">"a"</span> -&gt; <span class="hljs-number">3</span>, <span class="hljs-string">"b"</span> -&gt; <span class="hljs-number">2</span>)
+</code></pre><p>Nun fehlt noch der <code>Call</code>-Fall. Hier bleiben die ersten drei Zeilen nahezu identisch, aber anstelle der aufwändigen Schleife zur Substitution im Rumpf erweitern wir einfach die <em>leere</em> Umgebung um die Parameternamen, gebunden an die ausgewerteten Argumente:</p><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">evalWithEnv</span></span>(funs: <span class="hljs-type">FunDef</span>, env: <span class="hljs-type">Env</span>, e: <span class="hljs-type">Exp</span>) : <span class="hljs-type">Int</span> = e <span class="hljs-keyword">match</span> {
+<span class="hljs-comment">// ...</span>
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Call</span>(f,args) =&gt;
+    <span class="hljs-keyword">val</span> fDef = funs(f)
+    <span class="hljs-keyword">val</span> vArgs = args.map(evalWithEnv(funs,env,_))
+    <span class="hljs-keyword">if</span> (fDef.args.size != vArgs.size)
+      sys.error(<span class="hljs-string">"Incorrect number of params in call to "</span> + f)
+    <span class="hljs-comment">// ++ operator adds all tuples in a list to a map</span>
+    evalWithEnv(funs, <span class="hljs-type">Map</span>()++fDef.args.zip(vArgs), fDef.body)
+}
+</code></pre><p>Wir erweitern die leere Umgebung <code>Map()</code> anstelle der bisherigen Umgebung <code>env</code>, da in unserer vorherigen Implementation auch nur für die Funktionsparameter im Funktionsrumpf substituiert wurde (und nicht für sonstige, aktuell geltende Bindungen). Die <code>subst</code>-Funktion verändert die Funktionsdefinitionen in keiner Weise und hat nicht einmal Zugriff auf diese.</p><div class="alert alert-info">
+<p><strong>Theorem</strong> (Äquivalenz substitutions- und umgebungsbasierter Interpretation):</p>
+<p>Für alle <code>funs: Funs, e: Exp</code> gilt: <code>evalWithSubst(funs,e) = evalWithEnv(funs,Map(),e)</code> (wobei <code>evalWithSubst</code> die <code>eval</code>-Funktion aus <a href="#First-Order-Funktionen">First-Order-Funktionen</a> bezeichnet).</p>
+</div><p>Nun gäbe es aber auch die Möglichkeit, die bisherige Umgebung <code>env</code> zu erweitern und damit den Funktionsrumpf auszuwerten. In diesem Fall würden wir lokale Bindungen, die an der Stelle des <code>Call</code>-Ausdrucks gelten, in den Funktionsrumpf weitergeben.</p><p>Die Variante mit einer neuen, leeren Umgebung wird <em>lexikalisches Scoping</em> genannt, die Variante bei der <code>env</code> erweitert wird heißt <em>dynamisches Scoping</em>.</p><h2 id="Lexikalisches-und-dynamisches-Scoping"><a class="anchor hidden-xs" href="#Lexikalisches-und-dynamisches-Scoping" title="Lexikalisches-und-dynamisches-Scoping"><i class="fa fa-link"></i></a>Lexikalisches und dynamisches Scoping</h2><div class="alert alert-info">
+<p><strong>Lexikalisches Scoping</strong> bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des Syntaxbaums bestimmt wird.</p>
+<p><strong>Dynamisches Scoping</strong> bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das zuletzt ausgewertete bindende Vorkommen bestimmt wird.</p>
+<p>Bei lexikalischem Scoping ist also der Ort für die Bedeutung entscheidend, bei dynamischem Scoping der Programmzustand.</p>
+</div><p>Das folgende Beispiel verursacht bei lexikalischem Scoping einen Fehler, liefert aber bei dynamischem Scoping das Ergebnis <code>3</code>:</p><pre><code class="scala hljs"><span class="hljs-keyword">val</span> exFunMap = <span class="hljs-type">Map</span>(<span class="hljs-string">"f"</span> -&gt; <span class="hljs-type">FunDef</span>(<span class="hljs-type">List</span>(<span class="hljs-string">"x"</span>), <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>,<span class="hljs-string">"y"</span>)))
+<span class="hljs-keyword">val</span> exExpr = <span class="hljs-type">With</span>(<span class="hljs-string">"y"</span>, <span class="hljs-number">1</span>, <span class="hljs-type">Call</span>(<span class="hljs-string">"f"</span>, <span class="hljs-type">List</span>(<span class="hljs-number">2</span>)))
+
+evalWithEnv(exFunMap, <span class="hljs-type">Map</span>(), exExpr)
+</code></pre><p>Der Identifier <code>y</code> wird an den Wert <code>1</code> gebunden, bevor die Funktion <code>f</code> aufgerufen wird, in deren Rumpf <code>y</code> auftritt. <code>y</code> hat an diesem <em>Ort</em> im Programm keine Bedeutung, es kann aber ein <em>Programmzustand</em> vorliegen, in dem eine Bindung für <code>y</code> existiert.</p><p>Bei lexikalischem Scoping müssen Werte immer “weitergereicht” werden, während bei dynamischen Scoping alle Bindungen bei einem Funktionsaufruf automatisch im Funktionsrumpf gelten. Das automatische “Weiterreichen” kann in manchen Fällen die explizite Übergabe ersparen, führt aber in den meisten Fällen eher zu unerwarteten und unerwünschten Nebenwirkungen.</p><p>Ein Beispiel für eine Verwendung von dynamischen Scoping wäre <em>Exception Handling</em> in Java. Wird in einem <em>try-catch</em>-Block eine Funktion <code>f</code> aufgerufen, die eine bestimmte Exception wirft, so wird beim Werfen dieser Exception über eine Art von dynamischem Scoping ermittelt, welcher ExceptionHandler zuständig ist (in dem die Ausführungshistorie durchsucht wird).</p><div class="alert alert-success">
+<ul>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled="disabled"><label></label>VL 4 ab 54:40</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled="disabled"><label></label>Scala 2.13.1 auf Läppi installieren</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled="disabled"><label></label>Vorlesungen auf Läppi herunterladen</li>
+<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled="disabled"><label></label>ggf. Code-Ordner über GitHub syncen?</li>
+</ul>
 </div></div>
     <div class="ui-toc dropup unselectable hidden-print" style="display:none;">
         <div class="pull-right dropdown">
@@ -315,18 +438,19 @@ assert((eval(d) == <span class="hljs-number">2</span>))
             <ul id="ui-toc" class="ui-toc-dropdown dropdown-menu" aria-labelledby="tocLabel">
                 <div class="toc"><ul class="nav">
 <li class=""><a href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung Programmiersprachen">Zusammenfassung Programmiersprachen</a><ul class="nav">
-<li><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul class="nav">
+<li><a href="#Vorlesungsinhalte" title="Vorlesungsinhalte">Vorlesungsinhalte</a></li>
+<li class=""><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul class="nav">
 <li><a href="#Datentypen" title="Datentypen">Datentypen</a></li>
 <li><a href="#Objektorientierung" title="Objektorientierung">Objektorientierung</a></li>
 <li><a href="#Kontrollstrukturen" title="Kontrollstrukturen">Kontrollstrukturen</a></li>
-<li><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
-<li><a href="#REPL" title="REPL">REPL</a></li>
-<li><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
-<li><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
+<li class=""><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
+<li class=""><a href="#REPL" title="REPL">REPL</a></li>
+<li class=""><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
+<li class=""><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
 <li><a href="#Lambda-Ausdrücke-und-Currying" title="Lambda-Ausdrücke und Currying">Lambda-Ausdrücke und Currying</a></li>
 </ul>
 </li>
-<li><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul class="nav">
+<li class=""><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul class="nav">
 <li><a href="#Syntaktischer-Zucker-und-Desugaring" title="Syntaktischer Zucker und Desugaring">Syntaktischer Zucker und Desugaring</a></li>
 <li><a href="#Interpreter-mit-Desugaring" title="Interpreter mit Desugaring">Interpreter mit Desugaring</a></li>
 <li><a href="#Visitor-Implementation" title="Visitor-Implementation">Visitor-Implementation</a></li>
@@ -337,7 +461,9 @@ assert((eval(d) == <span class="hljs-number">2</span>))
 <li class=""><a href="#Mit-Bindings" title="Mit Bindings">Mit Bindings</a></li>
 </ul>
 </li>
-<li class=""><a href="#First-Order-Funktionen" title="First-Order Funktionen">First-Order Funktionen</a></li>
+<li class=""><a href="#First-Order-Funktionen" title="First-Order-Funktionen">First-Order-Funktionen</a></li>
+<li class=""><a href="#Effizientere-Bindings" title="Effizientere Bindings">Effizientere Bindings</a></li>
+<li class=""><a href="#Lexikalisches-und-dynamisches-Scoping" title="Lexikalisches und dynamisches Scoping">Lexikalisches und dynamisches Scoping</a></li>
 </ul>
 </li>
 </ul>
@@ -348,18 +474,19 @@ assert((eval(d) == <span class="hljs-number">2</span>))
     <div id="ui-toc-affix" class="ui-affix-toc ui-toc-dropdown unselectable hidden-print" data-spy="affix" style="top:17px;display:none;"  >
         <div class="toc"><ul class="nav">
 <li class=""><a href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung Programmiersprachen">Zusammenfassung Programmiersprachen</a><ul class="nav">
-<li><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul class="nav">
+<li><a href="#Vorlesungsinhalte" title="Vorlesungsinhalte">Vorlesungsinhalte</a></li>
+<li class=""><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul class="nav">
 <li><a href="#Datentypen" title="Datentypen">Datentypen</a></li>
 <li><a href="#Objektorientierung" title="Objektorientierung">Objektorientierung</a></li>
 <li><a href="#Kontrollstrukturen" title="Kontrollstrukturen">Kontrollstrukturen</a></li>
-<li><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
-<li><a href="#REPL" title="REPL">REPL</a></li>
-<li><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
-<li><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
+<li class=""><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
+<li class=""><a href="#REPL" title="REPL">REPL</a></li>
+<li class=""><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
+<li class=""><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
 <li><a href="#Lambda-Ausdrücke-und-Currying" title="Lambda-Ausdrücke und Currying">Lambda-Ausdrücke und Currying</a></li>
 </ul>
 </li>
-<li><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul class="nav">
+<li class=""><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul class="nav">
 <li><a href="#Syntaktischer-Zucker-und-Desugaring" title="Syntaktischer Zucker und Desugaring">Syntaktischer Zucker und Desugaring</a></li>
 <li><a href="#Interpreter-mit-Desugaring" title="Interpreter mit Desugaring">Interpreter mit Desugaring</a></li>
 <li><a href="#Visitor-Implementation" title="Visitor-Implementation">Visitor-Implementation</a></li>
@@ -370,7 +497,9 @@ assert((eval(d) == <span class="hljs-number">2</span>))
 <li class=""><a href="#Mit-Bindings" title="Mit Bindings">Mit Bindings</a></li>
 </ul>
 </li>
-<li class=""><a href="#First-Order-Funktionen" title="First-Order Funktionen">First-Order Funktionen</a></li>
+<li class=""><a href="#First-Order-Funktionen" title="First-Order-Funktionen">First-Order-Funktionen</a></li>
+<li class=""><a href="#Effizientere-Bindings" title="Effizientere Bindings">Effizientere Bindings</a></li>
+<li class=""><a href="#Lexikalisches-und-dynamisches-Scoping" title="Lexikalisches und dynamisches Scoping">Lexikalisches und dynamisches Scoping</a></li>
 </ul>
 </li>
 </ul>
