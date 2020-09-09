@@ -1,0 +1,42 @@
+1. 
+Garbage collection was first invented to automize memory management in Lisp. Garbage collectors automatically remove 
+pointers to unused data objects. In languages like C or C++ the programmer has to manually deallocate objects to free 
+up memory. This can have performance benefits, but is tedious. Garbage collectors can automatically determine if an 
+object is no longer referenced and free up the memory it is using. Garbage collection allows simpler programming 
+without manual memory management at the cost of lower efficiency (compared to manual management) due to clock cycles 
+being used for running the GC.
+
+2.
+A garbage collector is considered safe if the garbage collector will never delete objects that are still required for 
+a program to run successfully. Unsafe deletion would lead to crashes and errors, as the data object referenced would 
+no longer exist. The safety of a garbage collector can be proven.
+
+3.
+Generational garbage collection is a subtype of tracing garbage collection, the most widespread form of garbage 
+collection. In tracing GC, tracing of references from root objects is used to determine "reachability" of data 
+objects. Objects that are no longer reachable are considered to be safe for deletion and are collected. The root 
+objects include all objects referenced in the call stack and all global variables. An object referenced from a 
+reachable object is itself reachable, thus the reference paths need to be "traced" to find all reachable objects. It 
+may take some time before an object that is no longer used (semantic garbage) is no longer reachable (syntactic 
+garbage). 
+
+Generational garbage collection is based on the hypothesis of "infant mortality", stating that the objects created 
+most recently are most likely to become semantic garbage quickly while objects that were created longer ago are more 
+likely to still be referenced. The GC divides objects into "generations" and will usually not collect in all 
+generations simultaneously. Usually different memory regions are used for the different generations. When a memory 
+region is full, the GC runs on the generation using the older objects as root objects. According to the generational 
+hypothesis, most objects in the youngest generation should be cleared quickly. The collector can be run on the 
+younger generations more frequently, making the GC more efficient by focusing on "garbage hotspots". It may still be 
+necessary to run full sweeps from time to time to clear certain objects. Storing of referencing between the 
+generations can also allow for higher efficiency, as this can (for example) allow the deletion of a whole generation 
+if there are references from the root objects to the generation anymore (without requiring full tracing of the 
+objects).
+
+4.
+In reference counting garbage collection, each object has an integer assigned to that counts the number of references 
+to said object. If this value is 0, the object is considered garbage and gets collected. The reference count must be 
+updated each time a reference is created or destroyed. Unlike in generational GC, reference counting frees up memory 
+immediately when an object is no longer referenced. Reference counting has so disadvantages that require more 
+advanced algorithms to combat. Objects that refer to each other cyclically require special cycle detection to be 
+deleted and storing the reference for each object requires additional memory.
+

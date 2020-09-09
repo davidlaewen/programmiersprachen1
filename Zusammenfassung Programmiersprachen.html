@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>
+        Zusammenfassung Programmiersprachen - CodiMD
+    </title>
+    <link rel="icon" type="image/png" href="https://pad.its-amazing.de/favicon.png">
+    <link rel="apple-touch-icon" href="https://pad.its-amazing.de/apple-touch-icon.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.0/css/bootstrap.min.css" integrity="sha256-H0KfTigpUV+0/5tn2HXC0CPwhhDhWgSawJdnFd0CGCo=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fork-awesome/1.1.3/css/fork-awesome.min.css" integrity="sha256-ZhApazu+kejqTYhMF+1DzNKjIzP7KXu6AzyXcC1gMus=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ionicons/2.0.1/css/ionicons.min.css" integrity="sha256-3iu9jgsy9TpTwXKb7bNQzqWekRX7pPK+2OLj3R922fo=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.1/themes/prism.min.css" integrity="sha256-vtR0hSWRc3Tb26iuN2oZHt3KRUomwTufNIf5/4oeCyg=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github-gist.min.css" integrity="sha256-tAflq+ymku3Khs+I/WcAneIlafYgDiOQ9stIHH985Wo=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/emojify.js/1.1.0/css/basic/emojify.min.css" integrity="sha256-UOrvMOsSDSrW6szVLe8ZDZezBxh5IoIfgTwdNDgTjiU=" crossorigin="anonymous" />
+    <style>
+        @import url(https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400italic,600,600italic,300italic,300|Source+Serif+Pro|Source+Code+Pro:400,300,500&subset=latin,latin-ext);.markdown-body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol;font-size:16px;line-height:1.5;word-wrap:break-word}.markdown-body:after,.markdown-body:before{display:table;content:""}.markdown-body:after{clear:both}.markdown-body>:first-child{margin-top:0!important}.markdown-body>:last-child{margin-bottom:0!important}.markdown-body a:not([href]){color:inherit;text-decoration:none}.markdown-body .absent{color:#c00}.markdown-body .anchor{float:left;padding-right:4px;margin-left:-20px;line-height:1}.markdown-body .anchor:focus{outline:none}.markdown-body blockquote,.markdown-body dl,.markdown-body ol,.markdown-body p,.markdown-body pre,.markdown-body table,.markdown-body ul{margin-top:0;margin-bottom:16px}.markdown-body hr{height:.25em;padding:0;margin:24px 0;background-color:#e7e7e7;border:0}.markdown-body blockquote{padding:0 1em;color:#777;border-left:.25em solid #ddd}.night .markdown-body blockquote{color:#bcbcbc}.markdown-body blockquote>:first-child{margin-top:0}.markdown-body blockquote>:last-child{margin-bottom:0}.markdown-body .loweralpha{list-style-type:lower-alpha}.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6{margin-top:24px;margin-bottom:16px;font-weight:600;line-height:1.25}.night .markdown-body h1,.night .markdown-body h2,.night .markdown-body h3,.night .markdown-body h4,.night .markdown-body h5,.night .markdown-body h6{color:#ddd}.markdown-body h1 .fa-link,.markdown-body h2 .fa-link,.markdown-body h3 .fa-link,.markdown-body h4 .fa-link,.markdown-body h5 .fa-link,.markdown-body h6 .fa-link{color:#000;vertical-align:middle;visibility:hidden;font-size:16px}.night .markdown-body h1 .fa-link,.night .markdown-body h2 .fa-link,.night .markdown-body h3 .fa-link,.night .markdown-body h4 .fa-link,.night .markdown-body h5 .fa-link,.night .markdown-body h6 .fa-link{color:#fff}.markdown-body h1:hover .anchor,.markdown-body h2:hover .anchor,.markdown-body h3:hover .anchor,.markdown-body h4:hover .anchor,.markdown-body h5:hover .anchor,.markdown-body h6:hover .anchor{text-decoration:none}.markdown-body h1:hover .anchor .fa-link,.markdown-body h2:hover .anchor .fa-link,.markdown-body h3:hover .anchor .fa-link,.markdown-body h4:hover .anchor .fa-link,.markdown-body h5:hover .anchor .fa-link,.markdown-body h6:hover .anchor .fa-link{visibility:visible}.markdown-body h1 code,.markdown-body h1 tt,.markdown-body h2 code,.markdown-body h2 tt,.markdown-body h3 code,.markdown-body h3 tt,.markdown-body h4 code,.markdown-body h4 tt,.markdown-body h5 code,.markdown-body h5 tt,.markdown-body h6 code,.markdown-body h6 tt{font-size:inherit}.markdown-body h1{font-size:2em}.markdown-body h1,.markdown-body h2{padding-bottom:.3em;border-bottom:1px solid #eee}.markdown-body h2{font-size:1.5em}.markdown-body h3{font-size:1.25em}.markdown-body h4{font-size:1em}.markdown-body h5{font-size:.875em}.markdown-body h6{font-size:.85em;color:#777}.markdown-body ol,.markdown-body ul{padding-left:2em}.markdown-body ol.no-list,.markdown-body ul.no-list{padding:0;list-style-type:none}.markdown-body ol ol,.markdown-body ol ul,.markdown-body ul ol,.markdown-body ul ul{margin-top:0;margin-bottom:0}.markdown-body li>p{margin-top:16px}.markdown-body li+li{margin-top:.25em}.markdown-body dl{padding:0}.markdown-body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}.markdown-body dl dd{padding:0 16px;margin-bottom:16px}.markdown-body table{display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}.markdown-body table th{font-weight:700}.markdown-body table td,.markdown-body table th{padding:6px 13px;border:1px solid #ddd}.markdown-body table tr{background-color:#fff;border-top:1px solid #ccc}.night .markdown-body table tr{background-color:#5f5f5f}.markdown-body table tr:nth-child(2n){background-color:#f8f8f8}.night .markdown-body table tr:nth-child(2n){background-color:#4f4f4f}.markdown-body img{max-width:100%;box-sizing:content-box;background-color:#fff}.markdown-body img[align=right]{padding-left:20px}.markdown-body img[align=left]{padding-right:20px}.markdown-body .emoji{max-width:none;vertical-align:text-top;background-color:transparent}.markdown-body span.frame{display:block;overflow:hidden}.markdown-body span.frame>span{display:block;float:left;width:auto;padding:7px;margin:13px 0 0;overflow:hidden;border:1px solid #ddd}.markdown-body span.frame span img{display:block;float:left}.markdown-body span.frame span span{display:block;padding:5px 0 0;clear:both;color:#333}.markdown-body span.align-center{display:block;overflow:hidden;clear:both}.markdown-body span.align-center>span{display:block;margin:13px auto 0;overflow:hidden;text-align:center}.markdown-body span.align-center span img{margin:0 auto;text-align:center}.markdown-body span.align-right{display:block;overflow:hidden;clear:both}.markdown-body span.align-right>span{display:block;margin:13px 0 0;overflow:hidden;text-align:right}.markdown-body span.align-right span img{margin:0;text-align:right}.markdown-body span.float-left{display:block;float:left;margin-right:13px;overflow:hidden}.markdown-body span.float-left span{margin:13px 0 0}.markdown-body span.float-right{display:block;float:right;margin-left:13px;overflow:hidden}.markdown-body span.float-right>span{display:block;margin:13px auto 0;overflow:hidden;text-align:right}.markdown-body code,.markdown-body tt{padding:.2em 0;margin:0;font-size:85%;background-color:rgba(0,0,0,.04);border-radius:3px}.night .markdown-body code,.night .markdown-body tt{color:#eee;background-color:hsla(0,0%,90.2%,.36)}.markdown-body code:after,.markdown-body code:before,.markdown-body tt:after,.markdown-body tt:before{letter-spacing:-.2em;content:"\00a0"}.markdown-body code br,.markdown-body tt br{display:none}.markdown-body del code{text-decoration:inherit}.markdown-body pre{word-wrap:normal}.markdown-body pre>code{padding:0;margin:0;font-size:100%;word-break:normal;white-space:pre;background:transparent;border:0}.markdown-body .highlight{margin-bottom:16px}.markdown-body .highlight pre{margin-bottom:0;word-break:normal}.markdown-body .highlight pre,.markdown-body pre{padding:16px;overflow:auto;font-size:85%;line-height:1.45;background-color:#f7f7f7;border-radius:3px}.markdown-body pre code,.markdown-body pre tt{display:inline;max-width:auto;padding:0;margin:0;overflow:visible;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}.markdown-body pre code:after,.markdown-body pre code:before,.markdown-body pre tt:after,.markdown-body pre tt:before{content:normal}.markdown-body .csv-data td,.markdown-body .csv-data th{padding:5px;overflow:hidden;font-size:12px;line-height:1;text-align:left;white-space:nowrap}.markdown-body .csv-data .blob-line-num{padding:10px 8px 9px;text-align:right;background:#fff;border:0}.markdown-body .csv-data tr{border-top:0}.markdown-body .csv-data th{font-weight:700;background:#f8f8f8;border-top:0}.markdown-body kbd{display:inline-block;padding:3px 5px;font-size:11px;line-height:10px;color:#555;vertical-align:middle;background-color:#fcfcfc;border:1px solid;border-color:#ccc #ccc #bbb;border-radius:3px;box-shadow:inset 0 -1px 0 #bbb}.news .alert .markdown-body blockquote{padding:0 0 0 40px;border:0}.activity-tab .news .alert .commits,.activity-tab .news .markdown-body blockquote{padding-left:0}.task-list-item{list-style-type:none}.task-list-item label{font-weight:400}.task-list-item.enabled label{cursor:pointer}.task-list-item+.task-list-item{margin-top:3px}.task-list-item-checkbox{float:left;margin:.31em 0 .2em -1.3em!important;vertical-align:middle;cursor:default!important}.markdown-body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Helvetica,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol;padding-top:40px;padding-bottom:40px;max-width:758px;overflow:visible!important}.markdown-body pre{border:inherit!important}.night .markdown-body pre{filter:invert(100%)}.markdown-body code{color:inherit!important}.markdown-body pre code .wrapper{display:-webkit-inline-flex;display:-moz-inline-flex;display:-ms-inline-flex;display:-o-inline-flex;display:inline-flex}.markdown-body pre code .gutter{float:left;overflow:hidden;-webkit-user-select:none;user-select:none}.markdown-body pre code .gutter.linenumber{text-align:right;position:relative;display:inline-block;cursor:default;z-index:4;padding:0 8px 0 0;min-width:20px;box-sizing:content-box;color:#afafaf!important;border-right:3px solid #6ce26c!important}.markdown-body pre code .gutter.linenumber>span:before{content:attr(data-linenumber)}.markdown-body pre code .code{float:left;margin:0 0 0 16px}.markdown-body .gist .line-numbers{border-left:none;border-top:none;border-bottom:none}.markdown-body .gist .line-data{border:none}.markdown-body .gist table{border-spacing:0;border-collapse:inherit!important}.night .markdown-body .gist table tr:nth-child(2n){background-color:#ddd}.markdown-body code[data-gist-id]{background:none;padding:0;filter:invert(100%)}.markdown-body code[data-gist-id]:after,.markdown-body code[data-gist-id]:before{content:""}.markdown-body code[data-gist-id] .blob-num{border:unset}.markdown-body code[data-gist-id] table{overflow:unset;margin-bottom:unset}.markdown-body code[data-gist-id] table tr{background:unset}.markdown-body[dir=rtl] pre{direction:ltr}.markdown-body[dir=rtl] code{direction:ltr;unicode-bidi:embed}.markdown-body .alert>p{margin-bottom:0}.markdown-body pre.abc,.markdown-body pre.flow-chart,.markdown-body pre.graphviz,.markdown-body pre.mermaid,.markdown-body pre.sequence-diagram{text-align:center;background-color:inherit;border-radius:0;white-space:inherit}.night .markdown-body pre.graphviz .graph>polygon{fill:#333}.night .markdown-body pre.mermaid .sectionTitle,.night .markdown-body pre.mermaid .titleText,.night .markdown-body pre.mermaid text{fill:#fff}.markdown-body pre.abc>code,.markdown-body pre.flow-chart>code,.markdown-body pre.graphviz>code,.markdown-body pre.mermaid>code,.markdown-body pre.sequence-diagram>code{text-align:left}.markdown-body pre.abc>svg,.markdown-body pre.flow-chart>svg,.markdown-body pre.graphviz>svg,.markdown-body pre.mermaid>svg,.markdown-body pre.sequence-diagram>svg{max-width:100%;height:100%}.night .markdown-body .abc path{fill:#eee}.night .markdown-body .abc path.note_selected{fill:##4DD0E1}.night tspan{fill:#fefefe}.night pre rect{fill:transparent}.night pre.flow-chart path,.night pre.flow-chart rect{stroke:#fff}.markdown-body pre>code.wrap{white-space:pre-wrap;white-space:-moz-pre-wrap;white-space:-pre-wrap;white-space:-o-pre-wrap;word-wrap:break-word}.markdown-body .alert>p,.markdown-body .alert>ul{margin-bottom:0}.markdown-body summary{display:list-item}.markdown-body summary:focus{outline:none}.markdown-body details summary{cursor:pointer}.markdown-body details:not([open])>:not(summary){display:none}.markdown-body figure{margin:1em 40px}.markdown-body img{background-color:transparent}.vimeo,.youtube{cursor:pointer;display:table;text-align:center;background-position:50%;background-repeat:no-repeat;background-size:contain;background-color:#000;overflow:hidden}.vimeo,.youtube{position:relative;width:100%}.youtube{padding-bottom:56.25%}.vimeo img{width:100%;object-fit:contain;z-index:0}.youtube img{object-fit:cover;z-index:0}.vimeo iframe,.youtube iframe,.youtube img{width:100%;height:100%;position:absolute;top:0;left:0}.vimeo iframe,.youtube iframe{vertical-align:middle;z-index:1}.vimeo .icon,.youtube .icon{position:absolute;height:auto;width:auto;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;opacity:.3;-webkit-transition:opacity .2s;transition:opacity .2s;z-index:0}.vimeo:hover .icon,.youtube:hover .icon{opacity:.6;-webkit-transition:opacity .2s;transition:opacity .2s}.slideshare .inner,.speakerdeck .inner{position:relative;width:100%}.slideshare .inner iframe,.speakerdeck .inner iframe{position:absolute;top:0;bottom:0;left:0;right:0;width:100%;height:100%}.MJX_Assistive_MathML{display:none}.ui-infobar{position:relative;z-index:2;max-width:758px;margin-top:25px;margin-bottom:-25px;color:#777}.toc .invisable-node{list-style-type:none}.ui-toc{position:fixed;bottom:20px;z-index:10000}.ui-toc-label{opacity:.3;background-color:#ccc;border:none}.ui-toc-label,.ui-toc .open .ui-toc-label{-webkit-transition:opacity .2s;transition:opacity .2s}.ui-toc .open .ui-toc-label{opacity:1;color:#fff}.ui-toc-label:focus{opacity:.3;background-color:#ccc;color:#000}.ui-toc-label:hover{opacity:1;background-color:#ccc;-webkit-transition:opacity .2s;transition:opacity .2s}.ui-toc-dropdown{margin-top:23px;margin-bottom:20px;padding-left:10px;padding-right:10px;max-width:45vw;width:25vw;max-height:70vh;overflow:auto;text-align:inherit}.ui-toc-dropdown>.toc{max-height:calc(70vh - 100px);overflow:auto}.ui-toc-dropdown[dir=rtl] .nav{padding-right:0;letter-spacing:.0029em}.ui-toc-dropdown a{overflow:hidden;text-overflow:ellipsis;white-space:pre}.ui-toc-dropdown .nav>li>a{display:block;padding:4px 20px;font-size:13px;font-weight:500;color:#767676}.ui-toc-dropdown .nav>li:first-child:last-child>ul,.ui-toc-dropdown .toc.expand ul{display:block}.ui-toc-dropdown .nav>li>a:focus,.ui-toc-dropdown .nav>li>a:hover{padding-left:19px;color:#000;text-decoration:none;background-color:transparent;border-left:1px solid #000}.night .ui-toc-dropdown .nav>li>a:focus,.night .ui-toc-dropdown .nav>li>a:hover{color:#fff;border-left-color:#fff}.ui-toc-dropdown[dir=rtl] .nav>li>a:focus,.ui-toc-dropdown[dir=rtl] .nav>li>a:hover{padding-right:19px;border-left:none;border-right:1px solid #000}.ui-toc-dropdown .nav>.active:focus>a,.ui-toc-dropdown .nav>.active:hover>a,.ui-toc-dropdown .nav>.active>a{padding-left:18px;font-weight:700;color:#000;background-color:transparent;border-left:2px solid #000}.night .ui-toc-dropdown .nav>.active:focus>a,.night .ui-toc-dropdown .nav>.active:hover>a,.night .ui-toc-dropdown .nav>.active>a{color:#fff;border-left:2px solid #fff}.ui-toc-dropdown[dir=rtl] .nav>.active:focus>a,.ui-toc-dropdown[dir=rtl] .nav>.active:hover>a,.ui-toc-dropdown[dir=rtl] .nav>.active>a{padding-right:18px;border-left:none;border-right:2px solid #000}.ui-toc-dropdown .nav .nav{display:none;padding-bottom:10px}.ui-toc-dropdown .nav>.active>ul{display:block}.ui-toc-dropdown .nav .nav>li>a{padding-top:1px;padding-bottom:1px;padding-left:30px;font-size:12px;font-weight:400}.night .ui-toc-dropdown .nav>li>a{color:#aaa}.ui-toc-dropdown[dir=rtl] .nav .nav>li>a{padding-right:30px}.ui-toc-dropdown .nav .nav>li>ul>li>a{padding-top:1px;padding-bottom:1px;padding-left:40px;font-size:12px;font-weight:400}.ui-toc-dropdown[dir=rtl] .nav .nav>li>ul>li>a{padding-right:40px}.ui-toc-dropdown .nav .nav>li>a:focus,.ui-toc-dropdown .nav .nav>li>a:hover{padding-left:29px}.ui-toc-dropdown[dir=rtl] .nav .nav>li>a:focus,.ui-toc-dropdown[dir=rtl] .nav .nav>li>a:hover{padding-right:29px}.ui-toc-dropdown .nav .nav>li>ul>li>a:focus,.ui-toc-dropdown .nav .nav>li>ul>li>a:hover{padding-left:39px}.ui-toc-dropdown[dir=rtl] .nav .nav>li>ul>li>a:focus,.ui-toc-dropdown[dir=rtl] .nav .nav>li>ul>li>a:hover{padding-right:39px}.ui-toc-dropdown .nav .nav>.active:focus>a,.ui-toc-dropdown .nav .nav>.active:hover>a,.ui-toc-dropdown .nav .nav>.active>a{padding-left:28px;font-weight:500}.ui-toc-dropdown[dir=rtl] .nav .nav>.active:focus>a,.ui-toc-dropdown[dir=rtl] .nav .nav>.active:hover>a,.ui-toc-dropdown[dir=rtl] .nav .nav>.active>a{padding-right:28px}.ui-toc-dropdown .nav .nav>.active>.nav>.active:focus>a,.ui-toc-dropdown .nav .nav>.active>.nav>.active:hover>a,.ui-toc-dropdown .nav .nav>.active>.nav>.active>a{padding-left:38px;font-weight:500}.ui-toc-dropdown[dir=rtl] .nav .nav>.active>.nav>.active:focus>a,.ui-toc-dropdown[dir=rtl] .nav .nav>.active>.nav>.active:hover>a,.ui-toc-dropdown[dir=rtl] .nav .nav>.active>.nav>.active>a{padding-right:38px}.markdown-body[lang^=ja]{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Helvetica,Arial,Hiragino Kaku Gothic Pro,ヒラギノ角ゴ Pro W3,Osaka,Meiryo,メイリオ,MS Gothic,ＭＳ ゴシック,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol}.ui-toc-dropdown[lang^=ja]{font-family:Source Sans Pro,Helvetica,Arial,Meiryo UI,MS PGothic,ＭＳ Ｐゴシック,sans-serif}.markdown-body[lang=zh-tw]{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Helvetica,Arial,PingFang TC,Microsoft JhengHei,微軟正黑,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol}.ui-toc-dropdown[lang=zh-tw]{font-family:Source Sans Pro,Helvetica,Arial,Microsoft JhengHei UI,微軟正黑UI,sans-serif}.markdown-body[lang=zh-cn]{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Helvetica,Arial,PingFang SC,Microsoft YaHei,微软雅黑,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol}.ui-toc-dropdown[lang=zh-cn]{font-family:Source Sans Pro,Helvetica,Arial,Microsoft YaHei UI,微软雅黑UI,sans-serif}.ui-affix-toc{position:fixed;top:0;max-width:15vw;max-height:70vh;overflow:auto}.back-to-top,.expand-toggle,.go-to-bottom{display:block;padding:4px 10px;margin-top:10px;margin-left:10px;font-size:12px;font-weight:500;color:#999}.back-to-top:focus,.back-to-top:hover,.expand-toggle:focus,.expand-toggle:hover,.go-to-bottom:focus,.go-to-bottom:hover{color:#563d7c;text-decoration:none}.back-to-top,.go-to-bottom{margin-top:0}.ui-user-icon{width:20px;height:20px;display:block;border-radius:3px;margin-top:2px;margin-bottom:2px;margin-right:5px;background-position:50%;background-repeat:no-repeat;background-size:contain}.ui-user-icon.small{width:18px;height:18px;display:inline-block;vertical-align:middle;margin:0 0 .2em}small span{line-height:22px}small .dropdown{display:inline-block}small .dropdown a:focus,small .dropdown a:hover{text-decoration:none}.unselectable{-moz-user-select:none;-khtml-user-select:none;-webkit-user-select:none;-o-user-select:none;user-select:none}.night .navbar{background:#333;border-bottom-color:#333;color:#eee}.night .navbar a{color:#eee}.markdown-body h1[id]:before,.markdown-body h2[id]:before,.markdown-body h3[id]:before,.markdown-body h4[id]:before,.markdown-body h5[id]:before,.markdown-body h6[id]:before{display:block;content:" ";margin-top:-55px;height:55px;visibility:hidden}@media print{blockquote,div,img,pre,table{page-break-inside:avoid!important}a[href]:after{font-size:12px!important}}.markdown-body.slides{position:relative;z-index:1;color:#222}.markdown-body.slides:before{content:"";display:block;position:absolute;top:0;left:0;right:0;bottom:0;z-index:-1;background-color:currentColor;box-shadow:0 0 0 50vw}.markdown-body.slides section[data-markdown]{position:relative;margin-bottom:1.5em;background-color:#fff;text-align:center}.markdown-body.slides section[data-markdown] code{text-align:left}.markdown-body.slides section[data-markdown]:before{content:"";display:block;padding-bottom:56.23%}.markdown-body.slides section[data-markdown]>div:first-child{position:absolute;top:50%;left:1em;right:1em;transform:translateY(-50%);max-height:100%;overflow:hidden}.markdown-body.slides section[data-markdown]>ul{display:inline-block}.markdown-body.slides>section>section+section:after{content:"";position:absolute;top:-1.5em;right:1em;height:1.5em;border:3px solid #777}.markdown-body.slides aside.notes{display:none}.markdown-body.slides ol,.markdown-body.slides ul{display:inline-block;text-align:left;margin:0 0 0 1em;padding:0}.markdown-body.slides table{width:50%;margin:0 auto;border-collapse:collapse;border-spacing:0;display:table}.markdown-body.slides table td,.markdown-body.slides table th{text-align:left;padding:.2em .5em;border:none;border-bottom:1px solid}.markdown-body.slides table tr{border-top:0;background-color:#fff}.markdown-body.slides table tr:nth-child(2n){background-color:inherit}.markdown-body.slides table tbody tr:last-child td,.markdown-body.slides table tbody tr:last-child th{border-bottom:none}.markdown-body.slides h1,.markdown-body.slides h2{border-bottom:0}.night .markdown-body.slides h1,.night .markdown-body.slides h2,.night .markdown-body.slides h3,.night .markdown-body.slides h4,.night .markdown-body.slides h5,.night .markdown-body.slides h6{color:#000}.markdown-body section>section:last-child{margin-bottom:1.5em!important}.ui-view-area.black{background-color:#000!important}body{font-smoothing:subpixel-antialiased!important;-webkit-font-smoothing:subpixel-antialiased!important;-moz-osx-font-smoothing:auto!important;text-shadow:0 0 1em transparent,1px 1px 1.2px rgba(0,0,0,.004);-webkit-overflow-scrolling:touch;font-family:Source Sans Pro,Helvetica,Arial,sans-serif;letter-spacing:.025em}.focus,:focus{outline:none!important}::-moz-focus-inner{border:0!important}body.modal-open{overflow-y:auto;padding-right:0!important}
+    </style>
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    	<script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js" integrity="sha256-3Jy/GbSLrg0o9y5Z5n1uw0qxZECH7C6OQpVBgNFYa0g=" crossorigin="anonymous"></script>
+    	<script src="https://cdnjs.cloudflare.com/ajax/libs/respond.js/1.4.2/respond.min.js" integrity="sha256-g6iAfvZp+nDQ2TdTR/VVKJf3bGro4ub5fvWSWVRi2NE=" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/es5-shim/4.5.9/es5-shim.min.js" integrity="sha256-8E4Is26QH0bD52WoQpcB+R/tcWQtpzlCojrybUd7Mxo=" crossorigin="anonymous"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <div id="doc" class="markdown-body container-fluid"><h1 id="Zusammenfassung-Programmiersprachen"><a class="anchor hidden-xs" href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung-Programmiersprachen"><i class="fa fa-link"></i></a>Zusammenfassung Programmiersprachen</h1><p>Vorlesungsinhalte:</p><ul>
+<li>gutes Verständnis von Programmiersprachen (allgemein, über <em>Trends</em> hinweg) und deren Qualitäten, Vor- und Nachteile</li>
+<li>Fähigkeit, Programmiersprachen in Features zu zerlegen und diese einzeln zu verstehen und zu analysieren</li>
+<li>Implementieren von Programmiersprachen(-features) durch Interpreter in Scala</li>
+<li>Auseinandersetzung mit wenigen Compiler-bezogenen Themen</li>
+<li>Sprachen und deren Features, Zweck/Nutzen dieser Features, mögliche Implementationen und Vorzüge/Probleme dieser</li>
+</ul><h2 id="Scala-Grundlagen"><a class="anchor hidden-xs" href="#Scala-Grundlagen" title="Scala-Grundlagen"><i class="fa fa-link"></i></a>Scala-Grundlagen</h2><p><a href="https://scala-lang.org/" target="_blank" rel="noopener">Scala</a> ist statisch getypt, funktional, sowie objekt-orientiert. Auswertung ist <em>eager</em> (<em>call by value</em>).</p><ul>
+<li><strong>Konstanten</strong> mit <code>val</code>, mutierbare <strong>Variablen</strong> mit <code>var</code>. Typ muss nicht deklariert werden, also bspw. <code>var n = 1</code> oder <code>var s = "abc"</code>. Typ kann aber auch explizit deklariert werden, also bspw. <code>var n: Int = 1</code> oder <code>var s: String = "abc"</code>.</li>
+<li><strong>Funktionen</strong> haben die Form <code>def f(&lt;arg1&gt;: &lt;Type1&gt;, ...) = &lt;body&gt;</code>, Aufruf bspw. durch <code>f(1)</code>. Rückgabetyp kann optional angegeben werden: <code>def f(&lt;arg1&gt;: &lt;Type1&gt;, ...): &lt;ReturnType&gt; = &lt;body&gt;</code></li>
+</ul><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sum</span></span>(a: <span class="hljs-type">Int</span>, b: <span class="hljs-type">Int</span>): <span class="hljs-type">Int</span> = a + b
+<span class="hljs-keyword">val</span> x = sum(<span class="hljs-number">5</span>, <span class="hljs-number">11</span>)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">concat</span></span>(a: <span class="hljs-type">String</span>, b: <span class="hljs-type">String</span>): <span class="hljs-type">String</span> = a + b
+<span class="hljs-keyword">val</span> y = concat(<span class="hljs-string">"Manfred"</span>, concat(<span class="hljs-string">" "</span>, <span class="hljs-string">"Opel"</span>))
+</code></pre><h3 id="Datentypen"><a class="anchor hidden-xs" href="#Datentypen" title="Datentypen"><i class="fa fa-link"></i></a>Datentypen</h3><ul>
+<li><code>Int</code>, <code>String</code>, <code>Boolean</code>, <code>Double</code>, etc.</li>
+<li><code>Unit</code> entspricht Rückgabetyp <code>void</code> in Java (kein Rückgabewert, sondern “Seiteneffekt”, bspw. <code>print</code>-Funktion)</li>
+<li><strong>Map:</strong> Abbildung einer Menge von Werten auf eine andere Menge von Werten.</li>
+</ul><pre><code class="scala hljs"><span class="hljs-keyword">var</span> map = <span class="hljs-type">Map</span>(<span class="hljs-number">1</span> -&gt; <span class="hljs-string">"a"</span>, <span class="hljs-number">2</span> -&gt; <span class="hljs-string">"b"</span>)
+assert(map(<span class="hljs-number">1</span>) == <span class="hljs-string">"a"</span>)
+</code></pre><ul>
+<li><strong>Tupel:</strong> <code>(&lt;first&gt;, &lt;second&gt;, ...)</code>, erlauben Gruppierung heterogener Daten. Können zwischen 2 und 22 Werte beliebigen Typs enthalten.</li>
+</ul><pre><code class="scala hljs"><span class="hljs-keyword">val</span> t = (<span class="hljs-number">1</span>, <span class="hljs-string">"abc"</span>, <span class="hljs-keyword">new</span> <span class="hljs-type">Person</span>(<span class="hljs-string">"Mani"</span>))
+<span class="hljs-keyword">val</span> firstEntry = t._1
+<span class="hljs-keyword">val</span> (num, string, person) = t
+assert(firstEntry == num)
+</code></pre><ul>
+<li><strong>Listen:</strong> <code>List(&lt;first&gt;, &lt;second&gt;, ...)</code>, Zugriff mit <code>&lt;list&gt;(&lt;index&gt;)</code>, nicht mutierbar</li>
+</ul><pre><code class="scala hljs"><span class="hljs-keyword">val</span> nums = <span class="hljs-type">List</span>.range(<span class="hljs-number">0</span>, <span class="hljs-number">10</span>)
+<span class="hljs-keyword">val</span> nums = (<span class="hljs-number">1</span> to <span class="hljs-number">10</span> by <span class="hljs-number">2</span>).toList
+<span class="hljs-keyword">val</span> letters = ('a' to 'f' by <span class="hljs-number">2</span>).toList
+
+letters.foreach(println)
+nums.filter(_ &gt; <span class="hljs-number">3</span>).foreach(println)
+<span class="hljs-keyword">val</span> doubleNums = nums.map(_ * <span class="hljs-number">2</span>) 
+<span class="hljs-keyword">val</span> bools = nums.map(_ &lt; <span class="hljs-number">5</span>) 
+<span class="hljs-keyword">val</span> sum = foldLeft(<span class="hljs-number">0</span>)(_ + _)
+<span class="hljs-keyword">val</span> prod = foldLeft(<span class="hljs-number">1</span>)(_ + _)
+</code></pre><ul>
+<li><strong>Arrays:</strong> <code>Array(&lt;first&gt;, &lt;second&gt;, ...)</code>, Zugriff auch mit <code>&lt;array&gt;(&lt;index&gt;)</code>, mutierbar mit <code>&lt;array&gt;(&lt;index&gt;) = &lt;new value&gt;</code></li>
+<li><strong>Vektoren</strong></li>
+</ul><h3 id="Objektorientierung"><a class="anchor hidden-xs" href="#Objektorientierung" title="Objektorientierung"><i class="fa fa-link"></i></a>Objektorientierung</h3><ul>
+<li><strong>Klassen:</strong></li>
+</ul><pre><code class="scala hljs"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Person</span>(<span class="hljs-params">var firstName: <span class="hljs-type">String</span>, var lastName: <span class="hljs-type">String</span></span>) </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayHello</span></span>() = {
+        print(<span class="hljs-string">s"Hello, <span class="hljs-subst">$firstName</span> <span class="hljs-subst">$lastName</span>"</span>)
+    }
+}
+
+<span class="hljs-keyword">val</span> mani = <span class="hljs-keyword">new</span> <span class="hljs-type">Person</span>(<span class="hljs-string">"Manfred"</span>, <span class="hljs-string">"Opel"</span>)
+
+mani.sayHello() <span class="hljs-comment">// prints "Hello, Manfred Opel"</span>
+println(mani.firstName) <span class="hljs-comment">// prints "Manfred"</span>
+mani.firstName = <span class="hljs-string">"Mampfred"</span> <span class="hljs-comment">// fields can be accessed without get and set methods</span>
+mani.lastName = <span class="hljs-string">"Mompel"</span>
+mani.sayHello() <span class="hljs-comment">// now prints "Hello, Mampfred Mompel"</span>
+</code></pre><ul>
+<li>Werden die Felder der Klasse mit <code>var</code> definiert, so sind sie mutierbar.</li>
+<li><strong>Abstrakte Klassen</strong> mit Keyword <code>abstract</code></li>
+<li><strong>Traits:</strong> Können nicht instanziiert werden, sondern sind Bausteine zur Konstruktion von Klassen. Lassen sich einer Klasse mit <code>with</code>/<code>extends</code> anfügen. Ist ein Trait <em>sealed</em> (<code>sealed trait ...</code>), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. In diesem Fall kann bei Pattern Matching erkannt werden, ob alle Fälle (d.h. Case Classes) abgedeckt sind.</li>
+</ul><pre><code class="scala hljs"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Speaker</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayCatchPhrase</span></span>(): <span class="hljs-type">Unit</span> <span class="hljs-comment">// no function body, abstract</span>
+}
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Sleeper</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sleep</span></span>(): <span class="hljs-type">Unit</span> = println(<span class="hljs-string">"I'm sleeping"</span>)
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">wakeUp</span></span>(): <span class="hljs-type">Unit</span> = println(<span class="hljs-string">"I'm awake"</span>)
+}
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Person</span>(<span class="hljs-params">name: <span class="hljs-type">String</span>, catchPhrase: <span class="hljs-type">String</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Speaker</span> <span class="hljs-keyword">with</span> <span class="hljs-title">Sleeper</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sayCatchPhrase</span></span>(): <span class="hljs-type">Unit</span> = println(catchPhrase)
+}
+</code></pre><p>Überladen von Methoden in Klassen mit Keyword <code>override</code> möglich</p><ul>
+<li><strong>Objekte:</strong> Können mit Keyword <code>object</code> instanziiert werden.</li>
+<li>Erweiterung von Klassen/Traits oder Implementation abstrakter Klassen mit <code>extends</code></li>
+<li>Case Classes: Hilfreich bei der Verwendung von Klassen als Datencontainer. Erzeugung von Instanzen ist ohne <code>new</code> möglich, zudem gibt es eine Default-Implementation zum Vergleichen oder Hashen von Instanzen der Klasse. Mit Case Classes ist Pattern Matching möglich:</li>
+</ul><pre><code class="scala hljs"><span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">UniPerson</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Student</span>(<span class="hljs-params">val id: <span class="hljs-type">Int</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">UniPerson</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Professor</span>(<span class="hljs-params">val subject: <span class="hljs-type">String</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">UniPerson</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">display</span></span>(p: <span class="hljs-type">UniPerson</span>) : <span class="hljs-type">String</span> =
+    p <span class="hljs-keyword">match</span> {
+        <span class="hljs-keyword">case</span> <span class="hljs-type">Student</span>(id) =&gt; <span class="hljs-string">s"Student number <span class="hljs-subst">$id</span>"</span>
+        <span class="hljs-keyword">case</span> <span class="hljs-type">Professor</span>(subject) =&gt; <span class="hljs-string">s"Professor of <span class="hljs-subst">$subject</span>"</span>
+    }
+</code></pre><p>Alternativ:</p><pre><code class="scala hljs"><span class="hljs-keyword">abstract</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">UniPerson</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">display</span> </span>: <span class="hljs-type">String</span>
+}
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Student</span>(<span class="hljs-params">val id: <span class="hljs-type">Int</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">UniPerson</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">display</span> </span>= <span class="hljs-string">s"Student number <span class="hljs-subst">$id</span>"</span>
+}
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Professor</span>(<span class="hljs-params">val subject: <span class="hljs-type">String</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">UniPerson</span> </span>{
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">display</span> </span>= <span class="hljs-string">s"Professor of <span class="hljs-subst">$subject</span>"</span>
+}
+</code></pre><p>Die erste Variante (Pattern-Match-Dekomposition) erlaubt das Hinzufügen weiterer Funktionen, die auf <em>Uni-Personen</em> operieren, ohne den bestehenden Code zu modifizieren.</p><p>Die zweite Variante (objektorientierte Dekomposition) erlaubt das Hinzufügen weiterer <em>Uni-Personen</em>, ohne dass der bestehende Code verändert werden muss.</p><p>Dieser Konflikt wird <em>Expression Problem</em> genannt.</p><h3 id="Kontrollstrukturen"><a class="anchor hidden-xs" href="#Kontrollstrukturen" title="Kontrollstrukturen"><i class="fa fa-link"></i></a>Kontrollstrukturen</h3><ul>
+<li><code>if</code>-<code>else</code>-Statements:</li>
+</ul><pre><code class="scala hljs"><span class="hljs-keyword">if</span> (&lt;check&gt;) &lt;statement&gt;
+
+<span class="hljs-keyword">if</span> (&lt;check1&gt;) {
+    &lt;statement1&gt;
+} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (&lt;check2&gt;) {
+    &lt;statement2&gt;
+} <span class="hljs-keyword">else</span> {
+    &lt;statement3&gt;
+}
+
+<span class="hljs-keyword">val</span> x = <span class="hljs-keyword">if</span> (<span class="hljs-number">1</span> == <span class="hljs-number">1</span>) <span class="hljs-string">"a"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"b"</span> <span class="hljs-comment">// can be used as ternary operator</span>
+</code></pre><ul>
+<li><code>for</code>-Schleifen:</li>
+</ul><pre><code class="scala hljs"><span class="hljs-keyword">for</span> (elem &lt;- list) println(elem)
+
+<span class="hljs-keyword">for</span> (i &lt;- <span class="hljs-number">0</span> to <span class="hljs-number">10</span> by <span class="hljs-number">2</span>) println(i)
+
+<span class="hljs-keyword">val</span> evenNums = <span class="hljs-keyword">for</span> {
+  i &lt;- <span class="hljs-number">0</span> to <span class="hljs-number">10</span>
+  <span class="hljs-keyword">if</span> i % <span class="hljs-number">2</span> == <span class="hljs-number">0</span>
+} <span class="hljs-keyword">yield</span> i
+<span class="hljs-comment">// evenNums: Vector(0,2,4,6,8,10)</span>
+</code></pre><h3 id="Pattern-Matching"><a class="anchor hidden-xs" href="#Pattern-Matching" title="Pattern-Matching"><i class="fa fa-link"></i></a>Pattern Matching</h3><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">pm</span></span>(x: <span class="hljs-type">Any</span>) = x <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-number">1</span> =&gt; <span class="hljs-string">"x is 1"</span>
+  <span class="hljs-keyword">case</span> <span class="hljs-literal">true</span> =&gt; <span class="hljs-string">"x is true"</span>
+  <span class="hljs-keyword">case</span> s: <span class="hljs-type">String</span> =&gt; <span class="hljs-string">s"x is string <span class="hljs-subst">$s</span>"</span>
+  <span class="hljs-keyword">case</span> (a,b,c) =&gt; <span class="hljs-string">s"x is tuple of <span class="hljs-subst">$a</span>, <span class="hljs-subst">$b</span> and <span class="hljs-subst">$c</span>"</span>
+  <span class="hljs-keyword">case</span> _ =&gt; <span class="hljs-string">"x is something else"</span>
+}
+</code></pre><h3 id="REPL"><a class="anchor hidden-xs" href="#REPL" title="REPL"><i class="fa fa-link"></i></a>REPL</h3><ul>
+<li>REPL starten mit Befehl <code>scala</code></li>
+<li><code>.scala</code>-Datei in REPL laden mit <code>:load &lt;filename&gt;.scala</code></li>
+<li>Ergebnisse von Auswertung werden automatisch an Variablennamen gebunden</li>
+<li>Bisherige Definitionen können mit <code>:reset</code> gelöscht werden</li>
+<li>REPL verlassen mit <code>:q</code></li>
+</ul><h3 id="Implizite-Konvertierung"><a class="anchor hidden-xs" href="#Implizite-Konvertierung" title="Implizite-Konvertierung"><i class="fa fa-link"></i></a>Implizite Konvertierung</h3><p>Scala bietet die Möglichkeit, bestimmte Typkonvertierungsfunktionen automatisch zu nutzen, wenn so der erwartete Typ erfüllt werden kann. Dadurch können wir Ausdrücke geschickter notieren.</p><p>Hierzu muss die <code>implicitConversions</code>-Bibliothek importiert werden:</p><pre><code class="scala hljs"><span class="hljs-keyword">import</span> scala.language.implicitConversions
+
+<span class="hljs-keyword">implicit</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">num2exp</span></span>(n: <span class="hljs-type">Int</span>) : <span class="hljs-type">Exp</span> = <span class="hljs-type">Num</span>(n)
+
+<span class="hljs-keyword">val</span> test = <span class="hljs-type">Add</span>(<span class="hljs-number">1</span>,<span class="hljs-number">2</span>) <span class="hljs-comment">// is converted to Add(Num(1), Num(2))</span>
+</code></pre><p>Die Funktion <code>num2exp</code> wird durch das Keyword <code>implicit</code> automatisch auf Werte vom Typ <code>Int</code> aufgerufen, wenn an deren Stelle ein Wert vom Typ <code>Exp</code> erwartet wird.</p><h3 id="Typ-Alias"><a class="anchor hidden-xs" href="#Typ-Alias" title="Typ-Alias"><i class="fa fa-link"></i></a>Typ-Alias</h3><p>Mit dem Keyword <code>type</code> können neue Typen definiert werden:</p><pre><code class="scala hljs"><span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">IntStringMap</span> </span>= <span class="hljs-type">Map</span>[<span class="hljs-type">Int</span>, <span class="hljs-type">String</span>]
+</code></pre><h3 id="Lambda-Ausdrücke-und-Currying"><a class="anchor hidden-xs" href="#Lambda-Ausdrücke-und-Currying" title="Lambda-Ausdrücke-und-Currying"><i class="fa fa-link"></i></a>Lambda-Ausdrücke und Currying</h3><p>Es können in Scala Funktionen als Werte (<em>Lambda-Ausdrücke</em>) definiert werden. Diese haben dann einen Typ der Form <code>&lt;Type&gt; =&gt; ...</code>:</p><pre><code class="scala hljs"><span class="hljs-keyword">val</span> succ : <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span> = n =&gt; n+<span class="hljs-number">1</span>
+</code></pre><p>Funktionen bzw. Lambda-Ausdrücke können dadurch Rückgabewert von Funktionen sein (<em>Higher Order</em>), wodurch auch <em>Currying</em> möglich ist:</p><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">curryAdd</span></span>(n: <span class="hljs-type">Int</span>) : (<span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span>) = (x =&gt; x+n)
+assert(curryAdd(<span class="hljs-number">3</span>)(<span class="hljs-number">4</span>) == <span class="hljs-number">7</span>)
+<span class="hljs-keyword">val</span> curried : <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span> = a =&gt; b =&gt; c =&gt; a*b*c
+assert(curried(<span class="hljs-number">1</span>)(<span class="hljs-number">2</span>)(<span class="hljs-number">3</span>) == <span class="hljs-number">6</span>)
+</code></pre><h2 id="Erster-Interpreter"><a class="anchor hidden-xs" href="#Erster-Interpreter" title="Erster-Interpreter"><i class="fa fa-link"></i></a>Erster Interpreter</h2><pre><code class="scala hljs"><span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Exp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Num</span>(<span class="hljs-params">n: <span class="hljs-type">Int</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span> <span class="hljs-title">//</span> <span class="hljs-title">inherits</span> <span class="hljs-title">properties</span> <span class="hljs-title">of</span> <span class="hljs-title">Scala</span> <span class="hljs-title">Int</span> <span class="hljs-title">type!</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Add</span>(<span class="hljs-params">l: <span class="hljs-type">Exp</span>, r: <span class="hljs-type">Exp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Mul</span>(<span class="hljs-params">l: <span class="hljs-type">Exp</span>, r: <span class="hljs-type">Exp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">eval</span></span>(e: <span class="hljs-type">Exp</span>) : <span class="hljs-type">Int</span> = e <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Num</span>(n) =&gt; n
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Add</span>(l,r) =&gt; eval(l) + eval(r)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Mul</span>(l,r) =&gt; eval(l) * eval(r)
+}
+
+<span class="hljs-comment">// examples:</span>
+<span class="hljs-keyword">var</span> onePlusTwo = <span class="hljs-type">Add</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">1</span>), <span class="hljs-type">Num</span>(<span class="hljs-number">2</span>))
+assert(eval(onePlusTwo) == <span class="hljs-number">3</span>)
+<span class="hljs-keyword">var</span> twoTimesFour = <span class="hljs-type">Mul</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">2</span>), <span class="hljs-type">Add</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">1</span>), <span class="hljs-type">Num</span>(<span class="hljs-number">3</span>)))
+assert(eval(twoTimesFour) == <span class="hljs-number">8</span>)
+<span class="hljs-keyword">var</span> threeTimesFourPlusFour = <span class="hljs-type">Add</span>(<span class="hljs-type">Mul</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">3</span>),<span class="hljs-type">Num</span>(<span class="hljs-number">4</span>)), <span class="hljs-type">Num</span>(<span class="hljs-number">4</span>))
+assert(eval(threeTimesFourPlusFour) == <span class="hljs-number">16</span>)
+</code></pre><p>Bei der Implementation eines Interpreters ist ein vollständiges Verständnis der Metasprache (hier Scala) notwendig, um die Eigenschaften der Implementation vollständig zu kennen. Der <code>Int</code>-Datentyp hat bspw. gewisse Einschränkungen, die nun auch in der implementierten Sprache existieren.</p><h3 id="Syntaktischer-Zucker-und-Desugaring"><a class="anchor hidden-xs" href="#Syntaktischer-Zucker-und-Desugaring" title="Syntaktischer-Zucker-und-Desugaring"><i class="fa fa-link"></i></a>Syntaktischer Zucker und Desugaring</h3><p>In vielen Programmiersprachen gibt es prägnantere Syntax, die gleichbedeutend mit einer ausführlicheren Syntax ist (<em>syntaktischer Zucker</em>). Das erspart Schreibaufwand beim Programmieren und verbessert die Lesbarkeit von Programmen, ist aber bei der Implementierung der Sprache lästig, da man gleichbedeutende Syntax mehrfach implementieren muss.<br>
+Der syntaktische Zucker erweitert den Funktionsumfang der Sprache nicht und jeder Ausdruck kann mit der gleichen Bedeutung ohne syntaktischen Zucker formuliert werden. Deshalb werden Sprachen typischerweise in die <em>Kernsprache</em> und die <em>erweiterte Sprache</em> aufgeteilt, so dass Ausdrücke vor dem Interpretieren zuerst in eine Form ohne die erweiterte Sprache gebracht werden können (<em>Desugaring</em>). So muss der Interpreter nur für die Kernsprache implementiert werden.</p><h3 id="Interpreter-mit-Desugaring"><a class="anchor hidden-xs" href="#Interpreter-mit-Desugaring" title="Interpreter-mit-Desugaring"><i class="fa fa-link"></i></a>Interpreter mit Desugaring</h3><pre><code class="scala hljs"><span class="hljs-comment">// core language</span>
+<span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">CExp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CNum</span>(<span class="hljs-params">n: <span class="hljs-type">Int</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">CExp</span> </span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CAdd</span>(<span class="hljs-params">l: <span class="hljs-type">CExp</span>, r: <span class="hljs-type">CExp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">CExp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CMul</span>(<span class="hljs-params">l: <span class="hljs-type">CExp</span>, r: <span class="hljs-type">CExp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">CExp</span></span>
+
+<span class="hljs-comment">// extended language</span>
+<span class="hljs-keyword">sealed</span> <span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">SExp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SNum</span>(<span class="hljs-params">n: <span class="hljs-type">Int</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">SExp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SAdd</span>(<span class="hljs-params">l: <span class="hljs-type">SExp</span>, r: <span class="hljs-type">SExp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">SExp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SMul</span>(<span class="hljs-params">l: <span class="hljs-type">SExp</span>, r: <span class="hljs-type">SExp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">SExp</span></span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">SSub</span>(<span class="hljs-params">l: <span class="hljs-type">SExp</span>, r: <span class="hljs-type">SExp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">SExp</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">desugar</span></span>(s: <span class="hljs-type">SExp</span>) : <span class="hljs-type">CExp</span> = s <span class="hljs-keyword">match</span> { 
+  <span class="hljs-keyword">case</span> <span class="hljs-type">SNum</span>(n) =&gt; <span class="hljs-type">CNum</span>(n)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">SAdd</span>(l,r) =&gt; <span class="hljs-type">CAdd</span>(desugar(l), desugar(r))
+  <span class="hljs-keyword">case</span> <span class="hljs-type">SMul</span>(l,r) =&gt; <span class="hljs-type">CMul</span>(desugar(l), desugar(r)) 
+  <span class="hljs-keyword">case</span> <span class="hljs-type">SSub</span>(l,r) =&gt; <span class="hljs-type">CAdd</span>(desugar(l), <span class="hljs-type">CMul</span>(<span class="hljs-type">CNum</span>(<span class="hljs-number">-1</span>), desugar(r)))
+}
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">eval</span></span>(c: <span class="hljs-type">CExp</span>) : <span class="hljs-type">Int</span> = c <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">CNum</span>(n) =&gt; n
+  <span class="hljs-keyword">case</span> <span class="hljs-type">CAdd</span>(l,r) =&gt; eval(l) + eval(r)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">CMul</span>(l,r) =&gt; eval(l) * eval(r)
+}
+
+<span class="hljs-comment">// examples:</span>
+<span class="hljs-keyword">var</span> twoMinusOne = <span class="hljs-type">SSub</span>(<span class="hljs-type">SNum</span>(<span class="hljs-number">2</span>), <span class="hljs-type">SNum</span>(<span class="hljs-number">1</span>))
+assert(eval(desugar(twoMinusOne)) == <span class="hljs-number">1</span>)
+<span class="hljs-keyword">var</span> fivePlusFour = <span class="hljs-type">SAdd</span>(<span class="hljs-type">SNum</span>(<span class="hljs-number">5</span>), <span class="hljs-type">SNum</span>(<span class="hljs-number">4</span>))
+assert(eval(desugar(fivePlusFour)) == <span class="hljs-number">9</span>)
+</code></pre><p>Alternativ kann für unsere Zwecke syntaktischer Zucker in einer Funktion definiert werden, so dass kein Desugaring notwendig ist.</p><pre><code class="scala hljs"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">neg</span></span>(e: <span class="hljs-type">Exp</span>) = <span class="hljs-type">Mul</span>(<span class="hljs-type">Num</span>(<span class="hljs-number">-1</span>), e)
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sub</span></span>(l: <span class="hljs-type">Exp</span>, r: <span class="hljs-type">Exp</span>) = <span class="hljs-type">Add</span>(l, neg(r))
+</code></pre><p>Syntaktischer Zucker kann (wie in <code>sub</code>) auch auf anderem syntaktischen Zucker aufbauen.</p><h3 id="Visitor-Implementation"><a class="anchor hidden-xs" href="#Visitor-Implementation" title="Visitor-Implementation"><i class="fa fa-link"></i></a>Visitor-Implementation</h3><p>Eine alternative Möglichkeit, den ersten Interpreter zu definieren, ist durch einen sogenannten <em>Visitor</em>. Dabei handelt es sich um eine Instanz einer Klasse mit Typparameter <code>T</code>, die aus Funktionen mit den Typen <code>Int =&gt; T</code> und <code>(T,T) =&gt; T</code> besteht.</p><pre><code class="scala hljs"><span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Visitor</span>[<span class="hljs-type">T</span>](<span class="hljs-params">num: <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">T</span>, add: (<span class="hljs-type">T</span>,<span class="hljs-type">T</span></span>) <span class="hljs-title">=&gt;</span> <span class="hljs-title">T</span>)</span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">foldExp</span></span>[<span class="hljs-type">T</span>](v: <span class="hljs-type">Visitor</span>[<span class="hljs-type">T</span>], e: <span class="hljs-type">Exp</span>) : <span class="hljs-type">T</span> = e <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Num</span>(n) =&gt; v.num(n)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Add</span>(l,r) =&gt; v.add(foldExp(v,l), foldExp(v,r))
+}
+</code></pre><p>Der wesentliche Unterschied zwischen einem Interpreter und einem Visitor ist, dass der Visitor selbst nicht rekursiv ist. Stattdessen wird das grundlegende Rekursionsmuster in einer Funktion abstrahiert (als Faltung, hier in <code>foldExp</code>). Dadurch können beliebige <em>kompositionale</em> Definitionen auf der Datenstruktur (hier <code>Exp</code>) definiert werden, ohne dass weitere Funktionen notwendig sind.</p><div class="alert alert-info">
+<p><strong>Kompositionalität</strong> heißt, dass sich die Bedeutung eines zusammengesetzten Ausdrucks aus der Bedeutung seiner Bestandteile ergibt. Bei einer rekursiven Struktur muss also die Bedeutungsfunktion strukturell rekursiv sein.</p>
+</div><p>Auch in dieser Implementation ist es möglich, eine Core-Sprache und eine erweiterte Sprache zu definieren, in dem man etwa eine zweite Klasse definiert, die <code>Visitor</code> erweitert und um zusätzliche Funktionen (bspw. <code>mul: (T,T) =&gt; T</code>) ergänzt.</p><p>Es können auch wieder Identifier mithilfe einer <em>Environment</em> der Sprache hinzugefügt werden, der <code>eval</code>-Visitor muss dazu mithilfe von Currying verfasst werden. Der Typ des Visitors ist dann <code>Env =&gt; Int</code>, es wird erst ein Ausdruck und anschließend eine Umgebung überreicht, bevor das Ergebnis ausgegeben wird, dadurch lässt sich die Funktion trotz des zusätzlichen Parameters mit der Visitor-Klasse verfassen.</p><h2 id="Identifier"><a class="anchor hidden-xs" href="#Identifier" title="Identifier"><i class="fa fa-link"></i></a>Identifier</h2><h3 id="Mit-Environment"><a class="anchor hidden-xs" href="#Mit-Environment" title="Mit-Environment"><i class="fa fa-link"></i></a>Mit Environment</h3><p>Um Identifier in den Ausdrücken verwenden zu können, ist eine zusätzliche Datenstruktur notwendig, nämlich eine Umgebung (<em>environment</em>), in der die Paare aus Identifiern und Werten gespeichert und ausgelesen werden.<br>
+Wir verwenden für die Identifier den Datentyp <code>Symbol</code>, für die Umgebung definieren wir das Typ-Alias <code>Env</code>, dass eine <code>Map</code> von <code>Symbol</code> nach <code>Int</code> bezeichnet.</p><pre><code class="scala hljs"><span class="hljs-keyword">import</span> scala.language.implicitConversions
+
+<span class="hljs-comment">// ...</span>
+<span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Id</span>(<span class="hljs-params">x: <span class="hljs-type">Symbol</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span></span>
+
+<span class="hljs-keyword">implicit</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">num2exp</span></span>(n: <span class="hljs-type">Int</span>) : <span class="hljs-type">Exp</span> = <span class="hljs-type">Num</span>(n)
+<span class="hljs-keyword">implicit</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">string2exp</span></span>(s: <span class="hljs-type">String</span>) : <span class="hljs-type">Exp</span> = <span class="hljs-type">Id</span>(<span class="hljs-type">Symbol</span>(s))
+
+<span class="hljs-comment">// type definition, 'Env' is alias for type on right hand side</span>
+<span class="hljs-class"><span class="hljs-keyword">type</span> <span class="hljs-title">Env</span> </span>= <span class="hljs-type">Map</span>[<span class="hljs-type">Symbol</span>, <span class="hljs-type">Int</span>]
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">eval</span></span>(e: <span class="hljs-type">Exp</span>, env: <span class="hljs-type">Env</span>) : <span class="hljs-type">Int</span> = e <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Num</span>(n) =&gt; n
+  <span class="hljs-comment">// pass environment on during recursion</span>
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Add</span>(l,r) =&gt; eval(l,env) + eval(r,env)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Mul</span>(l,r) =&gt; eval(l,env) * eval(r,env)
+  <span class="hljs-comment">// look up identifier in map, return associated value </span>
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Id</span>(x) =&gt; env(x)
+}
+
+<span class="hljs-comment">// examples</span>
+<span class="hljs-keyword">val</span> env = <span class="hljs-type">Map</span>(<span class="hljs-symbol">'x</span> -&gt; <span class="hljs-number">2</span>, <span class="hljs-symbol">'y</span> -&gt; <span class="hljs-number">4</span>)
+<span class="hljs-keyword">val</span> a = <span class="hljs-type">Add</span>(<span class="hljs-type">Mul</span>(<span class="hljs-string">"x"</span>,<span class="hljs-number">5</span>), <span class="hljs-type">Mul</span>(<span class="hljs-string">"y"</span>,<span class="hljs-number">7</span>))
+assert(eval(a, env) == <span class="hljs-number">38</span>)
+<span class="hljs-keyword">val</span> b = <span class="hljs-type">Mul</span>(<span class="hljs-type">Mul</span>(<span class="hljs-string">"x"</span>, <span class="hljs-string">"x"</span>), <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-string">"x"</span>))
+assert(eval(b, env) == <span class="hljs-number">16</span>)
+</code></pre><h3 id="Mit-Bindings"><a class="anchor hidden-xs" href="#Mit-Bindings" title="Mit-Bindings"><i class="fa fa-link"></i></a>Mit Bindings</h3><p>Bei der Implementation von Identifiern mit einer Environment müssen die Identifier außerhalb des Ausdrucks in der <em>Map</em> definiert werden und Identifier können nicht umdefiniert werden.</p><p>Besser wäre eine Implementation, bei der die Bindungen innerhalb des Ausdrucks selbst definiert und umdefiniert werden können. Dazu ist ein neues Sprachonstrukt, <code>With</code>, notwendig. Ein <code>With</code>-Ausdruck besteht aus einem Identifier, einem Ausdruck und einem Rumpf, in dem der Identifier an den Ausdruck gebunden ist.</p><pre><code class="scala hljs"><span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">With</span>(<span class="hljs-params">x: <span class="hljs-type">Symbol</span>, xdef: <span class="hljs-type">Exp</span>, body: <span class="hljs-type">Exp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span></span>
+</code></pre><p>Die Definition soll nur im Rumpf gelten, nicht außerhalb (<em>lexikalisches Scoping</em>).</p><p><code>Add(5, With(x, 7, Add(x, 3)))</code> soll also bspw. zu <code>15</code> auswerten.</p><p>Dazu soll die Definition von <code>x</code> (hier <code>7</code>) ausgewertet und für alle Vorkommen von <code>x</code> im Rumpf eingesetzt werden (<em>Substitution</em>). Hierfür definieren wir eine neue Funktion <code>subst</code> mit dem Typ <code>(Exp, Symbol, Num) =&gt; Exp</code>. Es müssen zwei verschiedene Vorkommen von Identifiern unterschieden werden: <em>Bindende</em> Vorkommen (Definitionen in <code>With</code>-Ausdrücken) und <em>gebundene</em> Vorkommen (Verwendung an allen anderen Stellen). Tritt ein Identifier auf, ohne dass es “weiter außen” im Gesamtausdruck ein bindendes Vorkommen gibt, so handelt es sich um ein <em>freies</em> Vorkommen.</p><pre><code class="scala hljs"><span class="hljs-type">With</span> x = <span class="hljs-number">7</span>: <span class="hljs-comment">// binding occurence</span>
+   x + y <span class="hljs-comment">// x bound, y free</span>
+</code></pre><div class="alert alert-info">
+<p>Das <strong>Scope</strong> eines bindenden Vorkommens des Identifiers <code>x</code> ist die Region des Programmtextes in dem sich Vorkommen von <code>x</code> auf dieses bindende Vorkommen beziehen.</p>
+</div><p>Bei der Implementation muss festgelegt werden, in welchem Teil eines Ausdrucks ein bindendes Vorkommen gelten soll.</p><ul>
+<li>Beispiel 1: Das gebundene Vorkommen von <code>x</code> soll sich auf die Definition in der ersten Zeile beziehen, die zweite Definition soll keine Wirkung “nach außen” haben.</li>
+</ul><pre><code class="scala hljs"><span class="hljs-type">With</span> x = <span class="hljs-number">5</span>:
+   x + (<span class="hljs-type">With</span> x = <span class="hljs-number">3</span>: <span class="hljs-number">10</span>)
+</code></pre><ul>
+<li>Beispiel 2: Das erste Vorkommen soll hier (intuitiv, vgl. Scheme/Racket) den Wert 5 besitzen, dass zweite Vorkommen jedoch den Wert 3. Es soll also immer das nächste bzw. nächstinnerste bindende Vorkommen gelten.</li>
+</ul><pre><code class="scala hljs"><span class="hljs-type">With</span> x = <span class="hljs-number">5</span>:
+   x + (<span class="hljs-type">With</span> x = <span class="hljs-number">3</span>: x)
+</code></pre><p>Würde das Scope des ersten bindenden Vorkommens den gesamten Ausdruck umfassen, so wäre es nicht möglich, Identifier umzubinden, außerdem sind Ausdrücke so weniger verständlich, da der innere Ausdruck (oben in Klammern) sonst je nach Kontext zu einem anderen Ergebnis auswerten würde</p><p>Es ergibt sich die folgende Implementation für die Erweiterung um <code>With</code> und Substitution:</p><pre><code class="scala hljs"><span class="hljs-keyword">case</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">With</span>(<span class="hljs-params">x: <span class="hljs-type">Symbol</span>, xdef: <span class="hljs-type">Exp</span>, body: <span class="hljs-type">Exp</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Exp</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">subst</span></span>(body: <span class="hljs-type">Exp</span>, i: <span class="hljs-type">Symbol</span>, v: <span class="hljs-type">Num</span>) : <span class="hljs-type">Exp</span> = body <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Num</span>(n) =&gt; body
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Add</span>(l,r) =&gt; <span class="hljs-type">Add</span>(subst(l,i,v), subst(r,i,v))
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Mul</span>(l,r) =&gt; <span class="hljs-type">Mul</span>(subst(l,i,v), subst(r,i,v))
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Id</span>(x) =&gt; <span class="hljs-keyword">if</span> (x == i) v <span class="hljs-keyword">else</span> body
+  <span class="hljs-keyword">case</span> <span class="hljs-type">With</span>(x,xdef,body) =&gt;  <span class="hljs-comment">// do not substitute in body if x is redefined</span>
+    <span class="hljs-type">With</span>(x, subst(xdef,i,v), <span class="hljs-keyword">if</span> (x == i) body <span class="hljs-keyword">else</span> subst(body,i,v))
+}
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">eval</span></span>(e: <span class="hljs-type">Exp</span>) : <span class="hljs-type">Int</span> = e <span class="hljs-keyword">match</span> {
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Num</span>(n) =&gt; n
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Id</span>(x) =&gt; sys.error(<span class="hljs-string">"Unbound identifier: "</span> + x.name)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Add</span>(l,r) =&gt; eval(l) + eval(r)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">Mul</span>(l,r) =&gt; eval(l) * eval(r)
+  <span class="hljs-keyword">case</span> <span class="hljs-type">With</span>(x,xdef,body) =&gt; eval(subst(body,x,<span class="hljs-type">Num</span>(eval(xdef))))
+}
+
+<span class="hljs-keyword">val</span> a = <span class="hljs-type">Add</span>(<span class="hljs-number">5</span>, <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">7</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-number">3</span>)))
+assert(eval(a) == <span class="hljs-number">15</span>)
+<span class="hljs-keyword">val</span> b = <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">1</span>, <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">2</span>, <span class="hljs-type">Mul</span>(<span class="hljs-string">"x"</span>,<span class="hljs-string">"x"</span>)))
+assert(eval(b) == <span class="hljs-number">4</span>)
+<span class="hljs-keyword">val</span> c = <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">5</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>, <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">3</span>, <span class="hljs-string">"x"</span>)))
+assert((eval(c) == <span class="hljs-number">8</span>))
+<span class="hljs-keyword">val</span> d = <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-number">1</span>, <span class="hljs-type">With</span>(<span class="hljs-symbol">'x</span>, <span class="hljs-type">Add</span>(<span class="hljs-string">"x"</span>,<span class="hljs-number">1</span>), <span class="hljs-string">"x"</span>))
+assert((eval(d) == <span class="hljs-number">2</span>))
+</code></pre><p>Stößt die <code>eval</code>-Funktion auf einen Identifier, so ist dieser offensichtlich bei den bisherigen Substitutionen nicht ersetzt worden und ist frei. In diesem Fall wird also ein Fehler geworfen.</p><p>Bei der Substitution im <code>With</code>-Konstrukt darf die Substitution nur dann rekursiv im Rumpf angewendet werden, wenn der Identifier im <code>With</code> Konstrukt nicht gleich dem zu ersetzenden Identifier ist. Es muss aber immer im <code>xdef</code>-Ausdruck substituiert werden, denn auch hier sollen Identifier auftreten können, die Definition aus dem <code>With</code>-Ausdruck soll hier aber noch nicht gelten.</p><p>Der Ausdruck, durch den bei der Substitution der Identifier ersetzt wird, hat den Typ <code>Num</code>, ist also bereits vollständig ausgewertet und nicht vom Typ <code>Exp</code>. Zudem wird im <code>With</code>-Fall der <code>eval</code>-Funktion der <code>xdef</code>-Ausdruck ausgewertet, bevor die Substitution stattfindet. Die Bindung mit <code>With</code> ist also <em>eager</em> (<em>call by value</em>). Wäre dies nicht der Fall, so können Variablen ungewollt gebunden werden (<em>accidental capture</em>) und es ist eine komplexere Implementierung notwendig.</p><h2 id="First-Order-Funktionen"><a class="anchor hidden-xs" href="#First-Order-Funktionen" title="First-Order-Funktionen"><i class="fa fa-link"></i></a>First-Order Funktionen</h2><p>Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken:</p><pre><code class="scala hljs">
+</code></pre><div class="alert alert-success">
+<p>VL 3, 14:30</p>
+</div></div>
+    <div class="ui-toc dropup unselectable hidden-print" style="display:none;">
+        <div class="pull-right dropdown">
+            <a id="tocLabel" class="ui-toc-label btn btn-default" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false" title="Table of content">
+                <i class="fa fa-bars"></i>
+            </a>
+            <ul id="ui-toc" class="ui-toc-dropdown dropdown-menu" aria-labelledby="tocLabel">
+                <div class="toc"><ul class="nav">
+<li class=""><a href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung Programmiersprachen">Zusammenfassung Programmiersprachen</a><ul class="nav">
+<li><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul class="nav">
+<li><a href="#Datentypen" title="Datentypen">Datentypen</a></li>
+<li><a href="#Objektorientierung" title="Objektorientierung">Objektorientierung</a></li>
+<li><a href="#Kontrollstrukturen" title="Kontrollstrukturen">Kontrollstrukturen</a></li>
+<li><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
+<li><a href="#REPL" title="REPL">REPL</a></li>
+<li><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
+<li><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
+<li><a href="#Lambda-Ausdrücke-und-Currying" title="Lambda-Ausdrücke und Currying">Lambda-Ausdrücke und Currying</a></li>
+</ul>
+</li>
+<li><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul class="nav">
+<li><a href="#Syntaktischer-Zucker-und-Desugaring" title="Syntaktischer Zucker und Desugaring">Syntaktischer Zucker und Desugaring</a></li>
+<li><a href="#Interpreter-mit-Desugaring" title="Interpreter mit Desugaring">Interpreter mit Desugaring</a></li>
+<li><a href="#Visitor-Implementation" title="Visitor-Implementation">Visitor-Implementation</a></li>
+</ul>
+</li>
+<li class=""><a href="#Identifier" title="Identifier">Identifier</a><ul class="nav">
+<li><a href="#Mit-Environment" title="Mit Environment">Mit Environment</a></li>
+<li class=""><a href="#Mit-Bindings" title="Mit Bindings">Mit Bindings</a></li>
+</ul>
+</li>
+<li class=""><a href="#First-Order-Funktionen" title="First-Order Funktionen">First-Order Funktionen</a></li>
+</ul>
+</li>
+</ul>
+</div><div class="toc-menu"><a class="expand-toggle" href="#">Expand all</a><a class="back-to-top" href="#">Back to top</a><a class="go-to-bottom" href="#">Go to bottom</a></div>
+            </ul>
+        </div>
+    </div>
+    <div id="ui-toc-affix" class="ui-affix-toc ui-toc-dropdown unselectable hidden-print" data-spy="affix" style="top:17px;display:none;"  >
+        <div class="toc"><ul class="nav">
+<li class=""><a href="#Zusammenfassung-Programmiersprachen" title="Zusammenfassung Programmiersprachen">Zusammenfassung Programmiersprachen</a><ul class="nav">
+<li><a href="#Scala-Grundlagen" title="Scala-Grundlagen">Scala-Grundlagen</a><ul class="nav">
+<li><a href="#Datentypen" title="Datentypen">Datentypen</a></li>
+<li><a href="#Objektorientierung" title="Objektorientierung">Objektorientierung</a></li>
+<li><a href="#Kontrollstrukturen" title="Kontrollstrukturen">Kontrollstrukturen</a></li>
+<li><a href="#Pattern-Matching" title="Pattern Matching">Pattern Matching</a></li>
+<li><a href="#REPL" title="REPL">REPL</a></li>
+<li><a href="#Implizite-Konvertierung" title="Implizite Konvertierung">Implizite Konvertierung</a></li>
+<li><a href="#Typ-Alias" title="Typ-Alias">Typ-Alias</a></li>
+<li><a href="#Lambda-Ausdrücke-und-Currying" title="Lambda-Ausdrücke und Currying">Lambda-Ausdrücke und Currying</a></li>
+</ul>
+</li>
+<li><a href="#Erster-Interpreter" title="Erster Interpreter">Erster Interpreter</a><ul class="nav">
+<li><a href="#Syntaktischer-Zucker-und-Desugaring" title="Syntaktischer Zucker und Desugaring">Syntaktischer Zucker und Desugaring</a></li>
+<li><a href="#Interpreter-mit-Desugaring" title="Interpreter mit Desugaring">Interpreter mit Desugaring</a></li>
+<li><a href="#Visitor-Implementation" title="Visitor-Implementation">Visitor-Implementation</a></li>
+</ul>
+</li>
+<li class=""><a href="#Identifier" title="Identifier">Identifier</a><ul class="nav">
+<li><a href="#Mit-Environment" title="Mit Environment">Mit Environment</a></li>
+<li class=""><a href="#Mit-Bindings" title="Mit Bindings">Mit Bindings</a></li>
+</ul>
+</li>
+<li class=""><a href="#First-Order-Funktionen" title="First-Order Funktionen">First-Order Funktionen</a></li>
+</ul>
+</li>
+</ul>
+</div><div class="toc-menu"><a class="expand-toggle" href="#">Expand all</a><a class="back-to-top" href="#">Back to top</a><a class="go-to-bottom" href="#">Go to bottom</a></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.4.0/js/bootstrap.min.js" integrity="sha256-kJrlY+s09+QoWjpkOrXXwhxeaoDz9FW5SaxF8I0DibQ=" crossorigin="anonymous" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gist-embed/2.6.0/gist-embed.min.js" integrity="sha256-KyF2D6xPIJUW5sUDSs93vWyZm+1RzIpKCexxElmxl8g=" crossorigin="anonymous" defer></script>
+    <script>
+        var markdown = $(".markdown-body");
+        //smooth all hash trigger scrolling
+        function smoothHashScroll() {
+            var hashElements = $("a[href^='#']").toArray();
+            for (var i = 0; i < hashElements.length; i++) {
+                var element = hashElements[i];
+                var $element = $(element);
+                var hash = element.hash;
+                if (hash) {
+                    $element.on('click', function (e) {
+                        // store hash
+                        var hash = this.hash;
+                        if ($(hash).length <= 0) return;
+                        // prevent default anchor click behavior
+                        e.preventDefault();
+                        // animate
+                        $('body, html').stop(true, true).animate({
+                            scrollTop: $(hash).offset().top
+                        }, 100, "linear", function () {
+                            // when done, add hash to url
+                            // (default click behaviour)
+                            window.location.hash = hash;
+                        });
+                    });
+                }
+            }
+        }
+
+        smoothHashScroll();
+        var toc = $('.ui-toc');
+        var tocAffix = $('.ui-affix-toc');
+        var tocDropdown = $('.ui-toc-dropdown');
+        //toc
+        tocDropdown.click(function (e) {
+            e.stopPropagation();
+        });
+
+        var enoughForAffixToc = true;
+
+        function generateScrollspy() {
+            $(document.body).scrollspy({
+                target: ''
+            });
+            $(document.body).scrollspy('refresh');
+            if (enoughForAffixToc) {
+                toc.hide();
+                tocAffix.show();
+            } else {
+                tocAffix.hide();
+                toc.show();
+            }
+            $(document.body).scroll();
+        }
+
+        function windowResize() {
+            //toc right
+            var paddingRight = parseFloat(markdown.css('padding-right'));
+            var right = ($(window).width() - (markdown.offset().left + markdown.outerWidth() - paddingRight));
+            toc.css('right', right + 'px');
+            //affix toc left
+            var newbool;
+            var rightMargin = (markdown.parent().outerWidth() - markdown.outerWidth()) / 2;
+            //for ipad or wider device
+            if (rightMargin >= 133) {
+                newbool = true;
+                var affixLeftMargin = (tocAffix.outerWidth() - tocAffix.width()) / 2;
+                var left = markdown.offset().left + markdown.outerWidth() - affixLeftMargin;
+                tocAffix.css('left', left + 'px');
+            } else {
+                newbool = false;
+            }
+            if (newbool != enoughForAffixToc) {
+                enoughForAffixToc = newbool;
+                generateScrollspy();
+            }
+        }
+        $(window).resize(function () {
+            windowResize();
+        });
+        $(document).ready(function () {
+            windowResize();
+            generateScrollspy();
+        });
+
+        //remove hash
+        function removeHash() {
+            window.location.hash = '';
+        }
+
+        var backtotop = $('.back-to-top');
+        var gotobottom = $('.go-to-bottom');
+
+        backtotop.click(function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (scrollToTop)
+                scrollToTop();
+            removeHash();
+        });
+        gotobottom.click(function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (scrollToBottom)
+                scrollToBottom();
+            removeHash();
+        });
+
+        var toggle = $('.expand-toggle');
+        var tocExpand = false;
+
+        checkExpandToggle();
+        toggle.click(function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            tocExpand = !tocExpand;
+            checkExpandToggle();
+        })
+
+        function checkExpandToggle () {
+            var toc = $('.ui-toc-dropdown .toc');
+            var toggle = $('.expand-toggle');
+            if (!tocExpand) {
+                toc.removeClass('expand');
+                toggle.text('Expand all');
+            } else {
+                toc.addClass('expand');
+                toggle.text('Collapse all');
+            }
+        }
+
+        function scrollToTop() {
+            $('body, html').stop(true, true).animate({
+                scrollTop: 0
+            }, 100, "linear");
+        }
+
+        function scrollToBottom() {
+            $('body, html').stop(true, true).animate({
+                scrollTop: $(document.body)[0].scrollHeight
+            }, 100, "linear");
+        }
+    </script>
+</body>
+
+</html>
