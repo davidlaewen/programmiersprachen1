@@ -18,7 +18,7 @@ implicit def num2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(s)
 
 def subst(body: Exp, i: String, v: Num) : Exp = body match {
-  case Num(n) => body
+  case Num(_) => body
   case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
   case Mul(l,r) => Mul(subst(l,i,v), subst(r,i,v))
   case Id(x) => if (x == i) v else body
