@@ -44,7 +44,7 @@ def subst(e: Exp, i: String, v: Exp) : Exp = e match {
   case Num(_) => e
   case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
   case Mul(l,r) => Mul(subst(l,i,v), subst(r,i,v))
-  case Id(x) => if (x == i) v else Id(x)
+  case Id(x) => if (x == i) v else e
   case Fun(param,body) =>
     if (param == i) e else {
       val fvs = freeVars(e) ++ freeVars(v) + i

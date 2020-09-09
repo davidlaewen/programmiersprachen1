@@ -7,7 +7,9 @@ langs: de
 
 # Zusammenfassung Programmiersprachen 
 
-Vorlesungsinhalte:
+[TOC]
+
+## Vorlesungsinhalte
 - gutes Verständnis von Programmiersprachen (allgemein, über _Trends_ hinweg) und deren Qualitäten, Vor- und Nachteile
 - Fähigkeit, Programmiersprachen in Features zu zerlegen und diese einzeln zu verstehen und zu analysieren
 - Implementieren von Programmiersprachen(-features) durch Interpreter in Scala
@@ -50,7 +52,8 @@ val letters = ('a' to 'f' by 2).toList
 letters.foreach(println)
 nums.filter(_ > 3).foreach(println)
 val doubleNums = nums.map(_ * 2) 
-val bools = nums.map(_ < 5) 
+val bools = nums.map(_ < 5)
+val squares = nums.map(math.pow(_,2).toInt)
 val sum = foldLeft(0)(_ + _)
 val prod = foldLeft(1)(_ + _)
 ```
@@ -408,11 +411,260 @@ Bei der Substitution im `With`-Konstrukt darf die Substitution nur dann rekursiv
 Der Ausdruck, durch den bei der Substitution der Identifier ersetzt wird, hat den Typ `Num`, ist also bereits vollständig ausgewertet und nicht vom Typ `Exp`. Zudem wird im `With`-Fall der `eval`-Funktion der `xdef`-Ausdruck ausgewertet, bevor die Substitution stattfindet. Die Bindung mit `With` ist also _eager_ (_call by value_). Wäre dies nicht der Fall, so können Variablen ungewollt gebunden werden (_accidental capture_) und es ist eine komplexere Implementierung notwendig.
 
 
-## First-Order Funktionen
-Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken:
-```scala
+## First-Order-Funktionen
+Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken (_Magic Literals_ :unamused:). Unterscheiden sich die Teilausdrucke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke `3*5+1`, `2*5+1` und `7*5+1` lassen sich etwa mit `f(x) = x*5+1` schreiben als `f(3)`, `f(2)` und `f(7)`.
 
+First-Order-Funktionen werden über einen Bezeichner aufgerufen, können aber nicht als Parameter übergeben werden. 
+
+Wir legen zwei Sprachkonstrukte für Funktionsaufrufe und Funktionsdefinitionen an, in einer globalen Map werden Funktionsbezeichnern Funktionsdefinitionen zugewiesen. 
+
+```scala
+case class Call(f: Symbol, args: List[Exp]) extends Exp
+
+case class FunDef(args: List[Symbol], body: Exp)
+type Funs = Map[Symbol, FunDef]
 ```
+
+Die bereits implementierten Konstanten-Identifier und die Funktions-Identifier verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergebung ist unabhängig voneinander. Es wird also in `Call` nur in den Argumenten substituiert, nicht im Funktionsnamen (denn der Funktionsname kann nicht durch einen Wert ersetzt werden):
+
+```scala
+def subst(body: Exp, i: Symbol, v: Num) : Exp = body match {
+  // ...
+  case Call(f,args) => Call(f, args.map(subst(_,i,v)))
+}
+```
+
+Der neue Match-Zweig in `eval` ist deutlich komplizierter:
+- Zuerst wird die Definition von `f` in `funs` nachgeschlagen. `args` ist die Liste der Argumente des Aufrufs mit Einträgen vom Typ `Exp`. 
+- Mit `map` werden alle Argumente in der Liste vollständig ausgewertet. `vArgs` ist die Liste der ausgewerteten Argumente mit Einträgen vom Typ `Int`. 
+- Als nächstes wird geprüft, dass die Argumentliste und die Parameterliste die selbe Länge besitzen, so dass bei Bedarf eine Fehlerbehandlung möglich ist.
+- Nun wird für jeden Parameter in der Parameterliste eine Substitution auf dem Rumpf `fDef.body` mit dem entsprechenden Argument aus `vArgs` ausgeführt. Dies ist durch `zip` und `foldLeft` implementiert. 
+- Zuletzt wird `eval` rekursiv auf dem Rumpf, in dem alle Substitutionen durchgeführt wurden, aufgerufen.
+
+```scala
+def eval(funs: Funs, e: Exp) : Int = e match {
+  // ...
+  case Call(f,args) => {
+    val fDef = funs(f)
+    val vArgs = args.map(eval(funs,_))
+    if (fDef.args.size != vArgs.size)
+      sys.error("Incorrect number of params in call to " + f.name)
+    val substBody = fDef.args.zip(vArgs).foldLeft(fDef.body)( 
+      (b,av) => subst(b, av._1, Num(av._2)) )
+    // Zip list of symbols and list of integers, fold resulting list of tuples.
+    // Begin with body, apply subst function for each tuple in zipped list.
+    // b is preliminary folding result (body still missing substitutions), 
+    // av is tuple of parameter name and corresponding value.
+    eval(funs, substBody)
+  }
+}
+```
+
+Es ist nun möglich, nicht-terminierende Programme zu verfassen. Wird in der Definition einer Funktion die Funktion selbst aufgerufen, so entsteht eine Endlosschleife. Uns steht momentan noch kein Sprachkonstrukt zu Verfügung, um mit Abbruchbedingung Schleifen zu beenden.
+
+```scala
+val fm = Map('square -> FunDef(List('x), Mul("x","x")),
+             'succ -> FunDef(List('x), Add("x",1)),
+             'myAdd -> FunDef(List('x,'y), Add("x","y")),
+             'forever -> FunDef(List('x), Call('forever, List("x"))))
+
+val a = Call('square, List(Add(1,3)))
+assert(eval(fm,a) == 16)
+val b = Mul(2, Call('succ, List(Num(20))))
+assert(eval(fm,b) == 42)
+val c = Call('myAdd, List(Num(40), Num(2)))
+assert(eval(fm,c) == 42)
+
+// does not terminate
+val forever = Call('forever, List(Num(0)))
+```
+
+## Effizientere Bindings
+Unsere bisherige Implementierung von Substitution würde im Ausdruck 
+```scala
+With("x", 1, With("y", 2, With("z", 3, Add("x", Add("y", "z")))))
+```
+folgende Schritte durchlaufen:
+```scala
+With("y", 2, With("z", 3, Add(1, Add("y", "z"))))
+With("z", 3, Add(1, Add(2, "z")))
+Add(1, Add(2, 3))
+```
+Dabei wird der Ausdruck `Add("x", Add("y", "z"))` insgesamt drei Mal traversiert, um für jedes `With` die Substitution durchzuführen. Die Komplexität bei Ausdrücken der Länge $n$ ist also $\mathcal{O}(n^2)$. Wir suchen deshalb eine effizientere Art, um Substitution umzusetzen. 
+
+Statt beim Auftreten eines `With`-Ausdrucks direkt zu substituieren, wollen wir uns in einer zusätzlichen Datenstruktur merken, welche Substitutionen wir im weiteren Ausdruck vornehmen müssen, so dass der zusätzliche Durchlauf wegfällt.
+
+Hierzu verwenden wir wieder (wie in `2a-Environments.scala`) eine _Environment_, aber anstatt diese getrennt definieren zu müssen, wird sie bei der Evaluation stetig angepasst. Tritt etwa ein `With`-Ausdruck auf, so wird der entsprechende Identifier mit dem Ergebnis der zugewiesenen Expression in die Map eingetragen (die zu Beginn der Auswertung leer ist).
+
+```scala
+type Env = Map[String, Int]
+
+def evalWithEnv(funs: FunDef, env: Env, e: Exp) : Int = e match {
+  case Num(n) => n
+  case Add(l,r) => evalWithEnv(funs,env,l) + evalWithEnv(funs,env,r)
+  case Mul(l,r) => evalWithEnv(funs,env,l) * evalWithEnv(funs,env,r)
+  case Id(x) => env(x)
+  case With(x,xdef,body) => 
+    evalWithEnv(funs, env+(x -> evalWithEnv(funs,env,xdef)), body)
+}
+```
+
+Das vorherige Beispiel wird nun folgendermaßen ausgewertet:
+```scala
+With("x", 1, With("y", 2, With("z", 3, Add("x", Add("y", "z"))))), Map()
+With("y", 2, With("z", 3, Add("x", Add("y", "z")))), Map("x" -> 1)
+With("z", 3, Add("x", Add("y", "z"))), Map("x" -> 1, "y" -> 2)
+Add("x", Add("y", "z")), Map("x" -> 1, "y" -> 2, "z" -> 3)
+```
+Die Komplexität ist nun (unter der Annahme, dass die Map-Operationen in konstanter Zeit geschehen) linear zur Länge des Ausdrucks.
+
+Das Scoping ist auch in dieser Implementation lexikalisch, da die Umgebung rekursiv weitergereicht wird und nicht global ist. Somit wird eine Bindung gilt eine Bindung nur in Unterausdrücken des bindenden Ausdruckes und nicht an anderen Stellen im Programm. Die `+`-Operation auf Maps fügt nicht nur Bindungen für neue Elemente ein, sondern ersetzt auch den Abbildungswert bei bereits enthaltenen Elementen:
+```scala
+var m = Map("a" -> 1)
+m = m+("b" -> 2)
+m = m+("a" -> 3)
+m: Map[String,Int] = Map("a" -> 3, "b" -> 2)
+```
+
+Nun fehlt noch der `Call`-Fall. Hier bleiben die ersten drei Zeilen nahezu identisch, aber anstelle der aufwändigen Schleife zur Substitution im Rumpf erweitern wir einfach die _leere_ Umgebung um die Parameternamen, gebunden an die ausgewerteten Argumente:
+```scala
+def evalWithEnv(funs: FunDef, env: Env, e: Exp) : Int = e match {
+// ...
+  case Call(f,args) =>
+    val fDef = funs(f)
+    val vArgs = args.map(evalWithEnv(funs,env,_))
+    if (fDef.args.size != vArgs.size)
+      sys.error("Incorrect number of params in call to " + f)
+    // ++ operator adds all tuples in a list to a map
+    evalWithEnv(funs, Map()++fDef.args.zip(vArgs), fDef.body)
+}
+```
+
+Wir erweitern die leere Umgebung `Map()` anstelle der bisherigen Umgebung `env`, da in unserer vorherigen Implementation auch nur für die Funktionsparameter im Funktionsrumpf substituiert wurde (und nicht für sonstige, aktuell geltende Bindungen). Die `subst`-Funktion verändert die Funktionsdefinitionen in keiner Weise und hat nicht einmal Zugriff auf diese.
+
+:::info
+**Theorem** (Äquivalenz substitutions- und umgebungsbasierter Interpretation):
+
+Für alle `funs: Funs, e: Exp` gilt: `evalWithSubst(funs,e) = evalWithEnv(funs,Map(),e)` (wobei `evalWithSubst` die `eval`-Funktion aus [First-Order-Funktionen](#First-Order-Funktionen) bezeichnet).
+:::
+
+Nun gäbe es aber auch die Möglichkeit, die bisherige Umgebung `env` zu erweitern und damit den Funktionsrumpf auszuwerten. In diesem Fall würden wir lokale Bindungen, die an der Stelle des `Call`-Ausdrucks gelten, in den Funktionsrumpf weitergeben. 
+
+Die Variante mit einer neuen, leeren Umgebung wird _lexikalisches Scoping_ genannt, die Variante bei der `env` erweitert wird heißt _dynamisches Scoping_.
+
+
+## Lexikalisches und dynamisches Scoping
+
+:::info
+**Lexikalisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des Syntaxbaums bestimmt wird.
+
+**Dynamisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das zuletzt ausgewertete bindende Vorkommen bestimmt wird.
+
+Bei lexikalischem Scoping ist also der Ort für die Bedeutung entscheidend, bei dynamischem Scoping der Programmzustand.
+:::
+
+Das folgende Beispiel verursacht bei lexikalischem Scoping einen Fehler, liefert aber bei dynamischem Scoping das Ergebnis `3`:
+```scala
+val exFunMap = Map("f" -> FunDef(List("x"), Add("x","y")))
+val exExpr = With("y", 1, Call("f", List(2)))
+
+evalWithEnv(exFunMap, Map(), exExpr)
+```
+Der Identifier `y` wird an den Wert `1` gebunden, bevor die Funktion `f` aufgerufen wird, in deren Rumpf `y` auftritt. `y` hat an diesem _Ort_ im Programm keine Bedeutung, es kann aber ein _Programmzustand_ vorliegen, in dem eine Bindung für `y` existiert.
+
+Bei lexikalischem Scoping müssen Werte immer "weitergereicht" werden, während bei dynamischen Scoping alle Bindungen bei einem Funktionsaufruf automatisch im Funktionsrumpf gelten. Das automatische "Weiterreichen" kann in manchen Fällen die explizite Übergabe ersparen, führt aber in den meisten Fällen eher zu unerwarteten und unerwünschten Nebenwirkungen.
+
+Ein Beispiel für eine Verwendung von dynamischen Scoping wäre _Exception Handling_ in Java. Wird in einem _try-catch_-Block eine Funktion `f` aufgerufen, die eine bestimmte Exception wirft, so wird beim Werfen dieser Exception über eine Art von dynamischem Scoping ermittelt, welcher ExceptionHandler zuständig ist (in dem die Ausführungshistorie durchsucht wird).
+
+## Higher-Order-Funktionen
+Funktionen erster Ordnung erlauben die Abstraktion über sich wiederholende Muster, die an bestimmten Ausdruckspositionen variieren (z.B. eine `square`- oder eine `avg`-Funktion). Liegt aber ein Muster vor, bei dem eine Funktion variiert (z.B. bei der Komposition zweier Funktionen), so ist keine Abstraktion möglich.
+
+Hierfür sind Higher-Order-Funktionen notwendig, es braucht eine Möglichkeit, Funktionen als Parameter zu übergeben und als Werte zu behandeln. Wir müssen also unsere Implementation anpassen, so dass Funktionen nicht als Strings, sondern als Expressions vorliegen.
+
+Wir entfernen also das Sprachkonstrukt `Call` und ergänzen stattdessen die zwei folgenden Konstrukte:
+```scala
+case class Fun(param: String, body: Exp) extends Exp
+case class App(funExpr: Exp, argExpr: Exp) extends Exp
+```
+
+Nun können wir Funktionen als Ausdrücke repräsentieren und benötigen somit auch keine getrennte `Funs`-Map, sondern binden Funktionen genau wie andere Ausdrücke durch das `With`-Konstrukt. Solche "namenslosen" Funktionen werden typischerweise _anonyme Funktionen_ genannt, im Kontext funktionaler Sprachen auch _Lambda-Ausdrücke_.
+
+`With` ist jetzt sogar nur noch syntaktischer Zucker, denn wir können bspw. `With("x", 5, Add("x",7))` ausdrücken mit `App(Fun("x", Add("x",7)), 5)`.
+
+```scala
+def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x, body), xdef)
+```
+
+Zuerst implementieren wir wieder die Version des Interpreters mit Substitutionsfunktion:
+```scala
+def subst(e: Exp, i: String, v: Exp) : Exp = e match {
+  // ...
+  case Id(x) => if (x == i) v else e
+  case Fun(param,body) =>
+    if (param == i) e else Fun(param, subst(body,i,v))
+  case App(f: Exp, a: Exp) => App(subst(f,i,v), subst(a,i,v))
+}
+```
+
+Hierbei entsteht ein neues Problem: Der zu substituierende Ausdruck `v` muss nun den Typ `Exp` besitzen, damit Identifier auch durch Funktionen (und nicht nur `Num`-Ausdrücke) substituiert werden können. Dadurch kann es aber in manchen Fällen dazu kommen, dass Identifier unbeabsichtigt gebunden werden:
+```scala
+val ac = subst(Fun("x", Add("x","y")), "y", Add("x",5))
+```
+In diesem Beispiel ist das `x` in `Add(x, 5)` nach der Substitution an den Parameter `x` der Funktion gebunden, obwohl dies vorher nicht der Fall war. Die dabei entstehende Bindung ist unerwartet, das unerwünschte "Einfangen" des Identifiers wird als _Accidental Capture_ bezeichnet und allgemein als Verletzung von lexikalischem Scoping angesehen.
+
+:::info
+Zwei Funktionen sind **alpha-äquivalent**, wenn sie bis auf den Namen des Parameters (oder der Parameter) identisch sind.
+`Fun("x", Add("x",1))` und `Fun("y", Add("y",1))` sind bspw. _alpha-äquivalent_.
+:::
+
+Wir nutzen Alpha-Äquivalenz, um Accidental Captures zu verhindern. Dazu brauchen wir einen "Generator", um bisher ungenutzte Namen zu erzeugen, die wir dann zur Umbenennung verwenden können.
+```scala
+def freshName(names: Set[String], default: String) : String = {
+  var last : Int = 0
+  var freshName = default
+  while (names contains freshName) {
+    freshName = default + last
+    last += 1
+  }
+  freshName
+}
+```
+Die Funktion gibt einen Namen zurück, der nicht in der Menge `names` enthalten ist. Dazu wird eine Zahl an die Eingabe `default` angehängt und schrittweise inkrementiert, bis der entstehende String nicht Element der Menge ist.
+
+Wir benötigen außerdem eine Funktion, die alle freien Variablen in einem Ausdruck ausgibt, hier machen wir auch wieder vom Datentyp `Set` Gebrauch:
+```scala
+def freeVars(e: Exp) : Set[String] = e match {
+  case Num(_) => Set.empty
+  case Id(x) => Set(x)
+  case Add(l,r) => freeVars(l) ++ freeVars(r)
+  case Mul(l,r) => freeVars(l) ++ freeVars(r)
+  case App(f,a) => freeVars(f) ++ freeVars(a)
+  case Fun(x,body) => freeVars(body) - x
+}
+
+assert(freeVars(Fun("x"), Add("x","y")) == Set("y"))
+```
+
+Mithilfe dieser Funktionen können wir nun beim Substituieren Accidental Captures verhindern, man spricht hierbei von _Capture-Avoiding Substitution_:
+```scala
+def subst(e: Exp, i: String, v: Exp) : Exp = e match {
+  case Num(_) => e
+  case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
+  case Mul(l,r) => Mul(subst(l,i,v), subst(r,i,v))
+  case Id(x) => if (x == i) v else Id(x)
+  case Fun(param,body) =>
+    if (param == i) e else {
+      val fvs = freeVars(e) ++ freeVars(v) + i
+      val newVar = freshName(fvs,param)
+      Fun(newVar, subst(subst(body,param,Id(newVar)), i, v))
+    }
+  case App(f: Exp, a: Exp) => App(subst(f,i,v), subst(a,i,v))
+}
+```
+
+Im `Fun`-Fall prüfen wir zuerst, ob der Parameter und der zu ersetzende Identifier übereinstimmen. Ist dies der Fall, so lassen wir den `Fun`-Ausdruck unverändert. Ansonsten bestimmen wir mit `freeVars` die Menge der freien Variablen im aktuellen Ausdruck `e` sowie im einzusetzenden Ausdruck `v`. Ausgehend von dieser Menge erzeugen wir mit `freshName` einen neuen Bezeichner, mit dem wir dann den Parameternamen und alle Vorkommen des Parameternamens im Rumpf ersetzen, bevor wir die Substitution im Rumpf rekursiv fortsetzen. So ist garantiert, dass keine freien Variablen durch den Parameternamen "eingefangen" werden.
+
+
 
 
 
@@ -421,15 +673,9 @@ Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teila
 
 
 :::success
-VL 3, 14:30
+- [ ] HW 3
+- [ ] VL 5
 :::
-
-
-
-
-
-
-
 
 
 
