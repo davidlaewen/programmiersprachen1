@@ -8,13 +8,14 @@ case class Id(x: String) extends Exp
 case class Fun(param: String, body: Exp) extends Exp
 case class App(funExpr: Exp, argExpr: Exp) extends Exp
 
-// define With as syntactic sugar:
-def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x,body), xdef)
-
 type Env = Map[String, Int]
 
 implicit def num2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(s)
+
+// define With as syntactic sugar:
+def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x,body), xdef)
+
 
 // generate new name which is not included in 'names'
 def freshName(names: Set[String], default: String) : String = {
@@ -55,17 +56,22 @@ def subst(e: Exp, i: String, v: Exp) : Exp = e match {
 }
 
 
-def evalWithSubst(e: Exp) : Int = e match {
-  case Num(n) => n
-  case Add(l,r) => evalWithSubst(l) + evalWithSubst(r)
-  case Mul(l,r) => evalWithSubst(l) * evalWithSubst(r)
+def eval(e: Exp) : Exp = e match {
   case Id(x) => sys.error("Unbound identifier: " + x)
-  case Fun(param,body) => sys.error("Result is a function")
-  case App(f,a) => f match {
-    case Fun(param,body) =>
-      evalWithSubst(subst(body,param,evalWithSubst(a)))
-    case _ => sys.error("Can only apply functions!")
+  case Add(l,r) => (eval(l),eval(r)) match {
+    case (Num(a),Num(b)) => Num(a+b)
+    case _ => sys.error("Can only add numbers")
   }
+  case Mul(l,r) => (eval(l),eval(r)) match {
+    case (Num(a), Num(b)) => Num(a*b)
+    case _ => sys.error("Can only multiply numbers")
+  }
+  case App(f,a) => eval(f) match {
+    case Fun(param,body) => eval(subst(body,param,eval(a))) // call-by-value
+    // case Fun(param,body) => eval(subst(body,param,a)) // call-by-name
+    case _ => sys.error("Can only apply functions")
+  }
+  case _ => e // numbers and functions evaluate to themselves
 }
 
 
@@ -85,6 +91,14 @@ def evalWithEnv(env: Env, e: Exp) : Int = e match {
 */
 
 val a = wth("b", Num(2), App(Fun("a", Add("a",1)), Add(3,"b")))
-assert(evalWithSubst(a) == 6)
+assert(eval(a) == Num(6))
+val b = Fun("x","x")
+assert(eval(b) == Fun("x","x"))
+val c = App(Fun("x", App(Fun("x",Mul(2,"x")), Add(1,"x"))), 1)
+assert(eval(c) == Num(4))
+val d = App(Fun("f", App("f", App("f", 2))), Fun("x",Mul(2,"x"))) // apply double 2 times
+assert(eval(d) == Num(8))
+val omega = App( Fun("x", App("x","x")), Fun("x", App("x","x")))
 
-// result: Fun(x, Add(x, Add(x, 5))) - x is accidentally captured!
+val test = (subst(App("x","x"), "x", Fun("x", App("x","x"))) ==
+  App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
