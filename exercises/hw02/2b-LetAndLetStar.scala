@@ -104,10 +104,10 @@ object Hw02b {
     case Mul(l, r) => eval(l) * eval(r)
     case With(x, xdef, body) => sys.error("'With' was not desugared!")
     case Let(defs, body) =>
-      if (defs.isEmpty) eval(body)
+      if (defs.isEmpty) eval(body) // only substitute in body
       else eval(Let(defs.drop(1), subst(body, defs.head._1, Num(eval(defs.head._2)))))
     case LetStar(defs, body) =>
-      if (defs.isEmpty) eval(body)
+      if (defs.isEmpty) eval(body) // substitute in whole expression (defs & body)
       else eval(subst(LetStar(defs.drop(1), body), defs.head._1, Num(eval(defs.head._2))))
   }
 
