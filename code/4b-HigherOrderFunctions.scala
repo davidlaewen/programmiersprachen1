@@ -75,21 +75,6 @@ def eval(e: Exp) : Exp = e match {
 }
 
 
-/**
-def evalWithEnv(env: Env, e: Exp) : Int = e match {
-  case Num(n) => n
-  case Add(l,r) => evalWithEnv(env,l) + evalWithEnv(env,r)
-  case Mul(l,r) => evalWithEnv(env,l) * evalWithEnv(env,r)
-  case Id(x) => env(x)
-  case Fun(param,body) =>
-  case App(f,a) => f match {
-    case Fun(param, body) =>
-      evalWithEnv(env+(param -> evalWithEnv(env,a)),body)
-    case _ => sys.error("Can only apply functions!")
-  }
-}
-*/
-
 val a = wth("b", Num(2), App(Fun("a", Add("a",1)), Add(3,"b")))
 assert(eval(a) == Num(6))
 val b = Fun("x","x")

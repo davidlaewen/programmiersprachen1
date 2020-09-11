@@ -598,6 +598,8 @@ Nun können wir Funktionen als Ausdrücke repräsentieren und benötigen somit a
 def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x, body), xdef)
 ```
 
+Ein `Fun`-Ausdruck hat nur einen Parameter und ein `App`-Ausdruck nur ein Argument (im Gegensatz zu unserer Implementation von [First-Order-Funktionen](#First-Order-Funktionen-F1-WAE)), wir können jedoch Funktionen mit mehreren Parametern durch Currying darstellen: $f(x,y)= x+y$ entspricht $\lambda x.\lambda y.x+y$.
+
 ### Accidental Captures
 
 Zuerst implementieren wir wieder die Version des Interpreters mit Substitutionsfunktion:
@@ -699,7 +701,7 @@ def eval(e: Exp) : Exp = e match {
 
 Wir könnten den Rückgabetyp auch präzisieren, in dem wir den Typ `Either[Num,Fun]` verwenden, denn es wird immer eine Zahl oder eine Funktion ausgegeben (siehe dazu `07-fae.scala`).
 
-### Nicht-terminierende Programme
+### Mächtigkeit
 Wir können in dieser Sprache nicht-terminierende Ausdrücke verfassen:
 ```scala
 val omega = App( Fun("x", App("x","x")), Fun("x", App("x","x")) )
@@ -712,13 +714,114 @@ App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
 
 `omega` kann im _Lambda-Kalkül_ notiert werden als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
 
-### Umgebungsbasierter Interpreter
+[FAE](#Higher-Order-Funktionen-FAE) ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache entspricht prinzipiell dem [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte.
 
-## Call-By-Name und Call-By-Value
-Im `App`-Fall wird das Argument `a` ausgewertet, bevor die Substitution durchführt wird. Diese Auswertungsstrategie wird _Call-By-Value_ genannt. Alternativ kann die Substitution ohne vorherige Auswertung erfolgen, dabei spricht man von _Call-By-Name_.
+### Umgebungsbasierter Interpreter
+Der Typ `Map[String,Int]` für die Umgebung ist nicht mehr ausreichend, da auch `Fun`-Ausdrücke gebunden werden müssen. Wir wählen also stattdessen:
+```scala
+type Env = Map[String,Exp]
+```
+
+Der Interpreter ergibt sich größtenteils aus der [Implementation für F1-WAE](#Umgebungsbasierter-Interpreter), kombiniert mit dem [substitutionsbasiertem Interpreter für FAE](#Substitutionsbasierter-Interpreter1):
+
+```scala
+def eval(e: Exp, env: Env) : Exp = e match {
+  case Add(l,r) => (eval(l,env),eval(r,env)) match {
+    case (Num(a),Num(b)) => Num(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case Mul(l,r) => (eval(l,env),eval(r,env)) match {
+    case (Num(a),Num(b)) => Num(a*b)
+    case _ => sys.error("Can only multiply numbers")
+  }
+  case Id(x) => env(x)
+  case App(f,a) => eval(f,env) match {
+    case Fun(param, body) =>
+      eval(body, Map(param -> eval(a,env)))
+    case _ => sys.error("Can only apply functions")
+  }
+  case _ => e
+}
+```
+
+Wie in [F1-WAE](#Umgebungsbasierter-Interpreter) erweitern wir bei der Rekursion in einen Funktionsrumpf die Umgebungs nicht, da sonst dynamisches Scoping vorliegen würde. In diesem Fall würde der Ausdruck
+
+$\texttt{With}\; f = \lambda x.x+y:\;\; \texttt{With}\; y = 4:\; (f \;\; 1)$
+
+keinen Fehler verursachen, obwohl zum Zeitpunkt der Bindung von $f$ der Bezeichner $y$ frei ist.
+
+Stattdessen reichen wir also eine neue Umgebung weiter, die nur den Parameter und das Argument der Funktion enthält.
+
+Dieser Interpreter ist jedoch nicht äquivalent zum [substitutionsbasierten](#Substitutionsbasierter-Interpreter1), denn der Ausdruck
+```scala
+val curry = App( Fun("x", App( Fun("y", Add("x","y")),2)), 3)
+```
+wird von `evalWithSubst` zu `Num(5)` ausgewertet, `evalWithEnv` wirft aber bei der Auswertung den Fehler `key not found: x`:
+
+$(\lambda x.(\lambda y.x+y \;\;\; 2)\;\; 3), \; \texttt{Map()}$
+$\leadsto (\lambda y.x+y \;\;\; 2), \; \texttt{Map(x -> 3)}$
+$\leadsto x+y, \;\; \texttt{Map(y -> 2)}$
+$\leadsto \;\; \texttt{key not found: x}$
+
+Um dieses Problem zu umgehen, können wir nicht einfach die Umgebung im `App`-Fall erweitern, weil das wieder zu dynamischem Scoping führt. Stattdessen müssen wir uns bei der Auswertung einer Funktion sowohl die Funktion selbst, als auch die Umgebung zum Zeitpunkt der Instanziierung merken.
+
+So ein Paar aus Funktionsdefinition und Umgebung wird _Closure_ genannt.
+
+## Closures
+Wir definieren einen neuen Typ `Value` neben `Exp`, so dass wir Ausdrücke und deren Ergebnis wieder unterscheiden können:
+```scala
+sealed abstract class Value
+type Env = Map[String,Value]
+case class NumV(n: Int) extends Value
+case class ClosureV(f: Fun, env: Env) extends Value
+```
+
+`Fun`-Ausdrücke liegen nun nach ihrer Auswertung als Closures vor, der neue Interpreter hat den Rückgabetyp `Value` und gibt Zahlen und Closures anstelle von Zahlen und Funktionen aus.
+
+```scala
+def eval(e: Exp, env: Env) : Value = e match {
+  case Num(n) => NumV(n)
+  case Id(x) => env(x)
+  case Add(l,r) => (eval(l,env),eval(r,env)) match {
+    case (NumV(a),NumV(b)) => NumV(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case Mul(l,r) => (eval(l,env),eval(r,env)) match {
+    case (NumV(a),NumV(b)) => NumV(a*b)
+    case _ => sys.error("Can only multiply numbers")
+  }
+  case App(f,a) => eval(f,env) match {
+    case ClosureV(f,cEnv) =>
+      eval(f.body, cEnv+(f.param -> eval(a,env))) // call-by-value
+    case _ => sys.error("Can only apply functions")
+  }
+  case Fun(b,p) => ClosureV(Fun(b,p),env)
+}
+```
+
+Bei der Auswertung eines `Fun`-Ausdrucks wird nun ein Closure aus dem Ausdruck und der aktuellen Umgebung erzeugt. Im `App`-Zweig verwenden wir nach der Auswertung der Funktion die Umgebung aus dem entstehenden Closure, und verwenden diese -- erweitert um die Bindung des Parameters an das ausgewertete Argument -- um den Rumpf auszuwerten.
 
 :::info
-Für alle `e: Exp` gilt: Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sind `e1` und `e2` äquivalent (falls Zahlen -- identisch, falls Funktionen -- gleichbedeutend)
+Für alle `e: Exp` gilt: 
+- `evalWithSubst(e) == Num(n)` $\Longleftrightarrow$ `evalWithEnv(e,Map()) == NumV(n)`
+
+- Ist `evalWithSubst(e) == Fun(p,b)` und `evalWithEnv(e) == ClosureV(f,env)`, dann entspricht `Fun(p,b)` dem Ausdruck `f`, in dem für alle Bindungen in `env` Substitution durchgeführt wurde.
+:::
+
+Closures sind ein fundamental wichtiges Konzept und tauchen in der Implementation fast aller Programmiersprachen auf.
+
+:::info
+Ein **Closure** ist ein Paar, bestehend aus einer Funktionsdefinition und der Umgebung vom Zeitpunkt, als die Funktionsdefinition ausgewertet wurde.
+:::
+
+Im [substitiutionsbasiertem Interpreter](#Substitutionsbasierter-Interpreter1) wird beim Auswerten der Funktionsdefinition sofort im Rumpf substituiert. Beim [umgebungsbasiertem Interpreter](#Umgebungsbasierter-Interpreter1) muss hingegen die Umgebung zum Zeitpunkt der Auswertung gespeichert werden, so dass der Interpreter beim Erreichen der Identifier die richtigen Werte einsetzen kann.
+
+
+## Call-By-Name und Call-By-Value
+Im `App`-Fall wird das Argument `a` ausgewertet, bevor die Substitution durchgeführt bzw. die Bindung der Umgebung hinzugefügt wird. Diese Auswertungsstrategie wird _Call-By-Value_ genannt. Alternativ kann die Substitution/Bindung ohne vorherige Auswertung erfolgen, dann spricht man von _Call-By-Name_.
+
+:::info
+Für alle `e: Exp` gilt: Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sind `e1` und `e2` äquivalent (falls Zahlen -- identisch, falls Funktionen -- gleichbedeutend).
 :::
 
 `evalCBV(App(Fun("x",0), omega))` terminiert nicht, `evalCBN(App(Fun("x",0), omega))` liefert hingegen den Ausdruck `Num(0)`. Der Call-By-Name-Interpreter terminiert auf mehr Programmen als der Call-By-Value-Interpreter.
