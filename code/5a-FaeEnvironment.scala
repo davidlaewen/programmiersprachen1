@@ -65,5 +65,11 @@ val ex = wth("x", Num(5), App(Fun("f", App("f",3)), Fun("y", Add("x","y")))) // 
 val ex2 = wth("f", Fun("x", Add("x","y")), wth("y", Num(4), App("f", 1)))
 /**
  * Causes no error under dynamic scoping, despite y being free when f is bound.
- * Dynamic scoping can not be used as an alternative to Closures.
+ * Dynamic scoping can not be used as an alternative to closures.
+ */
+
+val ex3 = App(wth("x", Num(5), Fun("y", Add("x","y"))),7)
+/**
+ * x is bound to 5 when Fun expression is evaluated, but binding is lost during application.
+ * A closure is required to store the current environment Map(x -> 5).
  */
