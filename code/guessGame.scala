@@ -1,28 +1,27 @@
 object guessGame extends App {
 
-    val n = math.floor(math.random() * 100)
+  val n = math.floor(math.random() * 100)
 
-    var input = -1
-    var inputString = ""
+  println("Welcome to Guess Game!")
 
-    var won = false
+  var guessing = true
+  var input = -1
+  var inputString = ""
 
-    while (!won) {
+  while(guessing) {
 
-      println("Enter a number:")
+    println("Guess a number and press 'Enter'!")
 
-      inputString = scala.io.StdIn.readLine()
-      input = inputString.toInt
+    inputString = scala.io.StdIn.readLine()
+    input = inputString.toInt
 
-      if (input == n) {
-        println("You win!")
-        won = true
-      } else if (input > n)
-        println("Too big!")
-      else
-        println("Too small!")
-
+    if (input == n) {
+      println("You win!")
+      guessing = false
     }
+    else if (input > n) println("Too big!")
+    else println("Too small!")
+
+  }
 
 }
-
