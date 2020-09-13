@@ -5,18 +5,18 @@ langs: de
 
 ---
 
-# Zusammenfassung Programmiersprachen 
+# Inhaltsverzeichnis
 
 [TOC]
 
-## Vorlesungsinhalte
+# Vorlesungsinhalte
 - gutes Verständnis von Programmiersprachen (allgemein, über _Trends_ hinweg) und deren Qualitäten, Vor- und Nachteile
 - Fähigkeit, Programmiersprachen in Features zu zerlegen und diese einzeln zu verstehen und zu analysieren
 - Implementieren von Programmiersprachen(-features) durch Interpreter in Scala
 - Auseinandersetzung mit wenigen Compiler-bezogenen Themen
 - Sprachen und deren Features, Zweck/Nutzen dieser Features, mögliche Implementationen und Vorzüge/Probleme dieser
 
-## Scala-Grundlagen
+# Scala-Grundlagen
 [Scala](https://scala-lang.org/) ist statisch getypt, funktional, sowie objekt-orientiert. Auswertung ist _eager_ (_call by value_).
 - **Konstanten** mit `val`, mutierbare **Variablen** mit `var`. Typ muss nicht deklariert werden, also bspw. `var n = 1` oder `var s = "abc"`. Typ kann aber auch explizit deklariert werden, also bspw. `var n: Int = 1` oder `var s: String = "abc"`.
 - **Funktionen** haben die Form `def f(<arg1>: <Type1>, ...) = <body>`, Aufruf bspw. durch `f(1)`. Rückgabetyp kann optional angegeben werden: `def f(<arg1>: <Type1>, ...): <ReturnType> = <body>`
@@ -28,7 +28,7 @@ def concat(a: String, b: String): String = a + b
 val y = concat("Manfred", concat(" ", "Opel"))
 ```
 
-### Datentypen
+## Datentypen
 - `Int`, `String`, `Boolean`, `Double`, etc.
 - `Unit` entspricht Rückgabetyp `void` in Java (kein Rückgabewert, sondern "Seiteneffekt", bspw. `print`-Funktion)
 - **Map:** Abbildung einer Menge von Werten auf eine andere Menge von Werten. 
@@ -63,7 +63,7 @@ val prod = foldLeft(1)(_ + _)
 
 - **Either:** Repräsentiert einen Wert eines von zwei möglichen Typen. Jede Instanz von `Either` ist eine Instanz von `Right` oder von `Left`.
 
-### Objektorientierung
+## Objektorientierung
 - **Klassen:**
 ```scala
 class Person(var firstName: String, var lastName: String) {
@@ -131,7 +131,7 @@ Die zweite Variante (objektorientierte Dekomposition) erlaubt das Hinzufügen we
 
 Dieser Konflikt wird _Expression Problem_ genannt.
 
-### Kontrollstrukturen
+## Kontrollstrukturen
 - `if`-`else`-Statements:
 ```scala
 if (<check>) <statement>
@@ -160,7 +160,7 @@ val evenNums = for {
 // evenNums: Vector(0,2,4,6,8,10)
 ```
 
-### Pattern Matching
+## Pattern Matching
 ```scala
 def pm(x: Any) = x match {
   case 1 => "x is 1"
@@ -171,7 +171,7 @@ def pm(x: Any) = x match {
 }
 ```
 
-### REPL
+## REPL
 - REPL starten mit Befehl `scala`
 - `.scala`-Datei in REPL laden mit `:load <filename>.scala`
 - Ergebnisse von Auswertung werden automatisch an Variablennamen gebunden
@@ -179,7 +179,7 @@ def pm(x: Any) = x match {
 - REPL verlassen mit `:q`
 
 
-### Implizite Konvertierung
+## Implizite Konvertierung
 Scala bietet die Möglichkeit, bestimmte Typkonvertierungsfunktionen automatisch zu nutzen, wenn so der erwartete Typ erfüllt werden kann. Dadurch können wir Ausdrücke geschickter notieren.
 
 Hierzu muss die `implicitConversions`-Bibliothek importiert werden:
@@ -192,13 +192,13 @@ val test = Add(1,2) // is converted to Add(Num(1), Num(2))
 ```
 Die Funktion `num2exp` wird durch das Keyword `implicit` automatisch auf Werte vom Typ `Int` aufgerufen, wenn an deren Stelle ein Wert vom Typ `Exp` erwartet wird.
 
-### Typ-Alias
+## Typ-Alias
 Mit dem Keyword `type` können neue Typen definiert werden:
 ```scala
 type IntStringMap = Map[Int, String]
 ```
 
-### Lambda-Ausdrücke und Currying
+## Lambda-Ausdrücke und Currying
 Es können in Scala Funktionen als Werte (_Lambda-Ausdrücke_) definiert werden. Diese haben dann einen Typ der Form `<Type> => ...`:
 ```scala
 val succ : Int => Int = n => n+1
@@ -213,7 +213,7 @@ assert(curried(1)(2)(3) == 6)
 
 
 
-## Erster Interpreter (AE)
+# Erster Interpreter (AE)
 ```scala
 sealed trait Exp
 case class Num(n: Int) extends Exp // inherits properties of Scala Int type!
@@ -236,11 +236,11 @@ assert(eval(threeTimesFourPlusFour) == 16)
 ```
 Bei der Implementation eines Interpreters ist ein vollständiges Verständnis der Metasprache (hier Scala) notwendig, um die Eigenschaften der Implementation vollständig zu kennen. Der `Int`-Datentyp hat bspw. gewisse Einschränkungen, die nun auch in der implementierten Sprache existieren.
 
-## Syntaktischer Zucker und Desugaring 
+# Syntaktischer Zucker und Desugaring
 In vielen Programmiersprachen gibt es prägnantere Syntax, die gleichbedeutend mit einer ausführlicheren Syntax ist (_syntaktischer Zucker_). Das erspart Schreibaufwand beim Programmieren und verbessert die Lesbarkeit von Programmen, ist aber bei der Implementierung der Sprache lästig, da man gleichbedeutende Syntax mehrfach implementieren muss. 
 Der syntaktische Zucker erweitert den Funktionsumfang der Sprache nicht und jeder Ausdruck kann mit der gleichen Bedeutung ohne syntaktischen Zucker formuliert werden. Deshalb werden Sprachen typischerweise in die _Kernsprache_ und die _erweiterte Sprache_ aufgeteilt, so dass Ausdrücke vor dem Interpretieren zuerst in eine Form ohne die erweiterte Sprache gebracht werden können (_Desugaring_). So muss der Interpreter nur für die Kernsprache implementiert werden. 
 
-### Interpreter mit Desugaring
+## Interpreter mit Desugaring
 ```scala
 // core language
 sealed trait CExp
@@ -284,7 +284,7 @@ Syntaktischer Zucker kann (wie in `sub`) auch auf anderem syntaktischen Zucker a
 
 
 
-## Abstraktion durch Visitor
+# Abstraktion durch Visitor
 Eine alternative Möglichkeit, den ersten Interpreter zu definieren, ist durch einen sogenannten _Visitor_. Dabei handelt es sich um eine Instanz einer Klasse mit Typparameter `T`, die aus Funktionen mit den Typen `Int => T` und `(T,T) => T` besteht.
 
 ```scala
@@ -307,7 +307,7 @@ Auch in dieser Implementation ist es möglich, eine Core-Sprache und eine erweit
 Es können auch wieder Identifier mithilfe einer _Environment_ der Sprache hinzugefügt werden, der `eval`-Visitor muss dazu mithilfe von Currying verfasst werden. Der Typ des Visitors ist dann `Env => Int`, es wird erst ein Ausdruck und anschließend eine Umgebung überreicht, bevor das Ergebnis ausgegeben wird, dadurch lässt sich die Funktion trotz des zusätzlichen Parameters mit der Visitor-Klasse verfassen.
 
 
-## Identifier mit Umgebung (AEId)
+# Identifier mit Umgebung (AEId)
 Um Identifier in den Ausdrücken verwenden zu können, ist eine zusätzliche Datenstruktur notwendig, nämlich eine Umgebung (_environment_), in der die Paare aus Identifiern und Werten gespeichert und ausgelesen werden.
 Wir verwenden für die Identifier den Datentyp `Symbol`, für die Umgebung definieren wir das Typ-Alias `Env`, dass eine `Map` von `Symbol` nach `Int` bezeichnet.
 ```scala
@@ -339,7 +339,7 @@ val b = Mul(Mul("x", "x"), Add("x", "x"))
 assert(eval(b, env) == 16)
 ```
 
-## Identifier mit Bindings (WAE)
+# Identifier mit Bindings (WAE)
 Bei der Implementation von Identifiern mit einer Environment müssen die Identifier außerhalb des Ausdrucks in der _Map_ definiert werden und Identifier können nicht umdefiniert werden. 
 
 Besser wäre eine Implementation, bei der die Bindungen innerhalb des Ausdrucks selbst definiert und umdefiniert werden können. Dazu ist ein neues Sprachonstrukt, `With`, notwendig. Ein `With`-Ausdruck besteht aus einem Identifier, einem Ausdruck und einem Rumpf, in dem der Identifier an den Ausdruck gebunden ist.
@@ -413,7 +413,7 @@ Bei der Substitution im `With`-Konstrukt darf die Substitution nur dann rekursiv
 Der Ausdruck, durch den bei der Substitution der Identifier ersetzt wird, hat den Typ `Num`, ist also bereits vollständig ausgewertet und nicht vom Typ `Exp`. Zudem wird im `With`-Fall der `eval`-Funktion der `xdef`-Ausdruck ausgewertet, bevor die Substitution stattfindet. Die Bindung mit `With` ist also _eager_ (_call by value_). Wäre dies nicht der Fall, so können Variablen ungewollt gebunden werden (_accidental capture_) und es ist eine komplexere Implementierung notwendig.
 
 
-## First-Order-Funktionen (F1-WAE)
+# First-Order-Funktionen (F1-WAE)
 Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken (_Magic Literals_ :unamused:). Unterscheiden sich die Teilausdrucke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke `3*5+1`, `2*5+1` und `7*5+1` lassen sich etwa mit `f(x) = x*5+1` schreiben als `f(3)`, `f(2)` und `f(7)`.
 
 First-Order-Funktionen werden über einen Bezeichner aufgerufen, können aber nicht als Parameter übergeben werden. 
@@ -427,7 +427,7 @@ case class FunDef(args: List[Symbol], body: Exp)
 type Funs = Map[Symbol, FunDef]
 ```
 
-### Substitutionsbasierter Interpreter
+## Substitutionsbasierter Interpreter
 Die bereits implementierten Konstanten-Identifier und die Funktions-Identifier verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergebung ist unabhängig voneinander. Es wird also in `Call` nur in den Argumenten substituiert, nicht im Funktionsnamen (denn der Funktionsname kann nicht durch einen Wert ersetzt werden):
 
 ```scala
@@ -482,7 +482,7 @@ assert(eval(fm,c) == 42)
 val forever = Call('forever, List(Num(0)))
 ```
 
-### Umgebungsbasierter Interpreter
+## Umgebungsbasierter Interpreter
 Unsere bisherige Implementierung von Substitution würde im Ausdruck 
 ```scala
 With("x", 1, With("y", 2, With("z", 3, Add("x", Add("y", "z")))))
@@ -556,7 +556,7 @@ Nun gäbe es aber auch die Möglichkeit, die bisherige Umgebung `env` zu erweite
 Die Variante mit einer neuen, leeren Umgebung wird _lexikalisches Scoping_ genannt, die Variante bei der `env` erweitert wird heißt _dynamisches Scoping_.
 
 
-## Lexikalisches und dynamisches Scoping
+# Lexikalisches und dynamisches Scoping
 
 :::info
 **Lexikalisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des Syntaxbaums bestimmt wird.
@@ -579,7 +579,7 @@ Bei lexikalischem Scoping müssen Werte immer "weitergereicht" werden, während 
 
 Ein Beispiel für eine Verwendung von dynamischen Scoping wäre _Exception Handling_ in Java. Wird in einem _try-catch_-Block eine Funktion `f` aufgerufen, die eine bestimmte Exception wirft, so wird beim Werfen dieser Exception über eine Art von dynamischem Scoping ermittelt, welcher ExceptionHandler zuständig ist (in dem die Ausführungshistorie durchsucht wird).
 
-## Higher-Order-Funktionen (FAE)
+# Higher-Order-Funktionen (FAE)
 Funktionen erster Ordnung erlauben die Abstraktion über sich wiederholende Muster, die an bestimmten Ausdruckspositionen variieren (z.B. eine `square`- oder eine `avg`-Funktion). Liegt aber ein Muster vor, bei dem eine Funktion variiert (z.B. bei der Komposition zweier Funktionen), so ist keine Abstraktion möglich.
 
 Hierfür sind Higher-Order-Funktionen notwendig, es braucht eine Möglichkeit, Funktionen als Parameter zu übergeben und als Werte zu behandeln. Wir müssen also unsere Implementation anpassen, so dass Funktionen nicht als Strings, sondern als Expressions vorliegen.
@@ -600,7 +600,7 @@ def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x, body), xdef)
 
 Ein `Fun`-Ausdruck hat nur einen Parameter und ein `App`-Ausdruck nur ein Argument (im Gegensatz zu unserer Implementation von [First-Order-Funktionen](#First-Order-Funktionen-F1-WAE)), wir können jedoch Funktionen mit mehreren Parametern durch Currying darstellen: $f(x,y)= x+y$ entspricht $\lambda x.\lambda y.x+y$.
 
-### Accidental Captures
+## Accidental Captures
 
 Zuerst implementieren wir wieder die Version des Interpreters mit Substitutionsfunktion:
 ```scala
@@ -624,7 +624,7 @@ Zwei Funktionen sind **alpha-äquivalent**, wenn sie bis auf den Namen des Param
 `Fun("x", Add("x",1))` und `Fun("y", Add("y",1))` sind bspw. _alpha-äquivalent_.
 :::
 
-### Capture-Avoiding Substitution
+## Capture-Avoiding Substitution
 
 Wir nutzen Alpha-Äquivalenz, um Accidental Captures zu verhindern. Dazu brauchen wir einen "Generator", um bisher ungenutzte Namen zu erzeugen, die wir dann zur Umbenennung verwenden können.
 ```scala
@@ -673,7 +673,7 @@ def subst(e: Exp, i: String, v: Exp) : Exp = e match {
 
 Im `Fun`-Fall prüfen wir zuerst, ob der Parameter und der zu ersetzende Identifier übereinstimmen. Ist dies der Fall, so lassen wir den `Fun`-Ausdruck unverändert. Ansonsten bestimmen wir mit `freeVars` die Menge der freien Variablen im aktuellen Ausdruck `e` sowie im einzusetzenden Ausdruck `v`. Ausgehend von dieser Menge erzeugen wir mit `freshName` einen neuen Bezeichner, mit dem wir dann den Parameternamen und alle Vorkommen des Parameternamens im Rumpf ersetzen, bevor wir die Substitution im Rumpf rekursiv fortsetzen. So ist garantiert, dass keine freien Variablen durch den Parameternamen "eingefangen" werden.
 
-### Substitutionsbasierter Interpreter
+## Substitutionsbasierter Interpreter
 
 Da Funktionen nun Werte bzw. Ausdrücke sind, muss der Interpreter auch Funktionen als Ergebnis einer Auswertung ausgeben können. Der Rückgabewert von `eval` kann also nicht mehr Int sein, stattdessen müssen wir `Exp` wählen.
 
@@ -701,7 +701,7 @@ def eval(e: Exp) : Exp = e match {
 
 Wir könnten den Rückgabetyp auch präzisieren, in dem wir den Typ `Either[Num,Fun]` verwenden, denn es wird immer eine Zahl oder eine Funktion ausgegeben (siehe dazu `07-fae.scala`).
 
-### Mächtigkeit
+## Mächtigkeit
 Wir können in dieser Sprache nicht-terminierende Ausdrücke verfassen:
 ```scala
 val omega = App( Fun("x", App("x","x")), Fun("x", App("x","x")) )
@@ -716,7 +716,7 @@ App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
 
 [FAE](#Higher-Order-Funktionen-FAE) ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache entspricht prinzipiell dem [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte.
 
-### Umgebungsbasierter Interpreter
+## Umgebungsbasierter Interpreter
 Der Typ `Map[String,Int]` für die Umgebung ist nicht mehr ausreichend, da auch `Fun`-Ausdrücke gebunden werden müssen. Wir wählen also stattdessen:
 ```scala
 type Env = Map[String,Exp]
@@ -767,7 +767,7 @@ Um dieses Problem zu umgehen, können wir nicht einfach die Umgebung im `App`-Fa
 
 So ein Paar aus Funktionsdefinition und Umgebung wird _Closure_ genannt.
 
-## Closures
+# Closures
 Wir definieren einen neuen Typ `Value` neben `Exp`, so dass wir Ausdrücke und deren Ergebnis wieder unterscheiden können:
 ```scala
 sealed abstract class Value
@@ -817,7 +817,7 @@ Ein **Closure** ist ein Paar, bestehend aus einer Funktionsdefinition und der Um
 Im [substitiutionsbasiertem Interpreter](#Substitutionsbasierter-Interpreter1) wird beim Auswerten der Funktionsdefinition sofort im Rumpf substituiert. Beim [umgebungsbasiertem Interpreter](#Umgebungsbasierter-Interpreter1) muss hingegen die Umgebung zum Zeitpunkt der Auswertung gespeichert werden, so dass der Interpreter beim Erreichen der Identifier die richtigen Werte einsetzen kann.
 
 
-## Call-By-Name und Call-By-Value
+# Call-By-Name und Call-By-Value
 Im `App`-Fall wird das Argument `a` ausgewertet, bevor die Substitution durchgeführt bzw. die Bindung der Umgebung hinzugefügt wird. Diese Auswertungsstrategie wird _Call-By-Value_ genannt. Alternativ kann die Substitution/Bindung ohne vorherige Auswertung erfolgen, dann spricht man von _Call-By-Name_.
 
 :::info
@@ -836,8 +836,8 @@ Für alle `e: Exp` gilt: Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sin
 
 
 :::success
-- [ ] HW 3c
-- [ ] VL 5 ab 45:00
+- [x] HW 3c - Closures
+- [ ] VL 6
 :::
 
 
