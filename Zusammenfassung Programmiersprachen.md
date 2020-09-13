@@ -17,7 +17,7 @@ langs: de
 - Sprachen und deren Features, Zweck/Nutzen dieser Features, mögliche Implementationen und Vorzüge/Probleme dieser
 
 # Scala-Grundlagen
-[Scala](https://scala-lang.org/) ist statisch getypt, funktional, sowie objekt-orientiert. Auswertung ist _eager_ (_call by value_).
+[Scala](https://scala-lang.org/) ist statisch getypt, funktional, sowie objekt-orientiert. Scala-Programme können zu Java-Bytecode kompiliert und in einer JVM ausgeführt werden. Auswertung ist _eager_ (_call by value_).
 - **Konstanten** mit `val`, mutierbare **Variablen** mit `var`. Typ muss nicht deklariert werden, also bspw. `var n = 1` oder `var s = "abc"`. Typ kann aber auch explizit deklariert werden, also bspw. `var n: Int = 1` oder `var s: String = "abc"`.
 - **Funktionen** haben die Form `def f(<arg1>: <Type1>, ...) = <body>`, Aufruf bspw. durch `f(1)`. Rückgabetyp kann optional angegeben werden: `def f(<arg1>: <Type1>, ...): <ReturnType> = <body>`
 ```scala
@@ -557,7 +557,6 @@ Die Variante mit einer neuen, leeren Umgebung wird _lexikalisches Scoping_ genan
 
 
 # Lexikalisches und dynamisches Scoping
-
 :::info
 **Lexikalisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des Syntaxbaums bestimmt wird.
 
@@ -578,6 +577,7 @@ Der Identifier `y` wird an den Wert `1` gebunden, bevor die Funktion `f` aufgeru
 Bei lexikalischem Scoping müssen Werte immer "weitergereicht" werden, während bei dynamischen Scoping alle Bindungen bei einem Funktionsaufruf automatisch im Funktionsrumpf gelten. Das automatische "Weiterreichen" kann in manchen Fällen die explizite Übergabe ersparen, führt aber in den meisten Fällen eher zu unerwarteten und unerwünschten Nebenwirkungen.
 
 Ein Beispiel für eine Verwendung von dynamischen Scoping wäre _Exception Handling_ in Java. Wird in einem _try-catch_-Block eine Funktion `f` aufgerufen, die eine bestimmte Exception wirft, so wird beim Werfen dieser Exception über eine Art von dynamischem Scoping ermittelt, welcher ExceptionHandler zuständig ist (in dem die Ausführungshistorie durchsucht wird).
+
 
 # Higher-Order-Funktionen (FAE)
 Funktionen erster Ordnung erlauben die Abstraktion über sich wiederholende Muster, die an bestimmten Ausdruckspositionen variieren (z.B. eine `square`- oder eine `avg`-Funktion). Liegt aber ein Muster vor, bei dem eine Funktion variiert (z.B. bei der Komposition zweier Funktionen), so ist keine Abstraktion möglich.
@@ -601,7 +601,6 @@ def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x, body), xdef)
 Ein `Fun`-Ausdruck hat nur einen Parameter und ein `App`-Ausdruck nur ein Argument (im Gegensatz zu unserer Implementation von [First-Order-Funktionen](#First-Order-Funktionen-F1-WAE)), wir können jedoch Funktionen mit mehreren Parametern durch Currying darstellen: $f(x,y)= x+y$ entspricht $\lambda x.\lambda y.x+y$.
 
 ## Accidental Captures
-
 Zuerst implementieren wir wieder die Version des Interpreters mit Substitutionsfunktion:
 ```scala
 def subst(e: Exp, i: String, v: Exp) : Exp = e match {
@@ -625,7 +624,6 @@ Zwei Funktionen sind **alpha-äquivalent**, wenn sie bis auf den Namen des Param
 :::
 
 ## Capture-Avoiding Substitution
-
 Wir nutzen Alpha-Äquivalenz, um Accidental Captures zu verhindern. Dazu brauchen wir einen "Generator", um bisher ungenutzte Namen zu erzeugen, die wir dann zur Umbenennung verwenden können.
 ```scala
 def freshName(names: Set[String], default: String) : String = {
@@ -674,7 +672,6 @@ def subst(e: Exp, i: String, v: Exp) : Exp = e match {
 Im `Fun`-Fall prüfen wir zuerst, ob der Parameter und der zu ersetzende Identifier übereinstimmen. Ist dies der Fall, so lassen wir den `Fun`-Ausdruck unverändert. Ansonsten bestimmen wir mit `freeVars` die Menge der freien Variablen im aktuellen Ausdruck `e` sowie im einzusetzenden Ausdruck `v`. Ausgehend von dieser Menge erzeugen wir mit `freshName` einen neuen Bezeichner, mit dem wir dann den Parameternamen und alle Vorkommen des Parameternamens im Rumpf ersetzen, bevor wir die Substitution im Rumpf rekursiv fortsetzen. So ist garantiert, dass keine freien Variablen durch den Parameternamen "eingefangen" werden.
 
 ## Substitutionsbasierter Interpreter
-
 Da Funktionen nun Werte bzw. Ausdrücke sind, muss der Interpreter auch Funktionen als Ergebnis einer Auswertung ausgeben können. Der Rückgabewert von `eval` kann also nicht mehr Int sein, stattdessen müssen wir `Exp` wählen.
 
 Durch diesen Rückgabetyp gibt es aber auch eine neue Klasse von Fehlern, die auftreten können: Es kann passieren, dass ein `Num`-Ausdruck erwartet wird, aber ein `Fun`-Ausdruck vorliegt, etwa wenn der linke Teil eines `Add`-Ausdrucks zu einer Funktion auswertet. Auch der umgekehrte Fall kann eintreten: In einem `App`-Ausdruck wertet der linke Teil zu einem `Num`-Ausdruck anstelle einer Funktion aus.
@@ -701,20 +698,6 @@ def eval(e: Exp) : Exp = e match {
 
 Wir könnten den Rückgabetyp auch präzisieren, in dem wir den Typ `Either[Num,Fun]` verwenden, denn es wird immer eine Zahl oder eine Funktion ausgegeben (siehe dazu `07-fae.scala`).
 
-## Mächtigkeit
-Wir können in dieser Sprache nicht-terminierende Ausdrücke verfassen:
-```scala
-val omega = App( Fun("x", App("x","x")), Fun("x", App("x","x")) )
-```
-In `eval` betreten wir den `App`-Fall, dort wird substituiert, wodurch wieder `omega` entsteht.
-```scala
-assert(subst(App("x","x"), "x", Fun("x", App("x","x"))) ==
-App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
-```
-
-`omega` kann im _Lambda-Kalkül_ notiert werden als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
-
-[FAE](#Higher-Order-Funktionen-FAE) ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache entspricht prinzipiell dem [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte.
 
 ## Umgebungsbasierter Interpreter
 Der Typ `Map[String,Int]` für die Umgebung ist nicht mehr ausreichend, da auch `Fun`-Ausdrücke gebunden werden müssen. Wir wählen also stattdessen:
@@ -767,7 +750,7 @@ Um dieses Problem zu umgehen, können wir nicht einfach die Umgebung im `App`-Fa
 
 So ein Paar aus Funktionsdefinition und Umgebung wird _Closure_ genannt.
 
-# Closures
+## Closures
 Wir definieren einen neuen Typ `Value` neben `Exp`, so dass wir Ausdrücke und deren Ergebnis wieder unterscheiden können:
 ```scala
 sealed abstract class Value
@@ -792,7 +775,7 @@ def eval(e: Exp, env: Env) : Value = e match {
   }
   case App(f,a) => eval(f,env) match {
     case ClosureV(f,cEnv) =>
-      eval(f.body, cEnv+(f.param -> eval(a,env))) // call-by-value
+      eval(f.body, cEnv+(f.param -> eval(a,env)))
     case _ => sys.error("Can only apply functions")
   }
   case Fun(b,p) => ClosureV(Fun(b,p),env)
@@ -817,14 +800,68 @@ Ein **Closure** ist ein Paar, bestehend aus einer Funktionsdefinition und der Um
 Im [substitiutionsbasiertem Interpreter](#Substitutionsbasierter-Interpreter1) wird beim Auswerten der Funktionsdefinition sofort im Rumpf substituiert. Beim [umgebungsbasiertem Interpreter](#Umgebungsbasierter-Interpreter1) muss hingegen die Umgebung zum Zeitpunkt der Auswertung gespeichert werden, so dass der Interpreter beim Erreichen der Identifier die richtigen Werte einsetzen kann.
 
 
-# Call-By-Name und Call-By-Value
-Im `App`-Fall wird das Argument `a` ausgewertet, bevor die Substitution durchgeführt bzw. die Bindung der Umgebung hinzugefügt wird. Diese Auswertungsstrategie wird _Call-By-Value_ genannt. Alternativ kann die Substitution/Bindung ohne vorherige Auswertung erfolgen, dann spricht man von _Call-By-Name_.
+# Mächtigkeit von FAE
+Wir können in [FAE](#Higher-Order-Funktionen-FAE) nicht-terminierende Ausdrücke verfassen:
+```scala
+val omega = App( Fun("x", App("x","x")), Fun("x", App("x","x")) )
+```
+In `eval` betreten wir den `App`-Fall, dort wird substituiert, wodurch wieder `omega` entsteht.
+```scala
+assert(subst(App("x","x"), "x", Fun("x", App("x","x"))) ==
+App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
+```
+
+`omega` kann im _Lambda-Kalkül_ notiert werden als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
+
+FAE ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache entspricht prinzipiell dem [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte.
+
+## Church-Kodierungen
+In FAE ist es bereits möglich, Listen zu repräsentieren. Die Grundidee ist es, die Liste $x_1,x_2,...,x_n$ durch $\lambda c. \lambda e. c(x_1, (... (c(x_{n-1}, c(x_n,e)))...))$ zu repräsentieren.
+
+## Rekursion
+Es ist auch möglich, Rekursion in FAE zu implementieren. Aus dem Programm `omega = (x => x x) (x => x x)` lässt sich das Programm `Y f = (x => f (x x)) (x => f (x x))` konstruieren, mit dem Schleifen kodiert werden können. Das Programm `Y` ist ein _Fixpunkt-Kombinator_. 
 
 :::info
-Für alle `e: Exp` gilt: Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sind `e1` und `e2` äquivalent (falls Zahlen -- identisch, falls Funktionen -- gleichbedeutend).
+Ein **Fixpunkt-Kombinator** ist ein Programm, mit dem der Fixpunkt von Funktionen gebildet werden kann. 
 :::
 
-`evalCBV(App(Fun("x",0), omega))` terminiert nicht, `evalCBN(App(Fun("x",0), omega))` liefert hingegen den Ausdruck `Num(0)`. Der Call-By-Name-Interpreter terminiert auf mehr Programmen als der Call-By-Value-Interpreter.
+Bei der Auswertung von `Y f` entsteht ein Ausdruck der Form `(f ... (f (f (f Y)))...)`.
+
+
+# Auswertungsstrategien
+Im [substitutionsbasierten Interpreter](#Substitutionsbasierter-Interpreter1) für FAE konnten wir im `App`-Fall zwischen zwei möglichen Implementation wählen: Wir können das Argument vor der Substitution im Rumpf auswerten, oder substituieren, ohne das Argument vorher auszuwerten.
+
+Die erste dieser _Auswertungsstrategien_ wird _Call-By-Value_ genannt, die zweite _Call-By-Name_. 
+
+:::info
+Im substitutionsbasierten Interpreter gilt für alle `e: Exp`: 
+
+Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sind `e1` und `e2` äquivalent (falls Zahlen -- identisch, falls Funktionen -- gleichbedeutend).
+:::
+
+`evalCBV(App(Fun("x",0), omega))` terminiert nicht, `evalCBN(App(Fun("x",0), omega))` liefert hingegen das Ergebnis `Num(0)`. Der Call-By-Name-Interpreter terminiert auf strikt mehr Programmen als der Call-By-Value-Interpreter.
+
+Mit "gleichbedeutend" ist gemeint, dass sich die Funktionen gleich verhalten, aber nicht zwingend identisch sind. Für den Ausdruck $(\lambda x.(\lambda y.x+y) \;\;\; 1+1)$ würde Call-By-Value-Auswertung das Ergebnis $\lambda y.2+y$ liefern, während Call-By-Name-Auswertung das Ergebnis $\lambda y.(1+1)+y$ liefern würde.
+
+Die Auswertungsstrategie eines Interpreters bzw. einer Programmiersprache ist nicht nur eine Frage der Effizienz, sondern hat auch Auswirkungen darauf, welche Programmstrukturen möglich sind. Unendliche Datencontainer wie Streams können bspw. erst durch _Lazy Evaluation_ implementiert werden. 
+
+In der Sprache Haskell kann man etwa eine rekursive Funktion ohne Abbruchkriterium schreiben, die die Quadratwurzel einer Zahl annähert.
+
+Da Haskell _lazy_ ist, kann die Funktion `rpt` ohne Abbruchbedingung definiert und mit verschiedenen Abbruchbedingungen aufgerufen werden, eine Programmstruktur die durch die Auswertungsstrategie der Sprache ermöglicht wird.
+
+
+# Rekursive Bindings
+Es ist nicht möglich, Rekursion folgendermaßen zu implementieren:
+```scala
+wth("fac", 
+    Fun("n", If(Eq("n",1) 1, Mul("n", App("fac", Add("n",-1)))))
+    App("fac",10))
+    
+With fac = n => If (n==1) 1 else n*fac(n-1): fac(10)
+```
+Die Auswertung dieses Ausdrucks würde einen Fehler liefern, da der Bezeichner `"fac"` im Rumpf der Funktion nicht gebunden ist (also im `xDef`-Teil des With-Ausdrucks).
+
+Um Rekursion in dieser Form zu definieren, brauchen wir ein Konstrukt, mit dem rekursive Bindungen möglich sind.
 
 
 
@@ -837,7 +874,8 @@ Für alle `e: Exp` gilt: Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sin
 
 :::success
 - [x] HW 3c - Closures
-- [ ] VL 6
+- [ ] VL 7
+- [ ] Lecture Notes zu Church-Kodierungen
 :::
 
 
