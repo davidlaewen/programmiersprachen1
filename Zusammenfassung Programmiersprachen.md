@@ -774,11 +774,11 @@ def eval(e: Exp, env: Env) : Value = e match {
     case _ => sys.error("Can only multiply numbers")
   }
   case App(f,a) => eval(f,env) match {
-    case ClosureV(f,cEnv) =>
-      eval(f.body, cEnv+(f.param -> eval(a,env)))
+    case ClosureV(Fun(p,b),cEnv) =>
+      eval(b, cEnv+(p -> eval(a,env)))
     case _ => sys.error("Can only apply functions")
   }
-  case Fun(b,p) => ClosureV(Fun(b,p),env)
+  case f@Fun(_,_) => ClosureV(f,env)
 }
 ```
 
@@ -853,15 +853,81 @@ Da Haskell _lazy_ ist, kann die Funktion `rpt` ohne Abbruchbedingung definiert u
 # Rekursive Bindings
 Es ist nicht möglich, Rekursion folgendermaßen zu implementieren:
 ```scala
-wth("fac", 
-    Fun("n", If(Eq("n",1) 1, Mul("n", App("fac", Add("n",-1)))))
-    App("fac",10))
+val facAttempt = wth("fac", 
+                     Fun("n", If0("n", 1, Mul("n", App("fac", Add("n",-1))))), 
+                     App("fac",4))
     
-With fac = n => If (n==1) 1 else n*fac(n-1): fac(10)
+With fac = (n => If (n==1) 1 else n*fac(n-1)): fac(4)
 ```
 Die Auswertung dieses Ausdrucks würde einen Fehler liefern, da der Bezeichner `"fac"` im Rumpf der Funktion nicht gebunden ist (also im `xDef`-Teil des With-Ausdrucks).
 
-Um Rekursion in dieser Form zu definieren, brauchen wir ein Konstrukt, mit dem rekursive Bindungen möglich sind.
+Um Rekursion in dieser Form zu definieren, brauchen wir ein Konstrukt, mit dem rekursive Bindungen möglich sind. Dazu führen wir das (analog zur Scheme-Funktion benannte) `Letrec`-Konstrukt ein, das die gleiche Form wie `With` bzw. `wth` hat, aber rekursive Bindings ermöglichen soll. Zudem erweitern wir die Sprache um ein `If0`-Konstrukt, um Abbruchbedingungen für rekursive Funktionen geschickt formulieren zu können:
+```scala
+case class If0(cond: Exp, tBranch: Exp, eBranch: Exp) extends Exp
+case class Letrec(x: String, xDef: Exp, body: Exp) extends Exp
+
+def eval(e: Exp, env: Env) : Value = e match {
+  // ...
+  case If0(c,t,f) => eval(c,env) match {
+    case NumV(0) => eval(t,env)
+    case NumV(_) => eval(f,env)
+    case _ => sys.error("Can only check if number is zero")
+  }
+  case Letrec(i,v,b) => // ???
+}
+```
+
+Es stellt sich aber die Frage, wie wir im `Letrec`-Fall vorgehen sollen. Zuerst müssen wir `xDef` auswerten, handelt es sich dabei um eine Funktion so ist das Ergebnis der Auswertung natürlich ein Closure. Die Umgebung im Closure enthält aber keine Bindung für den Funktionsnamen, der ja im Rumpf der Funktion auftritt. 
+
+Selbst wenn man die Umgebung im Closure um eine Bindung für den Funktionsnamen erweitert, würde das nur einen rekursiven Aufruf ermöglichen, dann wäre der Funktionsname im Rumpf bereits wieder nicht gebunden. Für eine unbegrenzte Rekursionstiefe müsste für die Umgebung gelten: `env = Map("fac" -> ClosureV(...), env)`, sie müsste sich also zirkulär selbst referenzieren.
+
+Eine Möglichkeit, in imperativen Sprachen zirkuläre Strukturen zu definieren, ist durch Objektreferenzen (bspw. durch zwei Instanzen, die gegenseitig auf sich verweisen). Hierzu ist Mutation notwendig, es wird die erste Objektinstanz mit Null-Pointer erzeugt, dann die zweite Objektinstanz mit Pointer auf die erste, zuletzt wird der Pointer im ersten Objekt mutiert und auf das zweite gesetzt. 
+
+Wir legen eine entsprechende Datenstruktur in einem Objekt `Values` an. Diese besteht aus einem Trait `ValueHolder`, das durch die Klassen `Value` und `ValuePointer` implementiert wird. Instanzen von `Value` sind dabei selbst Werte, Instanzen von `ValuePointer` verweisen auf `Value`-Instanzen. Die `Value`-Subklassen `NumV` und `ClosureV` kennen wir bereits, der Umgebungstyp `Env` ist nun nicht mehr eine Map von `String` nach `Value` sondern von `String` nach `ValueHolder`. Damit diese zirkuläre Definition möglich ist (`ValueHolder -> Value -> ClosureV -> Env -> ValueHolder`), müssen die Definitionen in ein Objekt gepackt werden.
+
+```scala
+object Values {
+  trait ValueHolder {
+    def value: Value
+  }
+  sealed abstract class Value extends ValueHolder {
+    def value = this
+  }
+  case class ValuePointer(var v: Value) extends ValueHolder {
+    def value = v
+  }
+  case class NumV(n: Int) extends Value
+  case class ClosureV(f: Fun, env: Env) extends Value
+  type Env = Map[String,ValueHolder]
+}
+```
+Anschließend importieren wir die Definitionen:
+```scala
+import Values._
+```
+
+Die `eval`-Funktion ändert sich an folgenden Stellen:
+```scala
+def eval(e: Exp, env: Env) : Value = e match {
+  // ...
+  case Id(x) => env(x).value
+  // ...
+  case Letrec(i,v,b) =>
+    val vp = ValuePointer(null)
+    val newEnv = env+(i -> vp)
+    vp.v = eval(v,newEnv)
+    eval(b,newEnv)
+}
+```
+
+Im `Letrec`-Fall definieren wir erst den `ValuePointer` `vp`, den wir mit einem Verweis auf `null` initialisieren. Wir erweitern die aktuelle Umgebung mit der Bindung des Identifiers `i` auf `vp`. Dann mutieren wir den `ValuePointer` so, dass er das Auswertungsergebnis des zu bindenden Wertes in der neuen Umgebung referenziert (Kreisschluss!). Nach dieser Mutation ist mit der neuen Umgebung die Auswertung möglich.
+
+Im `Id`-Fall findet die Dereferenzierung statt, wir schlagen `x` in der Environment nach und rufen auf dem Ergebnis die `value`-Methode auf, um den referenzierten `Value` zu erhalten. 
+
+
+# Mutation
+Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, d.h. eine Sprache in der es keine Mutation und keine Seiteneffekte gibt. In dieser Art von Sprache lassen sich Programme besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor -- 
+
 
 
 
@@ -874,8 +940,8 @@ Um Rekursion in dieser Form zu definieren, brauchen wir ein Konstrukt, mit dem r
 
 :::success
 - [x] HW 3c - Closures
-- [ ] VL 7
-- [ ] Lecture Notes zu Church-Kodierungen
+- [ ] VL 7 ab 21.30
+- [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
 
 
