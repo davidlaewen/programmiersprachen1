@@ -16,7 +16,7 @@ case class ClosureV(f: Fun, env: Env) extends Value
 implicit def num2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(s)
 
-def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x,body), xdef)
+def wth(x: String, xDef: Exp, body: Exp) : Exp = App(Fun(x,body), xDef)
 
 
 def eval(e: Exp, env: Env) : Value = e match {

@@ -13,7 +13,7 @@ type Env = Map[String, Int]
 implicit def num2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(s)
 
-def wth(x: String, xDef: Exp, body: Exp) : Exp = App(Fun(x,body), xDef)
+def wth(x: String, xDef: Exp, body: Exp) : Exp = App(Fun(x, body), xDef)
 
 
 def freshName(names: Set[String], default: String) : String = {
