@@ -926,9 +926,150 @@ Im `Id`-Fall findet die Dereferenzierung statt, wir schlagen `x` in der Environm
 
 
 # Mutation
-Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, d.h. eine Sprache in der es keine Mutation und keine Seiteneffekte gibt. In dieser Art von Sprache lassen sich Programme besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor -- 
+Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, also eine Sprache ohne Mutation und Seiteneffekte. In dieser Art von Sprache lassen sich Programme besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor.
 
+:::info
+**Referential Transparency** bedeutet, dass alle Aufrufe einer Funktion mit dem gleichen Argument überall durch das Ergebnis des Aufrufs ersetzt werden können, ohne die Bedeutung des Programms zu verändern.
+:::
 
+Besitzen Funktionen Seiteneffekte (etwa Print-Befehle oder Mutationen), so ist dies nicht der Fall, denn durch das Ersetzen des Funktionsaufrufs durch das Ergebnis gehen jegliche Seiteneffekte verloren. 
+
+Die erste Form von Mutation ist das Mutieren von Variablen, also das Überschreiben des Wertes einer Variable:
+```scala
+var x = 1
+x = 2
+```
+Die andere Form ist die mutierbarer Datenstrukturen, bspw. Arrays, in denen einzelne Werte überschrieben werden können. Wir wollen einfachste denkbare Form einer mutierbaren Datenstruktur unserer Sprache hinzufügen, nämlich _Boxes_. 
+
+## Box-Container
+Eine Box entspricht einem Array der Länge 1, ist also ein Datencontainer für genau einen Wert. Um Boxes zu implementieren, führen wir die folgenden Sprachkonstrukte ein:
+```scala
+case class NewBox(e: Exp) extends Exp
+case class SetBox(b: Exp, e: Exp) extends Exp
+case class OpenBox(b: Exp) extends Exp
+case class Seq(e1: Exp, e2: Exp) extends Exp
+```
+
+Wir müssen Boxen instanziieren, beschreiben und auslesen bzw. dereferenzieren können, zudem brauchen wir eine Möglichkeit, um zu Sequenzieren, also die Auswertungsreihenfolge verschiedener Programmteile anzugeben. Da der Wert einer Box global mutiert werden kann, spielt die Auswertungsreihenfolge von Unterausdrücken nun eine entscheidende Rolle. 
+
+Wir implementieren den `Box`-Container aus pädagogischen Gründen nicht durch Mutation in der Meta-Sprache, unser Interpreter soll funktional bleiben. 
+
+```scala
+val ex1 = wth("b", NewBox(0), Seq( SetBox("b", Add(1,OpenBox("b"))), OpenBox("b")))
+/** Should evaluate to 1.
+ * With b = NewBox(0):
+ *    SetBox(b <- 1+OpenBox(b));
+ *    OpenBox(b);
+ */
+
+```
+
+Die Implementierung von `Seq` stellt uns vor eine Herausforderung, die Reihenfolge der rekursiven `eval`-Aufrufe in unserem Interpreter spielt nämlich keine Rolle, da diese Funktionsaufrufe keine Effekte haben (und auch nicht haben sollen). Wir müssen also unseren Interpreter abändern, so dass nach der Auswertung sowohl das Ergebnis, als auch durchgeführte Mutationen zurückgegeben werden, so dass wir beim Auswerten des zweiten Programmabschnitts die Effekte des ersten Programmabschnitts berücksichtigen können.
+
+Hierzu ist es aber nicht ausreichend, `(Value,Env)` als Rückgabetyp zu wählen, wie das folgenden Beispiel zeigt:
+```scala
+val ex2 = wth("b", NewBox(1), 
+            wth("f", Fun("x", Add("x", OpenBox("a"))),
+              Seq(SetBox("a",2), App("f",5))))       
+/** Should evaluate to 7.
+ * With b = NewBox(1):
+ *    With f = (x => x+OpenBox(b):
+ *       SetBox(a, 2);
+ *       f(5);
+ */
+```
+
+Bei der Auswertung von `f` wird die Umgebung aus dem zu `f` gehörigen Closure verwendet. In dieser Umgebung steht in der an `"a"` gebundenen Box der Wert `1`, nicht `2`. Environments dienen zur Umsetzung von lexikalischem Scoping, sie werden entsprechend der Programmstruktur rekursiv in Unterausdrücke weitergereicht. Für Mutation ist aber die Auswertungsreihenfolge und nicht die syntaktische Struktur des Programms entscheidend, insofern sind Environments für die Implementation dieses neuen Features ungeeignet. 
+
+Stattdessen benötigen wir eine zweite Datenstruktur, die wir als zusätzliches Argument bei der Auswertung übergeben und in evtl. modifizierter Form nach der Auswertungs ausgeben. Die neue Datenstruktur besitzt einen ganz anderen Datenfluss als die Umgebung, sie wird zwischen den Auswertungen der Unterausdrücke überreicht und nicht rekursiv in der Baumstruktur weitergegeben.
+
+## Store und Adressen
+Wir verwenden wieder unsere alten Definitionen von `Value` und `Env` und führen den Typ `Address` und `Store` ein. Zusätzlich erweitern wir `Value` um den Fall `AddressV`:
+```scala
+sealed abstract class Value
+type Env = Map[String,Value]
+case class NumV(n: Int) extends Value
+case class ClosureV(f: Fun, env: Env) extends Value
+
+type Address = Int
+case class AddressV(a: Address) extends Value
+type Store = Map[Address,Value]
+```
+
+Adressen sind Integers und dienen als Referenz ("Pointer") für Box-Instanzen. In der `Store`-Map werden die aktuellen Werte der Box-Instanzen hinterlegt. Um Bezeichner an Boxen binden zu können, müssen wir Boxen als `Value` repräsentieren können, wodurch `AddressV` notwendig wird.
+
+Um neue Adressen zu erhalten, inkrementieren wir einfach die bisher höchste Adresse um 1. Um das Entfernen alter Referenzen und die Limitierungen dieses Adressen-Systems kümmern wir uns zu diesem Zeitpunkt nicht.
+```scala
+var address = 0
+def nextAddress : Address = {
+  address += 1
+  address
+}
+```
+
+## Interpreter
+Im Interpreter hat sich in allen Fällen was geändert, die Implementation ist generall komplexer geworden:
+```scala
+def eval(e: Exp, env: Env, s: Store) : (Value,Store) = e match {
+  case Num(n) => (NumV(n),s)
+  case Id(x) => (env(x),s)
+  case f@Fun(_,_) => (ClosureV(f,env),s)
+  case Add(l,r) => eval(l,env,s) match {
+    case (NumV(a),s1) => eval(r,env,s1) match {
+      case (NumV(b),s2) => (NumV(a+b),s2)
+      case _ => sys.error("Can only add numbers")
+    }
+    case _ => sys.error("Can only add numbers")
+  }
+  case Mul(l,r) => eval(l,env,s) match {
+    case (NumV(a),s1) => eval(r,env,s1) match {
+      case (NumV(b),s2) => (NumV(a*b),s2)
+      case _ => sys.error("Can only multiply numbers")
+    }
+    case _ => sys.error("Can only multiply numbers")
+  }
+  case App(f,a) => eval(f,env,s) match {
+    case (ClosureV(Fun(p,b),cEnv),s1) => eval(a,env,s1) match {
+      case (v,s2) => eval(b, cEnv+(p -> v), s2)
+    }
+    case _ => sys.error("Can only apply functions")
+  }
+  case If0(c,t,f) => eval(c,env,s) match {
+    case (NumV(0),s1) => eval(t,env,s1)
+    case (NumV(_),s1) => eval(f,env,s1)
+    case _ => sys.error("Can only check if number is zero")
+  }
+  case Seq(e1,e2) =>
+    eval(e2,env,eval(e1,env,s)._2)
+  case NewBox(e) => eval(e,env,s) match {
+    case (v,s1) =>
+      val a = nextAddress
+      (AddressV(a), s1+(a -> v))
+  }
+  case SetBox(b,e) => eval(b,env,s) match {
+    case (AddressV(a),s1) => eval(e,env,s1) match {
+      case (v,s2) => (v, s2+(a -> v))
+    }
+    case _ => sys.error("Can only set boxes")
+  }
+  case OpenBox(b) =>  eval(b,env,s) match {
+    case (AddressV(a),s1) => (s1(a),s1)
+    case _ => sys.error("Can only open boxes")
+  }
+}
+```
+
+Der `Num`-, `Id`- und `Fun`-Fall entsprechen der [umgebungsbasierten FAE-Implementierung](#Umgebungsbasierter-Interpreter1) bis auf den neuen Store, der zusätzlich (mit dem Ergebnis zusammen in einem Tupel) ausgegeben wird. Im `Add`- und `Mul`-Fall müssen wir aber bereits entscheiden, in welcher Reihenfolge wir den linken und rechten Unterausdruck auswerten wollen. Wir werten (wie die meisten Sprachen) erst links und dann rechts aus. 
+
+Durch die Auswertung des linken Teilausdrucks (mit aktueller Umgebung und aktuellem Store) erhalten wir ein Tupel aus `NumV` und `Store`, diesen neuen `Store` verwenden wir dann bei der Auswertung des rechten Teilausdrucks, so dass potentielle Mutierungen im linken Teilausdruck nun im rechten Teilausdruck berücksichtigt werden. Die Auswertung des rechten Teilausdrucks liefert wieder einen Zahlenwert und einen Store, wir geben die Summe der Zahlen und den neuesten Store als Ergebnis aus. Der `Mul`-Fall ist analog.
+
+Auch im `App`- und `If0`-Fall müssen wir den Store von links nach rechts immer zum nächsten Unterausdruck weiterreichen, sodass bspw. Mutierungen in der Bedingung eines `If0`-Ausdrucks im Then- bzw. Else-Zweig berücksichtigt werden. 
+
+Im `Seq`-Fall werten wir zuerst den linken Ausdruck aus und greifen mit `._2` auf den Store aus dem Ergebnis zu. Diesen nutzen wir dann bei der Auswertung des rechten Ausdrucks. Ein etwaiges Ergebnis aus dem linken Ausdruck wird also ignoriert, lediglich der rechte Ausdruck liefert ein Ergebnis. 
+
+Um eine neue Box-Instanz zu erzeugen, werten wir zuerst den Ausdruck aus, der in der Box stehen soll. Wir erhalten einen Wert `v` und einen `Store`, erzeugen mit `nextAddress` eine neue Adresse und geben ein Tupel aus der neuen Adresse und dem Store, erweitert um die neue Adresse gebunden an den Wert `v`, aus. Im `SetBox`-Fall muss zusätzlich der Ausdruck an der ersten Stelle ausgewertet werden, um die Adresse der Box-Instanz zu erhalten und den Store mit dem neuen Wert zu aktualisieren. Im `OpenBox`-Fall wird auch erst die Adresse bestimmt, anschließend wird einfach der zugehörige Wert und der aktuelle Store ausgegeben.
+
+Beim Auslesen einer Box-Instanz wird also erst in der Umgebung der Bezeichner nachgeschlagen, was einen `AddressV`-Wert liefern sollte, anschließend wird im Store nachgeschlagen, auf welchen Wert diese Adresse verweist. 
 
 
 
@@ -939,7 +1080,7 @@ Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, d.h. ei
 
 
 :::success
-- [x] HW 3c - Closures
+- [ ] HW 4
 - [ ] VL 7 ab 21.30
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
