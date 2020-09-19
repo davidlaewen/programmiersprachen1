@@ -30,10 +30,10 @@ case class AddressV(a: Int) extends Value
 trait Store {
   // add v to store, return address, perform GC if necessary
   def malloc(stack: List[Env], v: Value) : Int
-  // update the value at index to v (by mutating the store)
-  def update(index: Int, v: Value) : Unit
-  // fetch value at index
-  def apply(index: Int) : Value
+  // update the value at index i to v (by mutating the store)
+  def update(i: Int, v: Value) : Unit
+  // fetch value at index i
+  def apply(i: Int) : Value
 }
 
 
@@ -76,7 +76,9 @@ def eval(e: Exp, stack: List[Env], store: Store) : Value = e match {
   }
 }
 
-// "stupid" Store implementation with no GC
+/**
+ * "stupid" Store implementation with no GC
+ */
 class StoreNoGC(size: Int) extends Store {
   val memory = new Array[Value](size)
   var nextFreeAddr: Int = 0
@@ -85,19 +87,70 @@ class StoreNoGC(size: Int) extends Store {
     if (a >= size) sys.error("Out of memory!")
     nextFreeAddr += 1; update(a,v); a
   }
-  def update(index: Int, v: Value) : Unit = memory.update(index,v)
-  def apply(index: Int) : Value = memory(index)
+  def update(i: Int, v: Value) : Unit = { memory(i) = v }
+  def apply(i: Int) : Value = memory(i)
+}
+
+val ex1 =
+  wth("b", NewBox(0),
+    Seq( SetBox("b", Add(1,OpenBox("b"))), OpenBox("b") ))
+
+val store = new StoreNoGC(2)
+val stack = List[Env]()
+eval(ex1,stack,store)
+eval(ex1,stack,store) // third call would cause error
+
+/**
+ * Store implementation with Mark & Sweep GC
+ */
+class MarkAndSweepStore(size: Int) extends Store {
+  val memory = new Array[Value](size)
+  var free : Int = size
+  var nextFreeAddr : Int = 0
+  def malloc(stack: List[Env], v: Value) : Int = {
+    if (free <= 0) gc(stack)
+    if (free <= 0) sys.error("Out of memory!")
+    while (memory(nextFreeAddr) != null) {
+      nextFreeAddr += 1
+      if (nextFreeAddr == size) nextFreeAddr = 0
+    }
+    update(nextFreeAddr,v); free -= 1; nextFreeAddr
+  }
+  def update(i: Int, v: Value) : Unit = { memory(i) = v }
+  def apply(i: Int) : Value = memory(i)
+
+  // Mark & Sweep GC:
+  def allAddrInVal(v: Value) : Set[Int] = v match {
+    case NumV(_) => Set()
+    case AddressV(a) => Set(a)
+    case ClosureV(_,env) => allAddrInEnv(env)
+  }
+  def allAddrInEnv(env: Env) : Set[Int] = {
+    env.values.map{allAddrInVal}.fold(Set())(_++_)
+  }
+  def mark(seed: Set[Int]) : Unit = {
+    seed.foreach(memory(_).marked = true)
+    val newAddresses =
+      seed.flatMap(a => allAddrInVal(memory(a))).filter(!memory(_).marked)
+    if (newAddresses.nonEmpty) {
+      mark(newAddresses)
+    }
+  }
+  def sweep() : Unit = {
+    memory.indices.foreach(
+      i => if (memory(i) == null) {}
+      else if (memory(i).marked) memory(i).marked = false
+      else { memory(i) = null; free += 1 }
+    )
+  }
+  def gc(stack: List[Env]) : Unit = {
+    mark(stack.map(allAddrInEnv).fold(Set())(_++_))
+    sweep()
+  }
 }
 
 
 
-val ex1 =
-  wth("switch", NewBox(0),
-    wth("toggle", Fun("dummy",
-      If0(OpenBox("switch"),
-        Seq(SetBox("switch",1), 1),
-        Seq(SetBox("switch",0), 0))),
-      Add(App("toggle",42), App("toggle",42))))
 
 
 

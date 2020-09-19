@@ -1101,6 +1101,8 @@ Bei Garbage Collection handelt es sich also um das Erreichbarkeitsproblem in ein
 
 Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörigen Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder andere Umgebungen gelten. 
 
+
+## Mark and Sweep
 Die meisten einfachen Garbage-Collection-Algorithmen bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
 
 Die folgende Funktion führt Mark-And-Sweep Garbage-Collection in [BCFAE](#Mutation-BCFAE) für eine Umgebung `env` auf dem Store durch:
@@ -1156,12 +1158,12 @@ sealed abstract class Value {
 
 trait Store {
   def malloc(stack: List[Env], v: Value) : Int
-  def update(index: Int, v: Value) : Unit
-  def apply(index: Int) : Value
+  def update(i: Int, v: Value) : Unit
+  def apply(i: Int) : Value
 }
 ```
 
-Dabei fügt `malloc` dem Store einen Wert hinzu (wobei falls notwendig GC betrieben wird) und liefert die gewählte Adresse zurück, `update` mutiert den Wert an der Adresse `index` im Store und `apply` liest den Wert an der Adresse `index` aus. Wir verwenden jetzt also auch Mutation in der Meta-Sprache, um den Interpreter samt Speichermanagement zu implementieren. Der Store wird also nicht mehr von Funktionsaufruf zu Funktionsaufruf gereicht, sondern ist eine globale Datenstruktur, auf die von überall zugegriffen werden kann.
+Dabei fügt `malloc` dem Store einen Wert hinzu (wobei falls notwendig GC betrieben wird) und liefert die gewählte Adresse zurück, `update` mutiert den Wert an der Adresse `i` im Store und `apply` liest den Wert an der Adresse `i` aus. Wir verwenden jetzt also auch Mutation in der Meta-Sprache, um den Interpreter samt Speichermanagement zu implementieren. Der Store wird also nicht mehr von Funktionsaufruf zu Funktionsaufruf gereicht, sondern ist eine globale Datenstruktur, auf die von überall zugegriffen werden kann.
 
 Unser Interpreter ähnelt dadurch wieder stärker dem [umgebungsbasierten FAE-Interpreter](#Umgebungsbasierter-Interpreter1):
 ```scala
@@ -1202,12 +1204,91 @@ def eval(e: Exp, stack: List[Env], store: Store) : Value = e match {
 }
 ```
 
-Statt einer Umgebung erhält der Interpreter nun eine ganze Liste von Umgebungen, die dem Call-Stack entspricht. Der Kopf der Liste ist also die aktive Umgebung im aktuellen Funktionsaufruf, die weiteren Elemente sind die Umgebungen, der "darüberliegenden" Aufrufe in der Rekursionsstruktur. Im `App`-Fall wird die Umgebung verändert, hier wird also vorne an die Liste eine neue Umgebung angehängt, in der die Bindung des Parameters auf das Argument hinzugefügt wurde. Im `Id`-Fall wird der Bezeichner in der obersten/ersten Umgebung im Stack nachgeschlagen.
+Statt einer Umgebung erhält der Interpreter nun eine Liste aller im Call-Stack auftretenden Umgebungen. Der Kopf der Liste ist also die aktive Umgebung des aktuellen Funktionsaufrufs, die weiteren Elemente sind die Umgebungen der "darüberliegenden" Aufrufe in der Rekursionsstruktur. Im `App`-Fall wird die Umgebungsliste erweitert, indem vorne an die Liste eine neue Umgebung angehängt wird, die zusätzlich die Bindung des Parameters enthält. Im `Id`-Fall wird der Bezeichner in der obersten/ersten Umgebung im Stack nachgeschlagen.
 
-Im `NewBox`-, `SetBox`- und `OpenBox`-Fall werden jeweils die Store-Funktionen `malloc`, `update` und `apply` benutzt. Es muss der Stack anstelle der Umgebung verwendet werden, damit dieser im `NewBox`-Fall an die `malloc`-Funktion überreicht werden kann -- für GC und die Suche nach ungenutzten Adressen werden nämlich alle Umgebungen im Stack benötigt.
+Im `NewBox`-, `SetBox`- und `OpenBox`-Fall werden jeweils die Store-Funktionen `malloc`, `update` und `apply` benutzt. Es muss der Stack anstelle der Umgebung als Parameter von `eval` verwendet werden, damit dieser im `NewBox`-Fall an die `malloc`-Funktion überreicht werden kann -- für GC und die Suche nach ungenutzten Adressen werden nämlich alle Umgebungen im Stack benötigt.
 
+## Einfältiges Speichermanagement
+Eine sehr einfache Implementation der abstrakten `Store`-Klasse für Speichermanagement ohne Garbage Collection sieht folgendermaßen aus:
+```scala
+class StoreNoGC(size: Int) extends Store {
+  val memory = new Array[Value](size)
+  var nextFreeAddr: Int = 0
+  def malloc(stack: List[Env], v: Value) : Int = {
+    val a = nextFreeAddr
+    if (a >= size) sys.error("Out of memory!")
+    nextFreeAddr += 1; update(a,v); a
+  }
+  def update(i: Int, v: Value) : Unit = memory.update(i,v)
+  def apply(i: Int) : Value = memory(i)
+}
+```
 
+Der Store ist hierbei durch ein Array implementiert, zur Adressenzuweisung wird die mutierbare Variable `nextFreeAddr` verwendet und nach jeder neuen Zuweisung inkrementiert. Die Größe `size` wird bei der Instanziierung gewählt und legt fest, wie groß das Array ist, also wie viele Adressen es gibt. Sind alle Indices des Array belegt worden, so wird eine Fehlermeldung ausgegeben. Es wird nicht durch Garbage Collection versucht, Ressourcen freizugeben. 
 
+Die folgenden Auswertungen verursacht also eine Fehlermeldung, wenn bei der Evaluation von `ex1` mindestens eine Adresse belegt wird:
+```scala
+val store = new StoreNoGC(2)
+val stack = List[Env]()
+eval(ex1,stack,store); eval(ex1,stack,store); eval(ex1,stack,store)
+```
+
+Auch ein Testprogramm, in dem mehr als zwei Boxen instanziiert werden, würde einen Fehler liefern.
+
+## Speichermanagement mit GC
+Wir implementieren nun die `Store`-Klasse mit "Mark & Sweep"-Garbage-Collection. Der Store wird dabei wieder mit einer Größe `size` instanziiert, die die Anzahl der Adressen bestimmt. Wir ergänzen eine Variable `free`, in der die Anzahl freier Felder gehalten wird. Gibt es bei der Speicherallokation keine freien Adressen mehr, so wird Garbage Collection betrieben. Ist auch danach keine Adresse frei, so wird eine Fehlermeldung ausgegeben. Der verwendete "Mark & Sweep"-Algorithmus ähnelt dem [hier](#Mark-and-Sweep) aufgeführten stark:
+
+```scala
+class MarkAndSweepStore(size: Int) extends Store {
+  val memory = new Array[Value](size)
+  var free : Int = size
+  var nextFreeAddr : Int = 0
+  def malloc(stack: List[Env], v: Value) : Int = {
+    if (free <= 0) gc(stack)
+    if (free <= 0) sys.error("Out of memory!")
+    while (memory(nextFreeAddr) != null) {
+      nextFreeAddr += 1
+      if (nextFreeAddr == size) nextFreeAddr = 0
+    }
+    update(nextFreeAddr,v); free -= 1; nextFreeAddr
+  }
+  def update(i: Int, v: Value) : Unit = { memory(i) = v }
+  def apply(i: Int) : Value = memory(i)
+
+  // Mark & Sweep GC:
+  def allAddrInVal(v: Value) : Set[Int] = v match {
+    case NumV(_) => Set()
+    case AddressV(a) => Set(a)
+    case ClosureV(_,env) => allAddrInEnv(env)
+  }
+  def allAddrInEnv(env: Env) : Set[Int] = {
+    env.values.map{allAddrInVal}.fold(Set())(_++_)
+  }
+  def mark(seed: Set[Int]) : Unit = {
+    seed.foreach(memory(_).marked = true)
+    val newAddresses = 
+      seed.flatMap(a => allAddrInVal(memory(a))).filter(!memory(_).marked)
+    if (newAddresses.nonEmpty) {
+      mark(newAddresses)
+    }
+  }
+  def sweep() : Unit = {
+    memory.indices.foreach(
+      i => if (memory(i) == null) {}
+      else if (memory(i).marked) memory(i).marked = false
+      else { memory(i) = null; free += 1 }
+    )
+  }
+  def gc(stack: List[Env]) : Unit = {
+    mark(stack.map(allAddrInEnv).fold(Set())(_++_))
+    sweep()
+  }
+}
+```
+
+Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adressen, so wird das Array linear durchsucht, bis ein leeres Feld gefunden wird. Hier wird dann der Wert eingetragen, `free` wird dekrementiert und die Adresse wird ausgegeben.
+
+Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
 
 
 
@@ -1219,7 +1300,8 @@ Im `NewBox`-, `SetBox`- und `OpenBox`-Fall werden jeweils die Store-Funktionen `
 
 :::success
 - [ ] HW 4
-- [ ] VL 8 ab 40:00
+- [ ] Call-By-Need VL? Material lesen
+- [ ] Mark & Sweep fertig zusammenfassen
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
 
