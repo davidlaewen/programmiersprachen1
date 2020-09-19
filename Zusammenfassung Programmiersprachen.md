@@ -1091,17 +1091,120 @@ Ideal wäre ein Garbage-Collection-Algorithmus, der folgendes erfüllt:
 
 Die Fragestellung, ob eine Adresse in der weiteren Berechnung noch benötigt wird, ist jedoch unentscheidbar, was aus der Unentscheidbarkeit des Halteproblems und dem Satz von Rice folgt. Wird bspw. eine Funktion $f$ aufgerufen und danach auf eine Adresse zugegriffen, so wird die Adresse nur benötigt, wenn $f$ terminiert. Für perfekte Garbage Collection müsste also das Halteproblem entscheidbar sein.
 
-Somit ist keine perfekte Garbage Collection möglich, dennoch kann approximiert werden, welche Adressen noch benötigt werden. Approximinieren bedeutet dabei, das es Adressen gibt, bei denen keine Entscheidung möglich ist. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Adressen unnötig im Speicher gehalten werden (aber nie fälschlicherweise entfernt werden).
+Auch wenn kein Algorithmus für perfekte Garbage Collection existiert, kann die Menge der noch benötigten Adressen dennoch approximiert werden. Approximinieren bedeutet dabei, das es Adressen gibt, für die keine Entscheidung möglich ist oder die falsch eingeordnet werden. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Adressen unnötig/fälschlicherweise im Speicher gehalten werden (aber nie fälschlicherweise verworfen werden).
 
 :::info
 **Erreichbarkeit/Reachability:** Eine Adresse ist _erreichbar_, wenn sie sich in der aktuellen Umgebung (inkl. Unterumgebungen in Closures, usw.) befindet, oder wenn es einen Pfad von Verweisen aus der aktuellen Umgebung zu der Adresse gibt. 
 :::
 
-Bei Garbage Collection handelt es sich also um das Erreichbarkeitsproblem in einem gerichteten Graphen, Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das gilt aber nicht für jede Sprache, bspw. kann durch Pointer-Arithmetik auf eine Adresse zugegriffen werden, die von der Umgebung aus nicht (mehr) erreicht werden kann.
+Bei Garbage Collection handelt es sich also um das Erreichbarkeitsproblem in einem gerichteten Graphen. Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das ist nicht der Fall, wenn durch Pointer-Arithmetik auf beliebige Adressen zugegriffen werden kann.
 
-Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack von der zugehörigen Umgebung aus gesucht werden. 
+Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörigen Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder andere Umgebungen gelten. 
 
 Die meisten einfachen Garbage-Collection-Algorithmen bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
+
+Die folgende Funktion führt Mark-And-Sweep Garbage-Collection in [BCFAE](#Mutation-BCFAE) für eine Umgebung `env` auf dem Store durch:
+```scala
+def gc(env: Env, store: Store) : Store = {
+
+  def allAddrInVal(v: Value) : Set[Address] = v match {
+    case NumV(_) => Set()
+    case ClosureV(_,env) => allAddrInEnv(env)
+    case AddressV(a) => Set(a)
+  }
+
+  def allAddrInEnv(env: Env) : Set[Address] =
+    env.values.map{allAddrInVal}.fold(Set())(_++_)
+
+  def mark(seed: Set[Address]) : Set[Address] = {
+    val newAddresses = seed.flatMap(a => allAddrInVal(store(a)))
+    if (newAddresses.subsetOf(seed)) seed else mark(seed++newAddresses)
+  }
+
+  val marked = mark(allAddrInEnv(env)) // mark
+  
+  store.filter{case (a,_) => marked(a)} // sweep
+
+}
+```
+
+Die Funktion `allAddrInEnv` sammelt alle erreichbaren Adressen in einer Umgebung, indem `allAddrInVal` auf alle Werte in der Umgebung aufgerufen wird und die entstehenden Mengen alle vereinigt werden. Die Funktion `mark` erhält eine Adressmenge `seed` und liefert die Menge aller Adressen, die von den Adressen in `seed` aus erreicht werden können. Werden dabei keine neuen Adressen gefunden, so wird die Menge `seed` ausgegeben. Ansonsten wird `mark` rekursiv aufgerufen, dabei wird die Menge um die erreichbaren Adressen erweitert. Sie wird also schrittweise erweitert, bis keine neuen Adressen mehr gefunden werden. `gc` bestimmt erst die Menge der markierten Adressen und filtert dann den Store, so dass unmarkierte Adressen entfernt werden.
+
+Das folgende Beispiel zeigt die Funktionsweise des Algorithmus, `gc` wird mit einer Umgebung aufgerufen, in der auf der rechten Seite die Adresse `5` vorkommt. An der Adresse `5` steht im Store eine Closure, in dem wiederum die Adresse `3` auftritt, an der Adresse `3` wird auf die Adresse `1` verwiesen. Die Adressen `2` und `5` sind nicht erreichbar und sind dementsprechend im Ergebnis aus dem Store entfernt worden.
+```scala
+val testEnv = Map("a" -> AddressV(5))
+val testStore = Map(
+  1 -> NumV(0),
+  2 -> NumV(0),
+  3 -> AddressV(1),
+  4 -> AddressV(2),
+  5 -> ClosureV(Fun("x","x"), Map("y" -> AddressV(3))))
+  
+// addresses 2 and 4 cannot be reached, are removed by GC
+assert(gc(testEnv,testStore) ==
+  Map(5 -> ClosureV(Fun("x","x"), Map("y" -> AddressV(3))),
+      3 -> AddressV(1), 
+      1 -> NumV(0)))
+```
+
+## Interpreter mit Speichermanagement
+Um Garbage Collection in den BCFAE-Interpreter zu integrieren, ergänzen wir Werte um einen "Markierungszustand" und verwenden eine neue Definition für `Store`:
+```scala
+sealed abstract class Value {
+  var marked : Boolean = false
+}
+
+trait Store {
+  def malloc(stack: List[Env], v: Value) : Int
+  def update(index: Int, v: Value) : Unit
+  def apply(index: Int) : Value
+}
+```
+
+Dabei fügt `malloc` dem Store einen Wert hinzu (wobei falls notwendig GC betrieben wird) und liefert die gewählte Adresse zurück, `update` mutiert den Wert an der Adresse `index` im Store und `apply` liest den Wert an der Adresse `index` aus. Wir verwenden jetzt also auch Mutation in der Meta-Sprache, um den Interpreter samt Speichermanagement zu implementieren. Der Store wird also nicht mehr von Funktionsaufruf zu Funktionsaufruf gereicht, sondern ist eine globale Datenstruktur, auf die von überall zugegriffen werden kann.
+
+Unser Interpreter ähnelt dadurch wieder stärker dem [umgebungsbasierten FAE-Interpreter](#Umgebungsbasierter-Interpreter1):
+```scala
+def eval(e: Exp, stack: List[Env], store: Store) : Value = e match {
+  case Num(n) => NumV(n)
+  case Id(x) => stack.head(x)
+  case Add(l,r) => (eval(l,stack,store),eval(r,stack,store)) match {
+    case (NumV(a),NumV(b)) => NumV(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case Mul(l,r) => // analogous to Add
+  case f@Fun(_,_) => ClosureV(f,stack.head)
+  case If0(c,t,f) => eval(c,stack,store) match {
+    case NumV(0) => eval(t,stack,store)
+    case NumV(_) => eval(f,stack,store)
+    case _ => sys.error("Can only check if number is zero")
+  }
+  case App(f,a) => eval(f,stack,store) match {
+    case ClosureV(Fun(p,b),cEnv) =>
+      eval(b, cEnv+(p -> eval(a,stack,store))::stack, store)
+    case _ => sys.error("Can only apply functions")
+  }
+  case Seq(e1,e2) => eval(e1,stack,store); eval(e2,stack,store)
+  case NewBox(e: Exp) =>
+    val a = store.malloc(stack,eval(e,stack,store))
+    AddressV(a)
+  case SetBox(b: Exp, e: Exp) => eval(b,stack,store) match {
+    case AddressV(a) =>
+      val v = eval(e,stack,store)
+      store.update(a,v)
+      v
+    case _ => sys.error("Can only set boxes")
+  }
+  case OpenBox(b: Exp) => eval(b,stack,store) match {
+    case AddressV(a) => store.apply(a)
+    case _ => sys.error("Can only open boxes")
+  }
+}
+```
+
+Statt einer Umgebung erhält der Interpreter nun eine ganze Liste von Umgebungen, die dem Call-Stack entspricht. Der Kopf der Liste ist also die aktive Umgebung im aktuellen Funktionsaufruf, die weiteren Elemente sind die Umgebungen, der "darüberliegenden" Aufrufe in der Rekursionsstruktur. Im `App`-Fall wird die Umgebung verändert, hier wird also vorne an die Liste eine neue Umgebung angehängt, in der die Bindung des Parameters auf das Argument hinzugefügt wurde. Im `Id`-Fall wird der Bezeichner in der obersten/ersten Umgebung im Stack nachgeschlagen.
+
+Im `NewBox`-, `SetBox`- und `OpenBox`-Fall werden jeweils die Store-Funktionen `malloc`, `update` und `apply` benutzt. Es muss der Stack anstelle der Umgebung verwendet werden, damit dieser im `NewBox`-Fall an die `malloc`-Funktion überreicht werden kann -- für GC und die Suche nach ungenutzten Adressen werden nämlich alle Umgebungen im Stack benötigt.
 
 
 

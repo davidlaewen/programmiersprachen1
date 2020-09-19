@@ -100,9 +100,8 @@ def gc(env: Env, store: Store) : Store = {
   }
 
   val marked = mark(allAddrInEnv(env)) // mark
-  store.view.filterKeys(marked(_)).toMap
-  // store.filter{case (a,_) => marked(a)} // sweep
-
+  // store.view.filterKeys(marked(_)).toMap
+  store.filter{case (a,_) => marked(a)} // sweep
 }
 
 val testEnv = Map("a" -> AddressV(5))
@@ -112,5 +111,8 @@ val testStore = Map(
   3 -> AddressV(1),
   4 -> AddressV(2),
   5 -> ClosureV(Fun("x","x"), Map("y" -> AddressV(3))))
-assert(gc(testEnv,testStore) == // addresses 2 and 4 cannot be reached, are removed by GC
-  Map(5 -> ClosureV(Fun("x","x"), Map("y" -> AddressV(3))), 3 -> AddressV(1), 1 -> NumV(0)))
+
+// addresses 2 and 4 cannot be reached, are removed by GC
+assert(gc(testEnv,testStore) ==
+  Map(5 -> ClosureV(Fun("x","x"), Map("y" -> AddressV(3))),
+      3 -> AddressV(1), 1 -> NumV(0)))
