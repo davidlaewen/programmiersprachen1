@@ -925,7 +925,7 @@ Im `Letrec`-Fall definieren wir erst den `ValuePointer` `vp`, den wir mit einem 
 Im `Id`-Fall findet die Dereferenzierung statt, wir schlagen `x` in der Environment nach und rufen auf dem Ergebnis die `value`-Methode auf, um den referenzierten `Value` zu erhalten. 
 
 
-# Mutation
+# Mutation (BCFAE)
 Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, also eine Sprache ohne Mutation und Seiteneffekte. In dieser Art von Sprache lassen sich Programme besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor.
 
 :::info
@@ -1006,6 +1006,7 @@ def nextAddress : Address = {
   address
 }
 ```
+Hier verwendet unsere Implementation doch Mutation in der Meta-Sprache, aber nur um diese Hilfsfunktion zu vereinfachen. Alternativ wäre eine Funktion `freshAddress` denkbar, die eine neue ungenutzte Adresse erzeugt (vgl. `freshName` [hier](#Capture-Avoiding-Substitution))
 
 ## Interpreter
 Im Interpreter hat sich in allen Fällen was geändert, die Implementation ist generall komplexer geworden:
@@ -1072,6 +1073,40 @@ Um eine neue Box-Instanz zu erzeugen, werten wir zuerst den Ausdruck aus, der in
 Beim Auslesen einer Box-Instanz wird also erst in der Umgebung der Bezeichner nachgeschlagen, was einen `AddressV`-Wert liefern sollte, anschließend wird im Store nachgeschlagen, auf welchen Wert diese Adresse verweist. 
 
 
+# Speichermanagement
+Die Funktion `nextAddress`, mit der wir ungenutzte Adressen für neue Boxen erzeugen, inkrementiert einfach die Variable `address` immer weiter. Der Wert von `address` wird nach der Auswertung nicht zurückgesetzt. Während der Auswertung wird auch nicht geprüft, welche Einträge im Store noch benötigt werden und ob Adressen und die an sie gebundenen Werte entfernt werden können.
+
+Eine Möglichkeit, nicht mehr benötigte Einträge zu entfernen, wäre ein neues Sprachkonstrukt, etwa `RemoveBox`. Damit könnte der "Programmierer" Box-Instanzen verwerfen, die nicht mehr im Programm vorkommen. Wird aber ein Identifier an eine Box-Instanz gebunden und diese Box-Instanz gelöscht, so verweist der Identifier weiterhin auf eine Adresse, für die es im Store aber keinen Eintrag mehr gibt.
+
+Programmieren mit manuellem Speichermanagement ermöglicht performantere Programme, ist aber sehr fehleranfällig. Aus diesem Grund verwenden viele Programmiersprachen automatisches Speichermanagement in Form von _Garbage Collection_.
+
+## Garbage Collection
+Garbage Collection beruht darauf, dass algorithmisch bestimmt bzw. approximiert werden kann, welche Speicherinhalte nicht mehr oder noch benötigt werden. 
+
+Ideal wäre ein Garbage-Collection-Algorithmus, der folgendes erfüllt:
+
+:::info
+**"Perfekte" Garbage Collection:** Wenn die Adresse $a$ im Store $s$ in der weiteren Berechnung nicht mehr benötigt wird, so wird $a$ aus $s$ entfernt. 
+:::
+
+Die Fragestellung, ob eine Adresse in der weiteren Berechnung noch benötigt wird, ist jedoch unentscheidbar, was aus der Unentscheidbarkeit des Halteproblems und dem Satz von Rice folgt. Wird bspw. eine Funktion $f$ aufgerufen und danach auf eine Adresse zugegriffen, so wird die Adresse nur benötigt, wenn $f$ terminiert. Für perfekte Garbage Collection müsste also das Halteproblem entscheidbar sein.
+
+Somit ist keine perfekte Garbage Collection möglich, dennoch kann approximiert werden, welche Adressen noch benötigt werden. Approximinieren bedeutet dabei, das es Adressen gibt, bei denen keine Entscheidung möglich ist. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Adressen unnötig im Speicher gehalten werden (aber nie fälschlicherweise entfernt werden).
+
+:::info
+**Erreichbarkeit/Reachability:** Eine Adresse ist _erreichbar_, wenn sie sich in der aktuellen Umgebung (inkl. Unterumgebungen in Closures, usw.) befindet, oder wenn es einen Pfad von Verweisen aus der aktuellen Umgebung zu der Adresse gibt. 
+:::
+
+Bei Garbage Collection handelt es sich also um das Erreichbarkeitsproblem in einem gerichteten Graphen, Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das gilt aber nicht für jede Sprache, bspw. kann durch Pointer-Arithmetik auf eine Adresse zugegriffen werden, die von der Umgebung aus nicht (mehr) erreicht werden kann.
+
+Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack von der zugehörigen Umgebung aus gesucht werden. 
+
+Die meisten einfachen Garbage-Collection-Algorithmen bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
+
+
+
+
+
 
 
 
@@ -1081,7 +1116,7 @@ Beim Auslesen einer Box-Instanz wird also erst in der Umgebung der Bezeichner na
 
 :::success
 - [ ] HW 4
-- [ ] VL 7 ab 21.30
+- [ ] VL 8 ab 40:00
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
 
