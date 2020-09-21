@@ -828,7 +828,7 @@ Ein **Fixpunkt-Kombinator** ist ein Programm, mit dem der Fixpunkt von Funktione
 Bei der Auswertung von `Y f` entsteht ein Ausdruck der Form `(f ... (f (f (f Y)))...)`.
 
 
-# Auswertungsstrategien
+# Lazy Evaluation/Call-By-Name (LCFAE)
 Im [substitutionsbasierten Interpreter](#Substitutionsbasierter-Interpreter1) für FAE konnten wir im `App`-Fall zwischen zwei möglichen Implementation wählen: Wir können das Argument vor der Substitution im Rumpf auswerten, oder substituieren, ohne das Argument vorher auszuwerten.
 
 Die erste dieser _Auswertungsstrategien_ wird _Call-By-Value_ genannt, die zweite _Call-By-Name_. 
@@ -841,13 +841,77 @@ Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sind `e1` und `e2` äquivale
 
 `evalCBV(App(Fun("x",0), omega))` terminiert nicht, `evalCBN(App(Fun("x",0), omega))` liefert hingegen das Ergebnis `Num(0)`. Der Call-By-Name-Interpreter terminiert auf strikt mehr Programmen als der Call-By-Value-Interpreter.
 
-Mit "gleichbedeutend" ist gemeint, dass sich die Funktionen gleich verhalten, aber nicht zwingend identisch sind. Für den Ausdruck $(\lambda x.(\lambda y.x+y) \;\;\; 1+1)$ würde Call-By-Value-Auswertung das Ergebnis $\lambda y.2+y$ liefern, während Call-By-Name-Auswertung das Ergebnis $\lambda y.(1+1)+y$ liefern würde.
+Mit "gleichbedeutend" ist gemeint, dass sich die Funktionen gleich verhalten, aber nicht zwingend identisch sind. Für den Ausdruck $(\lambda x.(\lambda y.x+y) \;\;\; 1+1)$ würde Call-By-Value-Auswertung das Ergebnis $\lambda y.2+y$ liefern, während Call-By-Name-Auswertung das Ergebnis $\lambda y.(1+1)+y$ liefern würde. Unterscheiden sich die ausgegebenen Funktionen, so ist die Funktion im Ergebnis von `evalCBV` stets "weiter ausgewertet".
 
+## Nutzen von Lazy Evaluation
 Die Auswertungsstrategie eines Interpreters bzw. einer Programmiersprache ist nicht nur eine Frage der Effizienz, sondern hat auch Auswirkungen darauf, welche Programmstrukturen möglich sind. Unendliche Datencontainer wie Streams können bspw. erst durch _Lazy Evaluation_ implementiert werden. 
 
 In der Sprache Haskell kann man etwa eine rekursive Funktion ohne Abbruchkriterium schreiben, die die Quadratwurzel einer Zahl annähert.
 
 Da Haskell _lazy_ ist, kann die Funktion `rpt` ohne Abbruchbedingung definiert und mit verschiedenen Abbruchbedingungen aufgerufen werden, eine Programmstruktur die durch die Auswertungsstrategie der Sprache ermöglicht wird.
+
+Der `evalCBN`-Interpreter erlaubt uns die Kodierung von Listen in LCFAE durch Church-Encodings (Zusatzmaterial in `08-lcfae.scala`).
+
+## Thunks
+Im substitutionsbasierten Interpreter muss nur ein Funktionsaufruf entfernt werden, um die Auswertungsstrategie zu wechseln. Im umgebungsbasierten Interpreter müssen wir dagegen einige Änderunge vornehmen.
+
+Wir müssen bei Funktionsapplikation den Parameter in der Umgebung an das Argument ohne vorherige Auswertung binden. Dabei stoßen wir auf das gleiche Problem, das uns bei Funktionen begegnet ist: Im Argument-Ausdruck, den wir an den Parameternamen binden, müssen noch Bezeichner substituiert werden, wozu die aktuelle Umgebung benötigt wird. Diese liegt aber zum Zeitpunkt der Auswertung nicht mehr vor.
+
+Analog zu den Closures für Funktionen brauchen wir also eine Datenstruktur, in der wir sowohl den Ausdruck, als auch die aktuelle Umgebung ablegen. Solch ein Paar aus `Exp` und `Env` nennen wir `Thunk`.
+
+Die intutive Definition
+```scala
+type Thunk = (Exp, Env)
+type Env = Map[String, Thunk]
+```
+ist in Scala durch die gegenseitige Bezüglichkeit nicht möglich. Stattdessen definieren wir den Interpreter als `trait`, wobei der Typ `Thunk` und die Funktionen `delay` und `force` abstrakt sind, so dass wir verschiedene Implementationen testen können. Wie definieren `Env` als Klasse im Trait, so dass mit dem abstrakten Type Member `Thunk` die rekursive Bezüglichkeit hergestellt werden kann. Dadurch müssen wir auch `Value` im Trait definieren. 
+```scala
+trait CBN {
+  type Thunk
+
+  case class Env(map: Map[String, Thunk]) {
+    def apply(key: String): Thunk = map.apply(key)
+    def +(other: (String, Thunk)) : Env = Env(map+other)
+  }
+
+  def delay(e: Exp, env: Env) : Thunk
+  def force(t: Thunk) : Value
+
+  sealed abstract class Value
+  case class NumV(n: Int) extends Value
+  case class ClosureV(f: Fun, env: Env) extends Value
+  def eval(e: Exp, env: Env) : Value = e match {
+    case Id(x) => force(env(x))
+    case Add(l,r) =>
+      (eval(l,env), eval(r,env)) match {
+        case (NumV(v1),NumV(v2)) => NumV(v1+v2)
+        case _ => sys.error("can only add numbers")
+      }
+    case App(f,a) => eval(f,env) match {
+      case ClosureV(f,cEnv) => eval(f.body, cEnv + (f.param -> delay(a,env)))
+      case _ => sys.error("can only apply functions")
+    }
+    case Num(n) => NumV(n)
+    case f@Fun(x,body) => ClosureV(f,env)
+  }
+}
+```
+
+Die `delay`-Funktion dient dazu, die Auswertung eines Ausdrucks zu verzögern (also einen Thunk zu erzeugen), `force` dient dazu, die "aufgeschobene" Auswertung zu erzwingen (also den Ausdruck im Thunk mit der zugehörigen Umgebung auszuwerten). Im `Id`-Fall schlagen wir den Bezeichner nach und erzwingen die Auswertung des daran gebundenen Ausdrucks, im `App`-Fall verzögern wir die Auswertung des Arguments, bevor wir es in der Umgebung an den Parameter binden.
+
+Hier die konkrete Call-By-Name-Implementierung des `CBN`-Traits:
+```scala
+object CallByName extends CBN {
+  type Thunk = (Exp,Env)
+  def delay(e: Exp, env: Env): (Exp, CallByName.Env) = (e,env)
+  def force(t: Thunk): CallByName.Value = {
+    println("Forcing evaluation of expression: "+t._1)
+    eval(t._1,t._2)
+  }
+}
+```
+
+
 
 
 # Rekursive Bindings
@@ -1236,7 +1300,7 @@ eval(ex1,stack,store); eval(ex1,stack,store); eval(ex1,stack,store)
 Auch ein Testprogramm, in dem mehr als zwei Boxen instanziiert werden, würde einen Fehler liefern.
 
 ## Speichermanagement mit GC
-Wir implementieren nun die `Store`-Klasse mit "Mark & Sweep"-Garbage-Collection. Der Store wird dabei wieder mit einer Größe `size` instanziiert, die die Anzahl der Adressen bestimmt. Wir ergänzen eine Variable `free`, in der die Anzahl freier Felder gehalten wird. Gibt es bei der Speicherallokation keine freien Adressen mehr, so wird Garbage Collection betrieben. Ist auch danach keine Adresse frei, so wird eine Fehlermeldung ausgegeben. Der verwendete "Mark & Sweep"-Algorithmus ähnelt dem [hier](#Mark-and-Sweep) aufgeführten stark:
+Wir implementieren nun die abstrakte `Store`-Klasse mit "Mark & Sweep"-Garbage-Collection. Der Store wird dabei wieder mit einer Größe `size` instanziiert, die die Anzahl der Adressen bestimmt. Wir ergänzen eine Variable `free`, in der die Anzahl freier Felder gehalten wird. Gibt es bei der Speicherallokation keine freien Adressen mehr, so wird Garbage Collection betrieben. Ist auch danach keine Adresse frei, so wird eine Fehlermeldung ausgegeben. Der verwendete "Mark & Sweep"-Algorithmus ähnelt dem [hier](#Mark-and-Sweep) aufgeführten stark:
 
 ```scala
 class MarkAndSweepStore(size: Int) extends Store {

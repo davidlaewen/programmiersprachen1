@@ -53,7 +53,7 @@ can be encoded (using Scala syntax) as ``((x) => x+3)(7)``
 We make this idea explicit by giving a constructive translation. Such translations are also often called "desugaring".
 */
 
- // "with" would be a better name for this function, but it is reserved in Scala
+// "with" would be a better name for this function, but it is reserved in Scala
 def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x,body),xdef)
 
 /**
@@ -82,14 +82,14 @@ assert( subst(Fun("x", Add("x","y")), "x", 7) == Fun("x", Add("x","y")))
 */
 
 /**
-However, what happens if ``e2`` contains free variables? The danger here is that they may be accidentially "captured" by the substitution.
+However, what happens if ``e2`` contains free variables? The danger here is that they may be accidentally "captured" by the substitution.
 For instance, consider
 
     ``subst(Fun("x", Add("x","y")), "y", Add("x",5))``
 
 The result is ``Fun("x",Add("x",Add("x",5)))``
 
-This is not desirable, since it violates again static scoping.
+This is not desirable, since it once again violates static scoping.
 
 Note that this problem did not show up in earlier languages, because there we only substituted variables by numbers, but not by
 expressions that may contain free variables: The type of ``e2`` was ``Num`` and not ``Exp``.
@@ -132,8 +132,8 @@ def subst(e1 : Exp, x: String, e2: Exp) : Exp = e1 match {
   case Fun(param,body) =>
     if (param == x) e1 else {
       val fvs = freeVars(Fun(param,body)) ++ freeVars(e2) + x
-      val newvar = freshName(fvs, param)
-      Fun(newvar, subst(subst(body, param, Id(newvar)), x, e2))
+      val newVar = freshName(fvs, param)
+      Fun(newVar, subst(subst(body, param, Id(newVar)), x, e2))
     }
 }
 
