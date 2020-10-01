@@ -1,45 +1,28 @@
-import scala.language.implicitConversions
+object Hw04a {
 
-object Hw04 {
+  import scala.language.implicitConversions
 
   sealed abstract class Exp
   case class Num(n: Int) extends Exp
   case class Id(name: String) extends Exp
   case class Add(lhs: Exp, rhs: Exp) extends Exp
-  implicit def num2exp(n: Int) = Num(n)
-  implicit def id2exp(s: String) = Id(s)
 
   case class Fun(param: String, body: Exp) extends Exp
-  // Added for the task
-  case class LazyFun(param: String, body: Exp) extends Exp
+  case class LazyFun(param: String, body: Exp) extends Exp // added for task
   case class App (funExpr: Exp, argExpr: Exp) extends Exp
 
   case class Bool(b: Boolean) extends Exp
-  implicit def bool2exp(b: Boolean) = Bool(b)
   case class If(test: Exp, thenB: Exp, elseB: Exp) extends Exp
   case class Eq(lhs: Exp, rhs: Exp) extends Exp
-  def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x,body),xdef)
-  //syntactic sugar
+
+  implicit def num2exp(n: Int): Num = Num(n)
+  implicit def id2exp(s: String): Id = Id(s)
+  implicit def bool2exp(b: Boolean): Bool = Bool(b)
+
+  def wth(x: String, xDef: Exp, body: Exp) : Exp = App(Fun(x,body),xDef)
   def not(e: Exp): Exp = If(e, false, true)
   def or(l: Exp, r: Exp) = If(l, true, r)
-  def and(l: Exp, r: Exp) =
-    If(l, r, false)
-
-  val test1 = App( Fun("x",Add("x",5)), 7)
-  val test2 = wth("x", 5, App(Fun("f", App("f",3)), Fun("y",Add("x","y"))))
-
-  def freeVars(e: Exp): Set[String] = e match {
-    case Id(x)            => Set(x)
-    case Add(l, r)        => freeVars(l) ++ freeVars(r)
-    case Fun(x, body)     => freeVars(body) - x
-    // Extended for the task
-    case LazyFun(x, body) => freeVars(body) - x
-    case App(f, a)        => freeVars(f) ++ freeVars(a)
-    case Num(n)           => Set.empty
-    case Bool(b)          => Set.empty
-    case If(test, t, e)   => freeVars(test) ++ freeVars(t) ++ freeVars(e)
-    case Eq(l, r)         => freeVars(l) ++ freeVars(r)
-  }
+  def and(l: Exp, r: Exp) = If(l, r, false)
 
   sealed abstract class Value
   case class NumV(n: Int) extends Value
@@ -58,7 +41,7 @@ object Hw04 {
 
   // Extended for the task: Usual implementation of call-by-need thunks
   case class Thunk(e: Exp, env: Env) {
-    var cache: Value = null
+    var cache: Value = _
   }
 
   def delay(e: Exp, env: Env): Thunk = Thunk(e, env)
@@ -67,6 +50,7 @@ object Hw04 {
     println("Forcing evaluation of expression: " + e)
     evalWithEnv(e, env)
   }
+
   def force(t: Thunk): Value = {
     if (t.cache == null)
       t.cache = forceEval(t.e, t.env)
@@ -74,6 +58,7 @@ object Hw04 {
       println("Reusing cached value " + t.cache + " for expression " + t.e)
     t.cache
   }
+
 
   def evalWithEnv(e: Exp, env: Env) : Value = e match {
     case Num(n) => NumV(n)
@@ -84,12 +69,11 @@ object Hw04 {
         case EnvThunk(t)     => force(t)
         case EnvNonThunk(nt) => nt
       }
-    case Add(l,r) => {
+    case Add(l,r) =>
       (evalWithEnv(l,env), evalWithEnv(r,env)) match {
         case (NumV(v1),NumV(v2)) => NumV(v1+v2)
         case _ => sys.error("can only add numbers")
       }
-    }
     case f@Fun(param,body) =>
       ClosureV(Left(f), env)
     case f@LazyFun(param,body) =>
@@ -104,7 +88,7 @@ object Hw04 {
             (param, body, EnvNonThunk(evalWithEnv(a, env)))
           // - When the closure is for a LazyFun, add a mapping to the thunk for the argument.
           case Right(LazyFun(param, body)) =>
-            (param, body, EnvThunk(Thunk(a, env)))
+            (param, body, EnvThunk(delay(a, env)))
         }
         evalWithEnv(funBody, closureEnv + (funParam -> argValue))
       case _ => sys.error("can only apply functions")
@@ -127,37 +111,19 @@ object Hw04 {
       }
   }
 
-  assert(evalWithEnv(test1, Map.empty) == NumV(12))
+
+  val test = App( Fun("x",Add("x",5)), 7)
+  assert(evalWithEnv(test, Map.empty) == NumV(12))
+
+  val test2 = wth("x", 5, App(Fun("f", App("f",3)), Fun("y",Add("x","y"))))
   assert(evalWithEnv(test2, Map.empty) == NumV(8))
-
-  // LazyFun test cases
-  val test3 = App( LazyFun("x",Add("x",5)), 7)
-  val test4 = wth("x", 5, App(LazyFun("f", App("f",3)), LazyFun("y",Add("x","y"))))
-
-  val omega = App( LazyFun("x", App("x", "x")), LazyFun("x", App("x", "x"))) // (λx.(x x) λx.(x x))
-
-  val test5 = App( Fun("x", Add(2, 3)), omega ) // (λx.(2+3) omega)
-  val test6 = App( LazyFun("x", Add(2, 3)), omega )
-
-  def evalTest() : Unit = {
-    println( "test3 (12): " + evalWithEnv(test3, Map.empty) )
-    println( "test4  (8): " + evalWithEnv(test4, Map.empty) )
-    // println( "test5  (5): " + evalWithEnv(test5, Map.empty) )
-    println( "test6  (5): " + evalWithEnv(test6, Map.empty) )
-  }
 
   val staticScopingTest = wth("y", 5, App(Fun("f", wth("y", 3, App("f", 2))), Fun("z", Add("y", "z"))))
   assert(evalWithEnv(staticScopingTest, Map.empty) == NumV(7))
 
-
-  def ifWrapper(x: Exp, thenB: Exp, elseB: Exp) : Exp = {
-    If(App(LazyFun("", x), 0), App(LazyFun("", thenB), 0), App(LazyFun("", elseB), 0))
+  def evalTest() : Unit = {
+    println(evalWithEnv(test, Map.empty).toString + " (12)")
+    println(evalWithEnv(test2, Map.empty).toString + " (8)")
+    println(evalWithEnv(staticScopingTest, Map.empty).toString + " (7)")
   }
-
-  def BadIfWrapper(x: Exp, thenB: Exp, elseB: Exp) : Exp = {
-    If(App(Fun("", x), 0), App(Fun("", thenB), 0), App(Fun("", elseB), 0))
-  }
-
-  // ¯\_(ツ)_/¯
-
 }
