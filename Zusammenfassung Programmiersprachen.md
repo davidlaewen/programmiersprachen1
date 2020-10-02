@@ -1165,7 +1165,6 @@ Bei Garbage Collection handelt es sich also um das Erreichbarkeitsproblem in ein
 
 Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörigen Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder andere Umgebungen gelten. 
 
-
 ## Mark and Sweep
 Die meisten einfachen Garbage-Collection-Algorithmen bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
 
@@ -1213,7 +1212,36 @@ assert(gc(testEnv,testStore) ==
       1 -> NumV(0)))
 ```
 
-## Interpreter mit Speichermanagement
+## Moving und Non-Moving GC
+Bei automatischen Speichermanagement und Garbage Collection kann es zu einer starken Fragmentierung des Speichers kommen, denn nach wiederholter Belegung von Speicher und Garbage-Collection-Zyklen sind die belegten Speicherzellen stark verteilt und der Speicher ist "lückenhaft" befüllt.
+
+Diese Fragmentierung erschwert zum einen die Speicherzuweisung, da größere "Datenblöcke" evtl. nicht am Stück gespeichert werden können und zerlegt werden müssen, zum anderen verschlechtert sich die Performanz, da die Speichernutzung weniger effizient wird (freier Speicher kann nicht genutzt werden, es müssen mehr Adressen im Speicher gehalten werden, zusammengehörige Daten werden nicht automatisch gemeinsam in den Cache geladen).
+
+Um Fragmentierung zu verhindern oder zu reduzieren, müssen bei der Garbage Collection Daten verschoben ("zusammengerückt") werden, sodass die Speicherbelegung möglichst dicht bzw. kompakt bleibt. Hierbei spricht man von _Moving_ Garbage Collection.
+
+Bei [Mark and Sweep](#Mark-and-Sweep) werden die Daten nicht verschoben, der Algorithmus ist eine Form von _Non-Moving_ Garbage Collection. Er führt allgemein über die Laufzeit hinweg zu zunehmender Fragmentierung.
+
+Bei Moving Garbage Collection werden nicht nur die Daten im Speicher verschoben, es müssen auch alle Referenzen mit der neuen Speicheradresse aktualisiert werden. 
+
+Ein Beispiel für Moving Garbage Collection ist die _Semi-Space Garbage Collection_. Dabei wird der Speicher in zwei Hälften geteilt, wobei während der Allokation nur eine Hälfte des Speichers verwendet wird. Ist diese voll, so wird die Garbage Collection durchgeführt: Die noch benötigten Einträge werden markiert, anschließend werden alle markierten Einträge in die freie Speicherhälfte kopiert, wo wieder am Stück allokiert wird. Zuletzt werden alle Einträge in der vollen Speicherhälfte gelöscht, das Verfahren mit umgekehrten Rollen wiederholt werden. 
+
+**Vorteil** ist, dass bei jedem GC-Zyklus der gesamte Speicher defragmentiert wird, das Problem der steigenden Fragmentierung über Zeit ist also behoben. **Nachteile** sind die hinzukommenden Kopieroperationen und größere Anzahl an Löschoperationen, die Aktualisierung der Referenzen und der dazu notwendigen Suchoperationen, sowie die (im Worst Case) Halbierung des verfügbaren Speicherplatzes.
+
+## Weitere Begriffe
+- **Generational GC:** Es kann empirisch belegt werden, dass in den meisten Anwendungen die Objekte, die bei einem GC-Zyklus dereferenziert werden können, tendenziell sehr "jung" sind, also erst vor kurzer Zeit angelegt wurden. Bei Objekten, die sich schon sehr lange im Speicher befinden, werden viel wahrscheinlicher noch benötigt als Objekte, die erst kürzlich angelegt wurden.
+&nbsp;
+Bei _Generational Garbage Collection_ macht man sich diese Eigenschaft zunutze, indem die Objekte nach ihrem Alter aufgeteilt werden und im Speicherbereich der jungen Objekte öfter Garbage Collection durchgeführt wird als im Speicherbereich für alte Objekte. Somit kann Speicherplatz effizienter freigegeben werden, da gezielt die Objekte betrachtet werden, die eher dereferenziert werden können. 
+
+- **"Stop the World"-Phänomen:** Während Garbage Collection durchgeführt wird, kann eine Anwendung i.A. nicht weiterlaufen, denn der GC-Algorithmus wäre nicht mehr sicher, wenn während der Ausführung des GC-Algorithmus weiter Adressen angelegt und Referenzen geändert werden. Stattdessen muss der Anwendungsprozess aufgeschoben werden, bis der GC-Zyklus vollendet ist. 
+&nbsp;
+In den meisten Fällen kann dies unbemerkt geschehen, aber bei interaktiven Programmen und Echtzeit-Anwendungen wird die Garbage Collection und das damit verbundene Aussetzen des Programms evtl. durch Ruckeln oder kurzes "Hängen" bemerkbar. Im besten Fall ist das für einen Nutzer leicht störend, im schlimmsten Fall hat die verzögerte Reaktion aber weitreichende Folgen, weshalb automatisches Speichermanagement für Programme mit extrem hohen Ansprüchen an die Reaktionsfähigkeit und Zuverlässigkeit ungeeignet sein kann. 
+
+- **Reference Counting:** Eine andere Form des automatischen Speichermanagements, die nicht auf Erreichbarkeit von Objektinstanzen beruht, ist _Reference Counting_. Dabei wird zusammen mit jeder Objektinstanz ein Feld angelegt, in dem die Anzahl der Referenzen auf das Objekt gehalten wird. Ist diese Anzahl 0, so kann das Objekt dereferenziert werden. Bei jeder Änderung der Referenzen müssen die Felder in den betroffenen Objekten aktualisiert werden. Im Gegensatz zu Garbage Collection muss die Anwendung nicht mehr unterbrochen werden, Objekte können gelöscht werden, sobald ihr Counter 0 beträgt.
+&nbsp;
+Gibt es jedoch Referenzzyklen, so werden Objekte, die evtl. nicht mehr erreichbar sind, dennoch im Speicher gehalten. Deshalb wird das Verfahren typischerweise mit Zyklendetektion kombiniert, damit solche Strukturen erkannt und die Objekte korrekterweise dereferenziert werden können.
+
+
+# Interpreter mit Speichermanagement
 Um Garbage Collection in den BCFAE-Interpreter zu integrieren, ergänzen wir Werte um einen "Markierungszustand" und verwenden eine neue Definition für `Store`:
 ```scala
 sealed abstract class Value {
@@ -1272,7 +1300,7 @@ Statt einer Umgebung erhält der Interpreter nun eine Liste aller im Call-Stack 
 
 Im `NewBox`-, `SetBox`- und `OpenBox`-Fall werden jeweils die Store-Funktionen `malloc`, `update` und `apply` benutzt. Es muss der Stack anstelle der Umgebung als Parameter von `eval` verwendet werden, damit dieser im `NewBox`-Fall an die `malloc`-Funktion überreicht werden kann -- für GC und die Suche nach ungenutzten Adressen werden nämlich alle Umgebungen im Stack benötigt.
 
-## Einfältiges Speichermanagement
+## Ohne GC
 Eine sehr einfache Implementation der abstrakten `Store`-Klasse für Speichermanagement ohne Garbage Collection sieht folgendermaßen aus:
 ```scala
 class StoreNoGC(size: Int) extends Store {
@@ -1299,7 +1327,7 @@ eval(ex1,stack,store); eval(ex1,stack,store); eval(ex1,stack,store)
 
 Auch ein Testprogramm, in dem mehr als zwei Boxen instanziiert werden, würde einen Fehler liefern.
 
-## Speichermanagement mit GC
+## Mit GC
 Wir implementieren nun die abstrakte `Store`-Klasse mit "Mark & Sweep"-Garbage-Collection. Der Store wird dabei wieder mit einer Größe `size` instanziiert, die die Anzahl der Adressen bestimmt. Wir ergänzen eine Variable `free`, in der die Anzahl freier Felder gehalten wird. Gibt es bei der Speicherallokation keine freien Adressen mehr, so wird Garbage Collection betrieben. Ist auch danach keine Adresse frei, so wird eine Fehlermeldung ausgegeben. Der verwendete "Mark & Sweep"-Algorithmus ähnelt dem [hier](#Mark-and-Sweep) aufgeführten stark:
 
 ```scala
@@ -1355,7 +1383,10 @@ Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adresse
 Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
 
 
+# Syntaktische Interpretation 
 
+
+# Metainterpretation
 
 
 
@@ -1363,9 +1394,8 @@ Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge re
 
 
 :::success
-- [ ] HW 4
-- [ ] Call-By-Need VL? Material lesen
-- [ ] Mark & Sweep fertig zusammenfassen
+- [x] VL 9 ab 52:00
+- [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
 
