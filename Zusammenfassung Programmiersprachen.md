@@ -1383,10 +1383,46 @@ Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adresse
 Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
 
 
-# Syntaktische Interpretation 
+# Interpretationstypen
+_Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch das entsprechende Feature in der Hostsprache. _Syntaktische Interpretation_ bezeichnet hingegen die Implementierung eines Features durch Reduktion auf Features niedrigerer Ebene in der Hostsprache. 
+
+In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unsere Rekursion verwendet haben. Auch das Speichermanagement wird durch Scala übernommen und nicht in unserem Interpreter definiert.
+
+Andere Sprachfeatures werden hingegen nicht durch das entsprechende Feature in der Hostsprache umgesetzt, z.B. Identifier (inkl. Scoping) oder Closures. Hier liegt syntaktische Interpretation vor. Bei der Entwerfen des Interpreters muss man sich also bewusst sein, welche Verhaltensweisen und Einschränkungen mit den Features der Hostsprache einhergehen und entscheiden, welche Features man selbst implementieren und welche man "weiterreichen" möchte. 
+
+Man könnte Funktionen und Identifier in [FAE](#Higher-Order-Funktionen-FAE) auch vollständig durch Metainterpretation umsetzen, indem man die Definition von `Exp` folgendermaßen abändert:
+```scala
+sealed trait Exp
+case class Num(n: Int) extends Exp
+case class Add(l: Exp, r: Exp) extends Exp
+case class Fun(f: Exp => Exp) extends Exp 
+case class App(f: Exp, a: Exp) extends Exp
+```
+
+Man spricht bei dieser Repräsentation auch von _Higher-Order Abstract Syntax (HOAS)_.
+
+Der Interpreter wird nun extrem einfach, aber die Kontrolle über das Verhalten von Identifiern und Bindungen (also etwa Scoping) geht verloren.
+```scala
+def eval(e: Exp) : Exp = e match {
+  case Add(l,r) => (eval(l),eval(r)) match {
+    case (Num(a),Num(b)) => Num(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case App(f,a) => f match {
+    case Fun(f) => eval(f(eval(a)))
+    case _ => sys.error("Can only apply functions")
+  }
+  case _ => e
+}
+```
+
+Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMetainterpretation`). Umgekehrt wäre es auch denkbar, Zahlen und Arithmetik durch syntaktische Interpretation zu implementieren, etwa durch binäre Kodierung von Zahlen in Boolean-Arrays einer bestimmten Größe.
 
 
-# Metainterpretation
+
+
+
+
 
 
 
