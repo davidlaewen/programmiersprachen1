@@ -64,8 +64,5 @@ val cons =
 val list123 = App(App(cons,one), App(App(cons,two), App(App(cons,three), empty)))
 
 val listSum = Fun("l", App(App("l",add), zero))
- 
-
-
 
 
