@@ -813,10 +813,98 @@ App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
 
 `omega` kann im _Lambda-Kalkül_ notiert werden als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
 
-FAE ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache besitzt nämlich das Turing-mächtige [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte, als Teilmenge.
+FAE ist Turing-mächtig, es können also alle Turing-berechenbaren Funktionen repräsentiert werden. Die Sprache besitzt nämlich das Turing-mächtige [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte, als Teilmenge.
 
-## Church-Kodierungen
-In FAE ist es bereits möglich, Listen zu repräsentieren. Die Grundidee ist es, die Liste $x_1,x_2,...,x_n$ durch $\lambda c. \lambda e. c(x_1, (... (c(x_{n-1}, c(x_n,e)))...))$ zu repräsentieren.
+## Lambda-Kalkül
+Entfernen wir aus [FAE](#Higher-Order-Funktionen-FAE) den `Num`- und den `Add`-Fall, so erhalten wir eine Sprache, die dem _Lambda-Kalkül_ entspricht:
+```scala
+sealed abstract class Exp
+case class Id(name: String) extends Exp
+case class Fun(param: String, body: Exp) extends Exp
+case class App(fun: Exp, arg: Exp) extends Exp
+```
+
+Das Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist das Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
+
+In dieser Sprache gibt es keine Zahlenwerte mehr, dadurch können keine Typfehler mehr auftreten (da kein unerwarteter Werte-Typ auftreten kann):
+```scala
+abstract class Value
+type Env = Map[String, Value]
+case class ClosureV(f: Fun, env: Env)
+```
+
+Um mit dieser minimalistischen Sprache sinnvoll arbeiten zu können, sind Kodierungen für verschiedene Datentypen notwendig. Dazu verwendet man typischerweise die _Church Encodings_.
+
+## Church Encodings
+**Booleans** werden als ihre "eigene" If-Then-Else-Funktion definiert. Darauf basierend lassen sich diverse Bool'sche Operationen definieren:
+```scala
+val t = Fun("t", Fun("f","t")) // true
+val f = Fun("t", Fun("f","f")) // false
+
+val ifTE = Fun("c", Fun("t", Fun("e", App(App("c","t"),"e"))))
+val not = Fun("a", App(App("a", f), t)) // if a then False else True
+val and = Fun("a", Fun("b", App(App("a", "b"), f))) // if a then b else False
+val or = Fun("a", Fun("b", App(App("a", t), "b")))  // if a then True else b
+```
+
+Wir können auch durch eine Nullfunktion und eine Nachfolgerfunktion die **natürlichen Zahlen** kodieren. Dabei wird die Zahl $n$ dargestellt durch die $n$-fache Anwendung einer Funktion $s$ auf einen Startwert $z$.
+```scala
+val zero = Fun("s", Fun("z","z"))
+val succ = Fun("n", Fun("s", Fun("z", App("s", App(App("n", "s"), "z")))))
+val one = App(succ,zero) // = Fun("s", Fun("z", App("s","z")))
+val two = App(succ,one) // = Fun("s", Fun("z", App("s", App("s","z"))))
+val three = App(succ,two)
+
+val add = 
+  Fun("a", Fun("b", Fun("s", Fun("z", 
+    App(App("a","s"), App(App("b","s"),"z"))))))
+val mul = 
+  Fun("a", Fun("b", Fun("s", Fun("z", 
+    App(App("a", App("b","s")), "z")))))
+```
+
+In der `succ`-Funktion wird der Ausdruck erst "ausgepackt", indem er auf das $s$ und dann auf das $z$ angewendet wird, dann wird der zusätzliche Aufruf von $s$ hinzugefügt und zuletzt wird der Ausdruck wieder zwei Mal in eine Funktion geschachtelt, um $s$ und $z$ wieder zu parametrisieren.
+
+Bei der Addition wird der Startwert für $a$ durch $b$ ersetzt, wodurch die `succ`-Operation $a$-Mal auf $b$ durchgeführt wird, bei der Multiplikation wird $a$-Mal $b$ auf den Startwert addiert.
+
+Durch ein Spachkonstrukt `printDot()`, der bei der Auswertung die Identitätsfunktion ausgibt und einen Punkt druckt, lassen sich durch den folgenden Ausdruck die unären Zahlenkodierungen visualisieren:
+```scala
+val printNum = Fun("n", App(App("n", Fun("x",printDot())), f))
+```
+
+Wir können auch mit einer Funktion prüfen, ob eine Zahl 0 ist. Da `zero` als `Fun("s", Fun("z","z"))` kodiert ist, liefert der folgende Ausdruck für 0 $\texttt{True}$, für Zahlen größer 0 die $n$-fache Anwendung von $\lambda x.\texttt{False}$ auf `t`, also $\texttt{False}$.
+```scala
+val isZero = Fun("n", App(App("a", Fun("x",f)),t))
+```
+
+Es können auch eine Vorgängerfunktion `pred` und negative Zahlen kodiert werden.
+
+Auch **Listen** können im Lambda-Kalkül kodiert werden. Die Grundidee ist es, zur Repräsentation die leere Liste und wiederholte Anwendungen von `cons` zu nutzen. Die Liste $x_1,x_2,...,x_n$ wird also durch $\lambda c. \lambda e. c(x_1, (... (c(x_{n-1}, c(x_n,e)))...))$ kodiert. 
+```scala
+val empty = Fun("c", Fun("e","e"))
+val cons =
+  Fun("h", Fun("r", Fun("c", Fun("e",
+    App(App("c","h"), App(App("r","c"), "e"))))))
+```
+
+Die leere Liste `empty` besitzt die gleiche Kodierung wie `zero` und `f`. Bei der `cons`-Operation wird die Restliste `r` durch Applikation auf `c` und `e` "entpackt", durch Anwendung von `c` auf das Element `h` und die "entpackte" Restliste wird das neue Kopfelement vorne an die Restliste angefügt.
+
+```scala
+val list123 = App(App(cons,one), App(App(cons,two), App(App(cons,three), empty)))
+val listSum = Fun("l", App(App("l",add), zero))
+```
+
+Durch Applikationen von `cons` mit jeweils einem Kopfelement und einer Restliste sowie der leeren Liste `empty` lassen sich Listen kodieren, wie es bei `list123` zu sehen ist. Die Applikation einer Liste mit einem `c` und einem `e` entspricht der Listenfaltung, wie sie etwa in Scala oder Racket bzw. Scheme möglich ist:
+```scala
+def listSum(ls: List[Int]) : Int = ls.fold(0)(_+_)
+```
+```scheme
+(define list-sum 
+    (lambda (ls) 
+        (foldr + 0 ls)))
+```
+
+Listen werden also sozusagen durch ihre Fold-Funktion (also durch ihre Faltung mit den Argumenten `c` und `e`) repräsentiert.
 
 ## Rekursion
 Es ist auch möglich, Rekursion in FAE zu implementieren. Aus dem Programm `omega = (x => x x) (x => x x)` lässt sich das Programm `Y f = (x => f (x x)) (x => f (x x))` konstruieren, mit dem Schleifen kodiert werden können. Das Programm `Y` ist ein _Fixpunkt-Kombinator_. 
@@ -1418,60 +1506,6 @@ def eval(e: Exp) : Exp = e match {
 
 Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMetainterpretation`), hier spricht man von _Closure Conversion_. Umgekehrt wäre es auch denkbar, Zahlen und Arithmetik durch syntaktische Interpretation zu implementieren, etwa durch binäre Kodierung von Zahlen in Boolean-Arrays einer bestimmten Größe.
 
-
-# Lambda-Kalkül
-Entfernen wir aus [FAE](#Higher-Order-Funktionen-FAE) den `Num`- und den `Add`-Fall, so erhalten wir eine Sprache, die dem _Lambda-Kalkül_ entspricht:
-```scala
-sealed abstract class Exp
-case class Id(name: String) extends Exp
-case class Fun(param: String, body: Exp) extends Exp
-case class App(fun: Exp, arg: Exp) extends Exp
-```
-
-Das Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist das Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
-
-In dieser Sprache gibt es keine Zahlenwerte mehr, dadurch können keine Typfehler mehr auftreten (da kein unerwarteter Werte-Typ auftreten kann):
-```scala
-abstract class Value
-type Env = Map[String, Value]
-case class ClosureV(f: Fun, env: Env)
-```
-
-Um mit dieser minimalistischen Sprache sinnvoll arbeiten zu können, sind Kodierungen für verschiedene Datentypen notwendig. Dazu verwendet man typischerweise die _Church Encodings_. Booleans werden als ihre "eigene" If-Then-Else-Funktion definiert. Darauf basierend lassen sich diverse Bool'sche Operationen definieren:
-```scala
-val t = Fun("t", Fun("f","t")) // true
-val f = Fun("t", Fun("f","f")) // false
-
-val ifTE = Fun("c", Fun("t", Fun("e", App(App("c","t"),"e"))))
-val not = Fun("a", App(App("a", f), t)) // if a then False else True
-val and = Fun("a", Fun("b", App(App("a", "b"), f))) // if a then b else False
-val or = Fun("a", Fun("b", App(App("a", t), "b")))  // if a then True else b
-```
-
-Wir können auch durch eine Nullfunktion und eine Nachfolgerfunktion die Natürlichen Zahlen kodieren. Dabei wird die Zahl $n$ dargestellt durch die $n$-fache Anwendung einer Funktion $s$ auf einen Startwert $z$.
-```scala
-val zero = Fun("s", Fun("z","z"))
-val succ = Fun("n", Fun("s", Fun("z", App("s", App(App("n", "s"), "z")))))
-val one = App(succ,zero) // = Fun("s", Fun("z", App("s","z")))
-val two = App(succ,one) // = Fun("s", Fun("z", App("s", App("s","z"))))
-val three = App(succ,two)
-
-val add = 
-  Fun("a", Fun("b", Fun("s", Fun("z", 
-    App(App("a","s"), App(App("b","s"),"z"))))))
-val mul = 
-  Fun("a", Fun("b", Fun("s", Fun("z", 
-    App(App("a", App("b","s")), "z")))))
-```
-
-In der `succ`-Funktion wird der Ausdruck erst "ausgepackt", indem er auf das $s$ und dann auf das $z$ angewendet wird, dann wird der zusätzliche Aufruf von $s$ hinzugefügt und zuletzt wird der Ausdruck wieder zwei Mal in eine Funktion geschachtelt, um $s$ und $z$ wieder zu parametrisieren.
-
-Bei der Addition wird der Startwert für $a$ durch $b$ ersetzt, wodurch die `succ`-Operation $a$-Mal auf $b$ durchgeführt wird, bei der Multiplikation wird $a$-Mal $b$ auf den Startwert addiert.
-
-Durch ein Spachkonstrukt `printDot()`, der bei der Auswertung die Identitätsfunktion ausgibt und einen Punkt druckt, lassen sich durch den folgenden Ausdruck die unären Zahlenkodierungen visualisieren:
-```scala
-val printNum = Fun("n", App(App("n", Fun("x",printDot())), f))
-```
 
 
 

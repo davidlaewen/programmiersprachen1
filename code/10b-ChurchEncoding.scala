@@ -43,14 +43,28 @@ val one = App(succ,zero) // = Fun("s", Fun("z", App("s","z")))
 val two = App(succ,one) // = Fun("s", Fun("z", App("s", App("s","z"))))
 val three = App(succ,two)
 
+val printNum = Fun("n", App(App("n", Fun("x",printDot())), f)) // prints n dots for number n
+
 val add =
   Fun("a", Fun("b", Fun("s", Fun("z",
     App(App("a","s"), App(App("b","s"),"z"))))))
+
 val mul =
   Fun("a", Fun("b", Fun("s", Fun("z",
     App(App("a", App("b","s")), "z")))))
 
-val printNum = Fun("n", App(App("n", Fun("x",printDot())), f)) // prints n dots for number n
+val isZero = Fun("n", App(App("a", Fun("x",f)),t)) // returns True if n=0, else n-fold application of λx.False
+
+/** Lists: Comprised of 'empty' and 'cons' */
+val empty = Fun("c", Fun("e","e")) // equivalent to 0 and False
+val cons =
+  Fun("h", Fun("r", Fun("c", Fun("e", // "re-wrap" the result
+    App(App("c","h"), App(App("r","c"), "e")))))) // apply c to head and unpacked rest
+
+val list123 = App(App(cons,one), App(App(cons,two), App(App(cons,three), empty)))
+
+val listSum = Fun("l", App(App("l",add), zero))
+ 
 
 
 
