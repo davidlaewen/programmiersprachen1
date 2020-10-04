@@ -1,7 +1,0 @@
-f(f(3) + f(4)): k => k( (
-
-3 : k => k(3)
-4 : k => k(4)
-
-f: k => k( (x, dynK) => (k => k(x)) (dynK))
-   k => k( (x, dynK) => dynK(x)) 	
