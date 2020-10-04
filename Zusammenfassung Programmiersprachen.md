@@ -813,7 +813,7 @@ App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
 
 `omega` kann im _Lambda-Kalkül_ notiert werden als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
 
-FAE ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache entspricht prinzipiell dem [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte.
+FAE ist Turing-mächtig, kann also alle Turing-berechenbaren Funktionen berechnen. Die Sprache besitzt nämlich das Turing-mächtige [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte, als Teilmenge.
 
 ## Church-Kodierungen
 In FAE ist es bereits möglich, Listen zu repräsentieren. Die Grundidee ist es, die Liste $x_1,x_2,...,x_n$ durch $\lambda c. \lambda e. c(x_1, (... (c(x_{n-1}, c(x_n,e)))...))$ zu repräsentieren.
@@ -1383,7 +1383,7 @@ Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adresse
 Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
 
 
-# Interpretationstypen
+# Interpretationsarten
 _Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch das entsprechende Feature in der Hostsprache. _Syntaktische Interpretation_ bezeichnet hingegen die Implementierung eines Features durch Reduktion auf Features niedrigerer Ebene in der Hostsprache. 
 
 In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unsere Rekursion verwendet haben. Auch das Speichermanagement wird durch Scala übernommen und nicht in unserem Interpreter definiert.
@@ -1399,7 +1399,7 @@ case class Fun(f: Exp => Exp) extends Exp
 case class App(f: Exp, a: Exp) extends Exp
 ```
 
-Man spricht bei dieser Repräsentation auch von _Higher-Order Abstract Syntax (HOAS)_.
+Eine Repräsentation, bei der Funktionen der Metasprache verwendet werden, nennt man _Higher-Order Abstract Syntax (HOAS)_.
 
 Der Interpreter wird nun extrem einfach, aber die Kontrolle über das Verhalten von Identifiern und Bindungen (also etwa Scoping) geht verloren.
 ```scala
@@ -1416,7 +1416,62 @@ def eval(e: Exp) : Exp = e match {
 }
 ```
 
-Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMetainterpretation`). Umgekehrt wäre es auch denkbar, Zahlen und Arithmetik durch syntaktische Interpretation zu implementieren, etwa durch binäre Kodierung von Zahlen in Boolean-Arrays einer bestimmten Größe.
+Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMetainterpretation`), hier spricht man von _Closure Conversion_. Umgekehrt wäre es auch denkbar, Zahlen und Arithmetik durch syntaktische Interpretation zu implementieren, etwa durch binäre Kodierung von Zahlen in Boolean-Arrays einer bestimmten Größe.
+
+
+# Lambda-Kalkül
+Entfernen wir aus [FAE](#Higher-Order-Funktionen-FAE) den `Num`- und den `Add`-Fall, so erhalten wir eine Sprache, die dem _Lambda-Kalkül_ entspricht:
+```scala
+sealed abstract class Exp
+case class Id(name: String) extends Exp
+case class Fun(param: String, body: Exp) extends Exp
+case class App(fun: Exp, arg: Exp) extends Exp
+```
+
+Das Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist das Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
+
+In dieser Sprache gibt es keine Zahlenwerte mehr, dadurch können keine Typfehler mehr auftreten (da kein unerwarteter Werte-Typ auftreten kann):
+```scala
+abstract class Value
+type Env = Map[String, Value]
+case class ClosureV(f: Fun, env: Env)
+```
+
+Um mit dieser minimalistischen Sprache sinnvoll arbeiten zu können, sind Kodierungen für verschiedene Datentypen notwendig. Dazu verwendet man typischerweise die _Church Encodings_. Booleans werden als ihre "eigene" If-Then-Else-Funktion definiert. Darauf basierend lassen sich diverse Bool'sche Operationen definieren:
+```scala
+val t = Fun("t", Fun("f","t")) // true
+val f = Fun("t", Fun("f","f")) // false
+
+val ifTE = Fun("c", Fun("t", Fun("e", App(App("c","t"),"e"))))
+val not = Fun("a", App(App("a", f), t)) // if a then False else True
+val and = Fun("a", Fun("b", App(App("a", "b"), f))) // if a then b else False
+val or = Fun("a", Fun("b", App(App("a", t), "b")))  // if a then True else b
+```
+
+Wir können auch durch eine Nullfunktion und eine Nachfolgerfunktion die Natürlichen Zahlen kodieren. Dabei wird die Zahl $n$ dargestellt durch die $n$-fache Anwendung einer Funktion $s$ auf einen Startwert $z$.
+```scala
+val zero = Fun("s", Fun("z","z"))
+val succ = Fun("n", Fun("s", Fun("z", App("s", App(App("n", "s"), "z")))))
+val one = App(succ,zero) // = Fun("s", Fun("z", App("s","z")))
+val two = App(succ,one) // = Fun("s", Fun("z", App("s", App("s","z"))))
+val three = App(succ,two)
+
+val add = 
+  Fun("a", Fun("b", Fun("s", Fun("z", 
+    App(App("a","s"), App(App("b","s"),"z"))))))
+val mul = 
+  Fun("a", Fun("b", Fun("s", Fun("z", 
+    App(App("a", App("b","s")), "z")))))
+```
+
+In der `succ`-Funktion wird der Ausdruck erst "ausgepackt", indem er auf das $s$ und dann auf das $z$ angewendet wird, dann wird der zusätzliche Aufruf von $s$ hinzugefügt und zuletzt wird der Ausdruck wieder zwei Mal in eine Funktion geschachtelt, um $s$ und $z$ wieder zu parametrisieren.
+
+Bei der Addition wird der Startwert für $a$ durch $b$ ersetzt, wodurch die `succ`-Operation $a$-Mal auf $b$ durchgeführt wird, bei der Multiplikation wird $a$-Mal $b$ auf den Startwert addiert.
+
+Durch ein Spachkonstrukt `printDot()`, der bei der Auswertung die Identitätsfunktion ausgibt und einen Punkt druckt, lassen sich durch den folgenden Ausdruck die unären Zahlenkodierungen visualisieren:
+```scala
+val printNum = Fun("n", App(App("n", Fun("x",printDot())), f))
+```
 
 
 
@@ -1430,7 +1485,7 @@ Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMeta
 
 
 :::success
-- [x] VL 9 ab 52:00
+- [x] VL 10 ab 1:00:00
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
