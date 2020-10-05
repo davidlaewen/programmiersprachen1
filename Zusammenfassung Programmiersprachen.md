@@ -1514,6 +1514,59 @@ Es existiert eine Verallgemeinerung von [Church-Kodierungen](#Church-Kodierungen
 
 Objekt-Algebren sind ein sehr mächtiger und teilweise auch effizienter Mechanismus zur Modularisierung von Programmen und sind ein sehr junges Forschungsgebiet, zu dem es erst seit etwa 2012 Veröffentlichungen gibt.
 
+Wir können die Church-Kodierungen für das [Lambda-Kalkül](#Lambda-Kalkül) auch in Scala nachbilden:
+```scala
+trait Bool {
+  def ifThenElse[T](t: T, e: T) : T
+}
+
+case object True extends Bool {
+  def ifThenElse[T](t: T, e: T) : T = t
+}
+
+case object False extends Bool {
+  def ifThenElse[T](t: T, e: T) : T = e
+}
+
+def not(b: Bool) : Bool = b.ifThenElse(False,True)
+def and(a: Bool, b: Bool) : Bool = a.ifThenElse(b,False)
+def or(a: Bool, b: Bool) : Bool = a.ifThenElse(True,b)
+
+
+trait Num {
+  def fold[T](s: T => T, z: T) : T
+}
+
+case object Zero extends Num {
+  def fold[T](s: T => T, z: T) : T = z
+}
+
+case object One extends Num {
+  def fold[T](s: T => T, z: T) : T = s(z)
+}
+
+def succ(n: Num) : Num = {
+  new Num {
+    def fold[T](s: T => T, z: T) : T = s(n.fold(s,z))
+  }
+}
+```
+
+Im Objekt-Algebra-Stil werden die zwei Funktionen (also Argumente) der Faltung zu einem Objekt zusammengefasst.
+```scala
+trait NumSig[T] {
+  def s(p: T) : T
+  def z: T
+}
+
+trait Num { def apply[T](x: NumSig[T]) : T}
+```
+
+:::info
+Ein **Monoid** ist eine algebraische Struktur bestehend aus einer Menge $M$, einer Abbildung $f: M \times M \to M$ und einem neutralen Element $e \in M$. Dabei gilt $\forall a,b,c \in M: (a \times b) \times c = a \times (b \times c)$ und $\forall a \in M: e \times a = a \times e = a$
+:::
+
+Eine _algebraische Struktur_ besteht typischerweise aus einer Menge (oder mehreren Mengen) und Operationen auf den Elementen dieser Menge(n). Auch die obige Implementation im Objekt-Algebra-Stil ist eine algebraische Struktur mit den Operationen `s` und `z`. Der Typ der Operation wird als _Signatur_ oder _Funktor_ bezeichnet, 
 
 
 
@@ -1525,7 +1578,7 @@ Objekt-Algebren sind ein sehr mächtiger und teilweise auch effizienter Mechanis
 
 
 :::success
-- [x] VL 11
+- [ ] VL 11 ab 30:00
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
