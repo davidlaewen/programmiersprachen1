@@ -835,7 +835,7 @@ case class ClosureV(f: Fun, env: Env)
 
 Um mit dieser minimalistischen Sprache sinnvoll arbeiten zu können, sind Kodierungen für verschiedene Datentypen notwendig. Dazu verwendet man typischerweise die _Church Encodings_.
 
-## Church Encodings
+## Church-Kodierungen
 **Booleans** werden als ihre "eigene" If-Then-Else-Funktion definiert. Darauf basierend lassen sich diverse Bool'sche Operationen definieren:
 ```scala
 val t = Fun("t", Fun("f","t")) // true
@@ -905,6 +905,8 @@ def listSum(ls: List[Int]) : Int = ls.fold(0)(_+_)
 ```
 
 Listen werden also sozusagen durch ihre Fold-Funktion (also durch ihre Faltung mit den Argumenten `c` und `e`) repräsentiert.
+
+Durch die Kodierung von Listen können auch Listen von Listen kodiert werden, womit es eine Repräsentation von Bäumen im Lambda-Kalkül gibt. Wie wir an unserer eigenen Implementierung sehen können, lassen sich Programme im Lambda-Kalkül sehr gut durch Baumstrukturen darstellen. Dadurch lassen sich auch Lambda-Kalkül-Ausdrücke im Lambda-Kalkül geschickt repräsentieren und es ist möglich, ein Programm im Lambda-Kalkül für das Lambda-Kalkül zu schreiben (vgl. universelle Turing-Maschine).
 
 ## Rekursion
 Es ist auch möglich, Rekursion in FAE zu implementieren. Aus dem Programm `omega = (x => x x) (x => x x)` lässt sich das Programm `Y f = (x => f (x x)) (x => f (x x))` konstruieren, mit dem Schleifen kodiert werden können. Das Programm `Y` ist ein _Fixpunkt-Kombinator_. 
@@ -1507,6 +1509,10 @@ def eval(e: Exp) : Exp = e match {
 Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMetainterpretation`), hier spricht man von _Closure Conversion_. Umgekehrt wäre es auch denkbar, Zahlen und Arithmetik durch syntaktische Interpretation zu implementieren, etwa durch binäre Kodierung von Zahlen in Boolean-Arrays einer bestimmten Größe.
 
 
+# Objekt-Algebren
+Es existiert eine Verallgemeinerung von [Church-Kodierungen](#Church-Kodierungen) für beliebige algebraische Datentypen.
+
+Objekt-Algebren sind ein sehr mächtiger und teilweise auch effizienter Mechanismus zur Modularisierung von Programmen und sind ein sehr junges Forschungsgebiet, zu dem es erst seit etwa 2012 Veröffentlichungen gibt.
 
 
 
@@ -1519,7 +1525,7 @@ Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMeta
 
 
 :::success
-- [x] VL 10 ab 1:00:00
+- [x] VL 11
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Lecture Notes zu Church-Kodierungen, Fixpunkt-Kombinator
 :::
