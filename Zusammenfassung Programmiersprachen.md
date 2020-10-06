@@ -25,7 +25,7 @@ def sum(a: Int, b: Int): Int = a + b
 val x = sum(5, 11)
 
 def concat(a: String, b: String): String = a + b
-val y = concat("Manfred", concat(" ", "Opel"))
+val y = concat("Heiner", concat(" ", "Hacker"))
 ```
 
 ## Datentypen
@@ -38,7 +38,7 @@ assert(map(1) == "a")
 ```
 - **Tupel:** `(<first>, <second>, ...)`, erlauben Gruppierung heterogener Daten. Können zwischen 2 und 22 Werte beliebigen Typs enthalten.
 ```scala
-val t = (1, "abc", new Person("Mani"))
+val t = (1, "abc", new Person("Bob"))
 val firstEntry = t._1
 val (num, string, person) = t
 assert(firstEntry == num)
@@ -72,17 +72,17 @@ class Person(var firstName: String, var lastName: String) {
     }
 }
 
-val mani = new Person("Manfred", "Opel")
+val heiner = new Person("Heiner", "Hacker")
 
-mani.sayHello() // prints "Hello, Manfred Opel"
-println(mani.firstName) // prints "Manfred"
-mani.firstName = "Mampfred" // fields can be accessed without get and set methods
-mani.lastName = "Mompel"
-mani.sayHello() // now prints "Hello, Mampfred Mompel"
+heiner.sayHello() // prints "Hello, Heiner Hacker"
+println(heiner.firstName) // prints "Heiner"
+heiner.firstName = "Heinrich" // fields can be accessed without get and set methods
+heiner.lastName = "Knacker"
+heiner.sayHello() // now prints "Hello, Heinrich Knacker"
 ```
 - Werden die Felder der Klasse mit `var` definiert, so sind sie mutierbar.
 - **Abstrakte Klassen** mit Keyword `abstract`
-- **Traits:** Können nicht instanziiert werden, sondern sind Bausteine zur Konstruktion von Klassen. Lassen sich einer Klasse mit `with`/`extends` anfügen. Ist ein Trait _sealed_ (`sealed trait ...`), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. In diesem Fall kann bei Pattern Matching erkannt werden, ob alle Fälle (d.h. Case Classes) abgedeckt sind.
+- **Traits:** Können nicht instanziiert werden, sondern sind Bausteine zur Konstruktion von Klassen. Lassen sich einer Klasse mit `with`/`extends` anfügen. Ist ein Trait _sealed_ (`sealed trait ...`), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. In diesem Fall kann bei Pattern Matching erkannt werden, ob alle Fälle (also alle Case Classes) abgedeckt sind.
 ```scala
 trait Speaker {
     def sayCatchPhrase(): Unit // no function body, abstract
@@ -97,10 +97,10 @@ class Person(name: String, catchPhrase: String) extends Speaker with Sleeper {
     def sayCatchPhrase(): Unit = println(catchPhrase)
 }
 ```
-Überladen von Methoden in Klassen mit Keyword `override` möglich
+Überladen von Methoden in Klassen ist mit dem Keyword `override` möglich.
 - **Objekte:** Können mit Keyword `object` instanziiert werden.
-- Erweiterung von Klassen/Traits oder Implementation abstrakter Klassen mit `extends`
-- Case Classes: Hilfreich bei der Verwendung von Klassen als Datencontainer. Erzeugung von Instanzen ist ohne `new` möglich, zudem gibt es eine Default-Implementation zum Vergleichen oder Hashen von Instanzen der Klasse. Mit Case Classes ist Pattern Matching möglich:
+- Erweiterung von Klassen/Traits oder Implementation abstrakter Klassen mit `extends`.
+- **Case Classes:** Hilfreich bei der Verwendung von Klassen als Datencontainer. Erzeugung von Instanzen ist ohne `new` möglich, zudem gibt es eine Default-Implementation zum Vergleichen oder Hashen von Instanzen der Klasse. Mit Case Classes ist Pattern Matching möglich:
 ```scala
 trait UniPerson
 case class Student(val id: Int) extends UniPerson
@@ -129,22 +129,22 @@ Die erste Variante (Pattern-Match-Dekomposition) erlaubt das Hinzufügen weitere
 
 Die zweite Variante (objektorientierte Dekomposition) erlaubt das Hinzufügen weiterer _Uni-Personen_, ohne dass der bestehende Code verändert werden muss. 
 
-Dieser Konflikt wird _Expression Problem_ genannt.
+Die Schwierigkeit, die Vorzüge beider Repräsentationen zu vereinen, wird _Expression Problem_ genannt (mehr dazu im Kapitel [Objekt-Algebren](#Objekt-Algebren)).
 
 ## Kontrollstrukturen
 - `if`-`else`-Statements:
 ```scala
-if (<check>) <statement>
+if (1 < 2) print("Condition met")
 
-if (<check1>) {
-    <statement1>
-} else if (<check2>) {
-    <statement2>
+if (a > b) {
+    print("a greater than b")
+} else if (a == b) {
+    print("a equals b")
 } else {
-    <statement3>
+    print("a less than b")
 }
 
-val x = if (1 == 1) "a" else "b" // can be used as ternary operator
+val x = if (1 == 1) "a" else "b" // usable as ternary operator, "a" is bound to x
 ```
 
 - `for`-Schleifen: 
@@ -172,15 +172,16 @@ def pm(x: Any) = x match {
 ```
 
 ## REPL
-- REPL starten mit Befehl `scala`
-- `.scala`-Datei in REPL laden mit `:load <filename>.scala`
-- Ergebnisse von Auswertung werden automatisch an Variablennamen gebunden
-- Bisherige Definitionen können mit `:reset` gelöscht werden
-- REPL verlassen mit `:q`
+- REPL lässt sich mit Befehl `scala` starten.
+
+- `.scala`-Dateien lassen sich in REPL laden mit `:load <filename>.scala`.
+- Ergebnisse der Auswertung werden automatisch an Variablennamen gebunden.
+- Bisherige Definitionen können mit `:reset` gelöscht werden.
+- REPL kann mit `:q` verlassen werden.
 
 
 ## Implizite Konvertierung
-Scala bietet die Möglichkeit, bestimmte Typkonvertierungsfunktionen automatisch zu nutzen, wenn so der erwartete Typ erfüllt werden kann. Dadurch können wir Ausdrücke geschickter notieren.
+Scala bietet die Möglichkeit, bestimmte Typkonvertierungsfunktionen automatisch zu nutzen, wenn so der erwartete Typ erfüllt werden kann. Dadurch können wir Ausdrücke für unsere Interpreter geschickter notieren.
 
 Hierzu muss die `implicitConversions`-Bibliothek importiert werden:
 ```scala
@@ -428,7 +429,7 @@ type Funs = Map[Symbol, FunDef]
 ```
 
 ## Substitutionsbasierter Interpreter
-Die bereits implementierten Konstanten-Identifier und die Funktions-Identifier verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergebung ist unabhängig voneinander. Es wird also in `Call` nur in den Argumenten substituiert, nicht im Funktionsnamen (denn der Funktionsname kann nicht durch einen Wert ersetzt werden):
+Die bereits implementierten Konstanten-Identifier und die Funktions-Identifier verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergebung ist unabhängig voneinander. Es wird im `Call`-Fall nur in den Argumenten substituiert, nicht im Funktionsnamen (denn der Funktionsname kann nicht durch einen Wert ersetzt werden):
 
 ```scala
 def subst(body: Exp, i: Symbol, v: Num) : Exp = body match {
@@ -478,7 +479,7 @@ assert(eval(fm,b) == 42)
 val c = Call('myAdd, List(Num(40), Num(2)))
 assert(eval(fm,c) == 42)
 
-// does not terminate
+// eval(fm,forever) does not terminate
 val forever = Call('forever, List(Num(0)))
 ```
 
@@ -490,10 +491,12 @@ With("x", 1, With("y", 2, With("z", 3, Add("x", Add("y", "z")))))
 folgende Schritte durchlaufen:
 ```scala
 With("y", 2, With("z", 3, Add(1, Add("y", "z"))))
+// ~~>
 With("z", 3, Add(1, Add(2, "z")))
+// ~~>
 Add(1, Add(2, 3))
 ```
-Dabei wird der Ausdruck `Add("x", Add("y", "z"))` insgesamt drei Mal traversiert, um für jedes `With` die Substitution durchzuführen. Die Komplexität bei Ausdrücken der Länge $n$ ist also $\mathcal{O}(n^2)$. Wir suchen deshalb eine effizientere Art, um Substitution umzusetzen. 
+Dabei wird der Ausdruck `Add("x", Add("y", "z"))` insgesamt drei Mal traversiert, um für jedes `With` die Substitution durchzuführen. Die Komplexität bei Ausdrücken der Länge $n$ ist $\mathcal{O}(n^2)$. Wir suchen deshalb eine effizientere Art, um Substitution umzusetzen. 
 
 Statt beim Auftreten eines `With`-Ausdrucks direkt zu substituieren, wollen wir uns in einer zusätzlichen Datenstruktur merken, welche Substitutionen wir im weiteren Ausdruck vornehmen müssen, so dass der zusätzliche Durchlauf wegfällt.
 
@@ -515,8 +518,11 @@ def evalWithEnv(funs: FunDef, env: Env, e: Exp) : Int = e match {
 Das vorherige Beispiel wird nun folgendermaßen ausgewertet:
 ```scala
 With("x", 1, With("y", 2, With("z", 3, Add("x", Add("y", "z"))))), Map()
+// ~~>
 With("y", 2, With("z", 3, Add("x", Add("y", "z")))), Map("x" -> 1)
+// ~~>
 With("z", 3, Add("x", Add("y", "z"))), Map("x" -> 1, "y" -> 2)
+// ~~>
 Add("x", Add("y", "z")), Map("x" -> 1, "y" -> 2, "z" -> 3)
 ```
 Die Komplexität ist nun (unter der Annahme, dass die Map-Operationen in konstanter Zeit geschehen) linear zur Länge des Ausdrucks.
@@ -526,6 +532,7 @@ Das Scoping ist auch in dieser Implementation lexikalisch, da die Umgebung rekur
 var m = Map("a" -> 1)
 m = m+("b" -> 2)
 m = m+("a" -> 3)
+// ~~>
 m: Map[String,Int] = Map("a" -> 3, "b" -> 2)
 ```
 
@@ -1004,14 +1011,15 @@ object CallByName extends CBN {
 
 
 
-# Rekursive Bindings
+# Rekursive Bindings (RCFAE)
 Es ist nicht möglich, Rekursion folgendermaßen zu implementieren:
 ```scala
 val facAttempt = wth("fac", 
                      Fun("n", If0("n", 1, Mul("n", App("fac", Add("n",-1))))), 
                      App("fac",4))
     
-With fac = (n => If (n==1) 1 else n*fac(n-1)): fac(4)
+// With fac = (n => If (n==0) 1 Else n*fac(n-1)): 
+//   fac(4)
 ```
 Die Auswertung dieses Ausdrucks würde einen Fehler liefern, da der Bezeichner `"fac"` im Rumpf der Funktion nicht gebunden ist (also im `xDef`-Teil des With-Ausdrucks).
 
@@ -1083,7 +1091,7 @@ Im `Id`-Fall findet die Dereferenzierung statt, wir schlagen `x` in der Environm
 Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, also eine Sprache ohne Mutation und Seiteneffekte. In dieser Art von Sprache lassen sich Programme besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor.
 
 :::info
-**Referential Transparency** bedeutet, dass alle Aufrufe einer Funktion mit dem gleichen Argument überall durch das Ergebnis des Aufrufs ersetzt werden können, ohne die Bedeutung des Programms zu verändern.
+**Referential Transparency** bedeutet, dass alle Aufrufe einer Funktion mit dem gleichen Argument überall durch das (identische) Ergebnis des Aufrufs ersetzt werden können, ohne die Bedeutung des Programms zu verändern.
 :::
 
 Besitzen Funktionen Seiteneffekte (etwa Print-Befehle oder Mutationen), so ist dies nicht der Fall, denn durch das Ersetzen des Funktionsaufrufs durch das Ergebnis gehen jegliche Seiteneffekte verloren. 
@@ -1093,7 +1101,7 @@ Die erste Form von Mutation ist das Mutieren von Variablen, also das Überschrei
 var x = 1
 x = 2
 ```
-Die andere Form ist die mutierbarer Datenstrukturen, bspw. Arrays, in denen einzelne Werte überschrieben werden können. Wir wollen einfachste denkbare Form einer mutierbaren Datenstruktur unserer Sprache hinzufügen, nämlich _Boxes_. 
+Die andere Form ist die mutierbarer Datenstrukturen, bspw. Arrays, in denen einzelne Werte überschrieben werden können. Wir wollen die einfachste denkbare Form einer mutierbaren Datenstruktur unserer Sprache hinzufügen, nämlich _Boxes_. 
 
 ## Box-Container
 Eine Box entspricht einem Array der Länge 1, ist also ein Datencontainer für genau einen Wert. Um Boxes zu implementieren, führen wir die folgenden Sprachkonstrukte ein:
