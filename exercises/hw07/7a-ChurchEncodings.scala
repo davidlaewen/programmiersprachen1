@@ -63,7 +63,8 @@ val sumList = Fun("l", App(App("l",add), zero))
 
 /** Task 3 */
 val isZero = Fun("n", App(App("n", Fun("x",f)),t))
-val foldFun = Fun("h", Fun("t", App(App(and, App(isZero, "h")), "t")))
+// val foldFun = Fun("h", Fun("t", App(App(and, App(isZero, "h")), "t"))) // And(isZero(head), tail)
+val foldFun = Fun("h", Fun("t", App(App(App(isZero, "h"), "t"), f))) // If isZero(head) Then tail Else false
 val allZeros = Fun("l", App(App("l",foldFun), t))
 
 assert(eval(App(allZeros,list123), Map()).asInstanceOf[ClosureV].f == f)
