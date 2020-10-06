@@ -17,12 +17,13 @@ case class FunV(f: Value => Value) extends Value
 
 
 case class Visitor[T](
-  num: Int        => T, 
-  id : String     => T, 
+  num: Int        => T,
+  id : String     => T,
   add: (T,T)      => T,
   fun: (String,T) => T,
-  app: (T,T)      => T)
-  
+  app: (T,T)      => T
+)
+
 
 def foldExp[T](v: Visitor[T], e: Exp) : T = e match {
   case Num(n) => v.num(n)
