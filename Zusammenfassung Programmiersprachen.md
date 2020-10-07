@@ -1686,6 +1686,51 @@ Bei einem funktionalen Ansatz ist typischerweise die Erweiterung mit Operationen
 :::
 
 
+# Continuations
+
+## Zustandslose Interaktionen
+Das Webprotokoll HTTP ist zustandslos, d.h. Anfragen sind unabhängig voneinander und es werden keine Information in Form einer "Session" o.ä. gespeichert. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
+```scala
+import scala.io.StdIn.readLine
+
+def inputNumber(prompt: String) : Int = {
+  println(prompt)
+  Integer.parseInt(readLine())
+}
+
+def progSimple(): Unit = {
+  println(inputNumber("First number:") + inputNumber("Second number:"))
+} 
+```
+
+Hier finden nacheinander zwei Eingaben durch den Nutzer statt, wobei beide Werte relevant für das Ergebnis sind. Würde man diese Funktion im Web umsetzen wollen, so dass der Nutzer auf zwei verschiedenen Seiten die Werte eingibt und absendet und auf einer dritten Seite das Ergebnis angezeigt bekommt, dann ist aufgrund der Zustandslosigkeit von HTTP ein spezieller Programmierstil notwendig. 
+
+Der Ablauf zerfällt dabei in die folgenden Teilprogramme:
+- **Teilprogramm $a$** generiert das Formular für die erste Zahl
+- **Teilprogramm $b$** konsumiert die Zahl aus dem ersten Formular und generiert das zweite Formular
+- **Teilprogramm $c$** konsumiert die Daten aus $b$, berechnet die Ausgabe und erzeugt die Seite mit dem Ergebnis.
+
+Nun stellt sich die Frage, wie im zustandslosen Protokoll das Teilprogramm $c$ auf die in $a$ eingegebenen Daten zugreifen kann. Hierzu muss der eingegebene Wert über $b$ weitergereicht werden, etwa als verstecktes Formularfeld in HTML oder Parameter in der URL. 
+
+Wir können die Zustandslosigkeit mit dem Rückgabetyp `Nothing` modellieren, d.h. alle Funktionen brechen die Berechnung ab und besitzen keinen Rückgabewert.
+```scala
+def webDisplay(s: String) : Nothing = {
+  println(s)
+  sys.error("Program terminated")
+}
+
+def webRead(prompt: String, continue: String) : Nothing = {
+  println(prompt)
+  println("Send input to "+continue)
+  sys.error("Program terminated")
+}
+
+def progA = webRead("First number:", "progB")
+def progB(n: Int) = webRead("First number was "+n+"\nSecond number:", "progC")
+def progC(n1: Int, n2: Int) = webDisplay("Sum of "+n1+" and "+n2+" is "+(n1+n2))
+```
+
+
 
 
 
