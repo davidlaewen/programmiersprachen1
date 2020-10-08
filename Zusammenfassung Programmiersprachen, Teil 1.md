@@ -1,5 +1,5 @@
 ---
-title: Zusammenfassung Programmiersprachen
+title: Zusammenfassung Programmiersprachen, Teil 1
 description: Programmiersprachen 1, SoSe 2020, Klauso3
 langs: de
 
@@ -9,12 +9,14 @@ langs: de
 
 [TOC]
 
+
 # Vorlesungsinhalte
 - gutes Verständnis von Programmiersprachen (allgemein, über _Trends_ hinweg) und deren Qualitäten, Vor- und Nachteile
 - Fähigkeit, Programmiersprachen in Features zu zerlegen und diese einzeln zu verstehen und zu analysieren
 - Implementieren von Programmiersprachen(-features) durch Interpreter in Scala
 - Auseinandersetzung mit wenigen Compiler-bezogenen Themen
 - Sprachen und deren Features, Zweck/Nutzen dieser Features, mögliche Implementationen und Vorzüge/Probleme dieser
+
 
 # Scala-Grundlagen
 [Scala](https://scala-lang.org/) ist statisch getypt, funktional, sowie objekt-orientiert. Scala-Programme können zu Java-Bytecode kompiliert und in einer JVM ausgeführt werden. Auswertung ist _eager_ (_call by value_).
@@ -213,7 +215,6 @@ assert(curried(1)(2)(3) == 6)
 ```
 
 
-
 # Erster Interpreter (AE)
 ```scala
 sealed trait Exp
@@ -236,6 +237,7 @@ var threeTimesFourPlusFour = Add(Mul(Num(3),Num(4)), Num(4))
 assert(eval(threeTimesFourPlusFour) == 16)
 ```
 Bei der Implementation eines Interpreters ist ein vollständiges Verständnis der Metasprache (hier Scala) notwendig, um die Eigenschaften der Implementation vollständig zu kennen. Der `Int`-Datentyp hat bspw. gewisse Einschränkungen, die nun auch in der implementierten Sprache existieren.
+
 
 # Syntaktischer Zucker und Desugaring
 In vielen Programmiersprachen gibt es prägnantere Syntax, die gleichbedeutend mit einer ausführlicheren Syntax ist (_syntaktischer Zucker_). Das erspart Schreibaufwand beim Programmieren und verbessert die Lesbarkeit von Programmen, ist aber bei der Implementierung der Sprache lästig, da man gleichbedeutende Syntax mehrfach implementieren muss. 
@@ -282,7 +284,6 @@ def neg(e: Exp) = Mul(Num(-1), e)
 def sub(l: Exp, r: Exp) = Add(l, neg(r))
 ```
 Syntaktischer Zucker kann (wie in `sub`) auch auf anderem syntaktischen Zucker aufbauen.
-
 
 
 # Abstraktion durch Visitor
@@ -339,6 +340,7 @@ assert(eval(a, env) == 38)
 val b = Mul(Mul("x", "x"), Add("x", "x"))
 assert(eval(b, env) == 16)
 ```
+
 
 # Identifier mit Bindings (WAE)
 Bei der Implementation von Identifiern mit einer Environment müssen die Identifier außerhalb des Ausdrucks in der _Map_ definiert werden und Identifier können nicht umdefiniert werden. 
@@ -705,7 +707,6 @@ def eval(e: Exp) : Exp = e match {
 
 Wir könnten den Rückgabetyp auch präzisieren, in dem wir den Typ `Either[Num,Fun]` verwenden, denn es wird immer eine Zahl oder eine Funktion ausgegeben (siehe dazu `07-fae.scala`).
 
-
 ## Umgebungsbasierter Interpreter
 Der Typ `Map[String,Int]` für die Umgebung ist nicht mehr ausreichend, da auch `Fun`-Ausdrücke gebunden werden müssen. Wir wählen also stattdessen:
 ```scala
@@ -1007,8 +1008,6 @@ object CallByName extends CBN {
   }
 }
 ```
-
-
 
 
 # Rekursive Bindings (RCFAE)
@@ -1683,66 +1682,6 @@ Der große Vorteil der Objektalgebren ist die modulare Erweiterbarkeit in beiden
 Das **Expression Problem** beschreibt die Suche nach einer Datenabstraktion, bei der sowohl neue Datenvarianten bzw. Cases, als auch neue Funktionen, die auf dem Datentyp operieren, ergänzt werden können, ohne dass bisheriger Code modifiziert werden muss und wobei Typsicherheit gewährt ist ([Wikipedia-Artikel](https://en.wikipedia.org/wiki/Expression_problem)).
 
 Bei einem funktionalen Ansatz ist typischerweise die Erweiterung mit Operationen gut unterstützt, bei einem objektorientierten Ansatz hingegen die Erweiterung mit neuen Datenvarianten (Klassen).
-:::
-
-
-# Continuations
-
-## Zustandslose Interaktionen
-Das Webprotokoll HTTP ist zustandslos, d.h. Anfragen sind unabhängig voneinander und es werden keine Information in Form einer "Session" o.ä. gespeichert. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
-```scala
-import scala.io.StdIn.readLine
-
-def inputNumber(prompt: String) : Int = {
-  println(prompt)
-  Integer.parseInt(readLine())
-}
-
-def progSimple(): Unit = {
-  println(inputNumber("First number:") + inputNumber("Second number:"))
-} 
-```
-
-Hier finden nacheinander zwei Eingaben durch den Nutzer statt, wobei beide Werte relevant für das Ergebnis sind. Würde man diese Funktion im Web umsetzen wollen, so dass der Nutzer auf zwei verschiedenen Seiten die Werte eingibt und absendet und auf einer dritten Seite das Ergebnis angezeigt bekommt, dann ist aufgrund der Zustandslosigkeit von HTTP ein spezieller Programmierstil notwendig. 
-
-Der Ablauf zerfällt dabei in die folgenden Teilprogramme:
-- **Teilprogramm $a$** generiert das Formular für die erste Zahl
-- **Teilprogramm $b$** konsumiert die Zahl aus dem ersten Formular und generiert das zweite Formular
-- **Teilprogramm $c$** konsumiert die Daten aus $b$, berechnet die Ausgabe und erzeugt die Seite mit dem Ergebnis.
-
-Nun stellt sich die Frage, wie im zustandslosen Protokoll das Teilprogramm $c$ auf die in $a$ eingegebenen Daten zugreifen kann. Hierzu muss der eingegebene Wert über $b$ weitergereicht werden, etwa als verstecktes Formularfeld in HTML oder Parameter in der URL. 
-
-Wir können die Zustandslosigkeit mit dem Rückgabetyp `Nothing` modellieren, d.h. alle Funktionen brechen die Berechnung ab und besitzen keinen Rückgabewert.
-```scala
-def webDisplay(s: String) : Nothing = {
-  println(s)
-  sys.error("Program terminated")
-}
-
-def webRead(prompt: String, continue: String) : Nothing = {
-  println(prompt)
-  println("Send input to "+continue)
-  sys.error("Program terminated")
-}
-
-def progA = webRead("First number:", "progB")
-def progB(n: Int) = webRead("First number was "+n+"\nSecond number:", "progC")
-def progC(n1: Int, n2: Int) = webDisplay("Sum of "+n1+" and "+n2+" is "+(n1+n2))
-```
-
-
-
-
-
-
-
-
-
-:::success
-- [ ] VL 12
-- [ ] Mark & Sweep fertig zusammenfassen (???)
-- [ ] Fixpunkt-Kombinator
-- [ ] LN Objektalgebren
 :::
 
 
