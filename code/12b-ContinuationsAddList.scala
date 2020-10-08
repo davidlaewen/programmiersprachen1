@@ -1,19 +1,19 @@
 import scala.collection.mutable
 import scala.io.StdIn.readLine
 
+/** Normal style */
 def inputNumber(prompt: String) : Int = {
   println(prompt)
   Integer.parseInt(readLine())
 }
 
-/** Normal style */
 def addAllCosts(items: List[String]): Int = items match {
   case List() => 0
   case first :: rest => inputNumber("Cost of "+first+":") + addAllCosts(rest)
 }
 
 val testList = List("Banana", "Apple", "Orange")
-def test : Unit = println("Total cost: " + addAllCosts(testList))
+def test() : Unit = println("Total cost: " + addAllCosts(testList))
 
 
 /** Continuation style */
@@ -48,4 +48,6 @@ def addAllCostsCont(itemList: List[String], k: Int => Nothing) : Nothing = {
   }
 }
 
-def testWeb : Unit = addAllCostsCont(testList, m => webDisplay("Total cost: " + m))
+def testWeb() : Unit = addAllCostsCont(testList, m => webDisplay("Total cost: "+m))
+
+
