@@ -29,7 +29,7 @@ def progB(n: Int) = webRead("First number was "+n+"\nSecond number:", "progC")
 def progC(n1: Int, n2: Int) = webDisplay("Sum of "+n1+" and "+n2+" is "+(n1+n2))
 
 /** Continuations */
-val cont1 = (n: Int) => println(n + inputNumber("Enter second number"))
+// val cont1 = (n: Int) => println(n + inputNumber("Enter second number"))
 // val cont2 = (m: Int) => println(n+m)
 
 val continuations = new mutable.HashMap[String, Int=>Nothing]
@@ -39,7 +39,7 @@ def getNextId : String = {
   "c"+nextIndex
 }
 
-def webReadCont(prompt: String, k: Int => Nothing) : Nothing = {
+def webRead_k(prompt: String, k: Int => Nothing) : Nothing = {
   val id = getNextId
   continuations += (id -> k)
   println(prompt)
@@ -50,7 +50,7 @@ def webReadCont(prompt: String, k: Int => Nothing) : Nothing = {
 def continue(kId: String, result: Int): Nothing = continuations(kId)(result)
 
 def webProg =
-  webReadCont("First number:", (n: Int) =>
-    webReadCont("Second number:", (m: Int) =>
+  webRead_k("First number:", (n: Int) =>
+    webRead_k("Second number:", (m: Int) =>
       webDisplay("Sum of "+n+" and "+m+" is "+(n+m))))
 

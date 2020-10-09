@@ -40,7 +40,7 @@ def getNextId : String = {
 
 def continue(kId: String, result: Int): Nothing = continuations(kId)(result)
 
-def webReadCont(prompt: String, k: Int => Nothing) : Nothing = {
+def webRead_k(prompt: String, k: Int => Nothing) : Nothing = {
   val id = getNextId
   continuations += (id -> k)
   println(prompt)
@@ -48,31 +48,31 @@ def webReadCont(prompt: String, k: Int => Nothing) : Nothing = {
   sys.error("Program terminated")
 }
 
-def addAllCostsCont(itemList: List[String], k: Int => Nothing) : Nothing = {
+def addAllCosts_k(itemList: List[String], k: Int => Nothing) : Nothing = {
   itemList match {
     case List() => k(0)
     case first::rest =>
-      webReadCont("Cost of "+first+":",
-        (n: Int) => addAllCostsCont(rest, (m: Int) => k(m+n)))
+      webRead_k("Cost of "+first+":",
+        (n: Int) => addAllCosts_k(rest, (m: Int) => k(m+n)))
   }
 }
 
-def testWeb() : Unit = addAllCostsCont(testList, m => webDisplay("Total cost: "+m))
+def testWeb() : Unit = addAllCosts_k(testList, m => webDisplay("Total cost: "+m))
 
 /** Web transformation of 'map', 'addAllCostsCont' implementation with 'map' */
-def mapCont[S,T](c: List[S],
-                 f: (S, T => Nothing) => Nothing,
-                 k: List[T] => Nothing) : Nothing = c match {
+def map_k[S,T](c: List[S],
+               f: (S, T => Nothing) => Nothing,
+               k: List[T] => Nothing) : Nothing = c match {
   case List() => k(List())
-  case first :: rest => f(first, t => mapCont(rest, f, (tr: List[T]) => k(t::tr)))
+  case first :: rest => f(first, t => map_k(rest, f, (tr: List[T]) => k(t::tr)))
 }
 
-def addAllCostsCont2(itemList: List[String], k: Int => Nothing) : Int =
-  mapCont(itemList,
-    (x: String, k2: Int => Nothing) => webReadCont("Cost of "+x+":", k2),
+def addAllCostsMap_k(itemList: List[String], k: Int => Nothing) : Int =
+  map_k(itemList,
+    (x: String, k2: Int => Nothing) => webRead_k("Cost of "+x+":", k2),
     (l: List[Int]) => k(l.sum)
   )
 
-def testWeb2() : Unit = addAllCostsCont2(testList, m => webDisplay("Total cost: "+m))
+def testWeb2() : Unit = addAllCostsMap_k(testList, m => webDisplay("Total cost: "+m))
 
 

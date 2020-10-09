@@ -150,6 +150,67 @@ Die Auswertungsreihenfolge ist entscheidend für die Web-Transformation, die imp
 
 Aufgrund des Aspekts der Sequentialisierung ist die Transformation mit Continuations auch für das Programmieren von Compilern relevant. Man spricht bei diesem "Web-Stil" auch von _Continuation Passing Style_ (_CPS_).
 
+# Continuation Passing Style
+Programme in CPS besitzen die folgenden Eigenschaften:
+- Alle Zwischenwerte besitzen einen Namen.
+- Die Funktionsanwendungen werden sequentialisiert (und die Auswertungsreihenfolge ist somit explizit).
+- Alle Ausdrücke erhalten einen Continuation-Parameter und liefern keinen Rückgabewert (Rückgabetyp `Nothing`), sondern rufen den Continuation-Parameter auf dem Ergebnis auf.
+- Alle Aufrufe sind _Tail Calls_.
+
+:::info
+Man spricht von einem **Tail Call**, wenn bei einem rekursiven Aufruf im Rumpf einer Funktion keine weitere Berechnung nach der Rückkehr des Aufrufs stattfindet.
+Der Aufruf `f(n+1)` ist in `def f(n: Int): Int = f(n+1)` ein Tail Call, in `def f(n: Int): Int = f(n+1)*2` jedoch nicht.
+
+Liegt nach der CPS-Umwandlung eine "triviale" Continuation (d.h. `k` bleibt unverändert) bei einem rekursiven Aufruf vor, so handelt es sich um einen Tail Call.
+
+Bei Rekursion mit Tail Call (_Endrekursion_) muss der Kontext des rekursiven Aufrufs nicht auf dem Call Stack gespeichert werden, in Scala wird deshalb einfache Endrekursion erkannt und entsprechend optimiert. In Java werden auch endrekursive Aufrufe auf dem Stack hinterlegt, weshalb Schleifen bzgl. des Speicherverbrauchs vorzuziehen sind. In Racket wird bei keiner Form von Endrekursion der Stack unnötig gefüllt.
+:::
+
+Bei der CPS-Transformation von Funktionen und Werten sind die folgenden Schritte notwendig:
+1. Ersetzen aller Rückgabetypen durch `Nothing`, wobei auch der Typ von Konstanten durch Nothing ersetzt wird
+
+2. Ergänzen eines Parameters `k` mit Typ `R => Nothing`, wobei `R` der ursprüngliche Rückgabetyp ist (Konstanten der Form `c: T` werden also in Funktionen der Form `c_k(k: T => Nothing): Nothing` umgewandelt)
+
+3. Weitergabe des Ergebnisses an `k`, bei Konstante `val c: T = x` etwa `def c_k(k: T => Nothing): Nothing = k(x)`
+
+4. Sequentialisierung durch Weiterreichen der Zwischenergebnisse, aus `f(f(42))` wird bspw. `f_k(42, n => f_k(n,k))` oder aus `f(1) + g(2)` wird `f(1, n => g(2, m => k(n+m)))`
+
+Weitere Beispiele der CPS-Transformation:
+```scala
+// constant value
+val x: Int = 42
+def x_k (k: Int => Nothing) : Nothing = k(42)
+
+// recursion with "context"
+def sum(n: Int) : Int = n match {
+  case 0 => 0
+  case n => n + sum(n-1)
+}
+def sum_k(n: Int, k: Int => Nothing) : Nothing = n match {
+  case 0 => k(0) // k called with result
+  case n => sum_k(n-1, m => k(n+m)) // non-trivial continuation
+}
+
+// two-way tail call recursion
+def even(n: Int) : Boolean = n match {
+  case 0 => true
+  case n => odd(n-1)
+}
+  def odd(n: Int) : Boolean = n match {
+  case 0 => false
+  case n => even(n-1)
+}
+
+def even_k(n: Int, k: Boolean => Nothing) : Nothing = n match {
+  case 0 => k(true)
+  case n => odd_k(n-1,k) // trivial continuation
+}
+def odd_k(n: Int, k: Boolean => Nothing) : Nothing = n match {
+  case 0 => k(false)
+  case n => even_k(n-1,k) // trivial continuation
+}
+```
+
 
 
 
@@ -161,7 +222,7 @@ Aufgrund des Aspekts der Sequentialisierung ist die Transformation mit Continuat
 
 
 :::success
-- [ ] VL 12 ab 1:12:00
+- [ ] VL 13
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Fixpunkt-Kombinator
 - [ ] PP
