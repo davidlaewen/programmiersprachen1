@@ -10,7 +10,7 @@ langs: de
 [TOC]
 
 
-# Webprogrammierung und Continuations
+# Webprogrammierung mit Continuations
 Angenommen, man will eine interaktive Webanwendung über mehrere Webseiten hinweg schreiben, so wird man vor eine Herausforderung gestellt: Das Webprotokoll HTTP ist zustandslos, d.h. Anfragen sind unabhängig voneinander und es ist kein Zugriff auf vorherige Anfragen und den dabei übermittelten Daten möglich. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
 ```scala
 import scala.io.StdIn.readLine
@@ -87,7 +87,7 @@ def webProg =
 
 Nun kann zuerst `webProg` aufgerufen werden, wobei der Name der nächsten Continuation ausgegeben wird. `continue` kann dann mit dieser Continuation und der ersten Zahl aufgerufen werden, die dabei ausgegebene Continuation kann dann `continue` mit der zweiten Zahl übergeben werden, woraufhin das Ergebnis angezeigt wird.
 
-In Bezug auf Webprogrammierung entsprechen die Continuations Auswertungszuständen, die hinterlegt werden, wobei der Client eine ID erhält, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons in allen Instanzen das Programm korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten ID "erkannt" wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da diese nicht unabhängig sind.
+In Bezug auf Webprogrammierung entsprechen die Continuations Auswertungszuständen, die hinterlegt werden, wobei der Client eine ID erhält, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons in allen Instanzen das Programm korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da diese nicht unabhängig sind.
 
 Betrachten wir nun den allgemeineren Fall der n-fachen Addition. Im folgenden Programm wird eine Liste von Gegenständen rekursiv durchlaufen, wobei der Nutzer für jeden Gegenstand aufgefordert wird, einen Preis einzugeben. Nachdem alle Listenelemente abgearbeitet wurden, wird die Summe der Zahlen ausgegeben.
 
@@ -120,6 +120,36 @@ def addAllCostsCont(itemList: List[String], k: Int => Nothing) : Nothing = {
 def testWeb() : Unit = addAllCostsCont(testList, m => webDisplay("Total cost: "+m))
 ```
 
+Die Funktion `addAllCostsCont` wird aufgerufen mit der Liste von Gegenständen und der Contination `m => webDisplay("Total cost: "+m)`. Im Fall der leeren Liste wird die Continuation `k` auf `0` aufgerufen, es würde also `Total cost: 0` angezeigt werden. Ist die Liste nicht leer, so wird durch `webReadCont` der Nutzer dazu aufgefordert, den Preis des ersten Gegenstandes einzugegeben. Dabei wird die Continuation `n => addAllCostsCont(rest, m => k(m+n))` übergeben, diese Continuation wird also vom Nutzer/Client als nächstes mit dem entsprechenden Preis aufgerufen. Dabei wird die Continuation `m => webDisplay("Total cost: "+m+n)` an `addAllCostsCont` zurückgereicht, d.h. die Nutzereingabe `n` wurde den Kosten hinzugefügt.
+
+Die Funktion `addAllCosts` lässt sich geschickt mit Map umformulieren:
+```scala
+def addAllCostsMap(items: List[String]) : Int = {
+  items.map((s: String) => inputNumber("Cost of " + s + ":")).sum
+}
+```
+
+Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch Map transformieren. Die Transformation ist also "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten. Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
+```scala
+def map[S,T](c: List[S], f: S => T) : List[T] = c match {
+  case List() => List()
+  case first::rest => f(first)::map(rest,f)
+}
+
+def mapCont[S,T](c: List[S],
+                 f: (S, T => Nothing) => Nothing,
+                 k: List[T] => Nothing) : Nothing = c match {
+  case List() => k(List())
+  case first :: rest => f(first, t => mapCont(rest, f, (tr: List[T]) => k(t::tr)))
+}
+```
+
+Bei der Transformation wird überall der Rückgabetyp mit `Nothing` ersetzt, die vorherigen Rückgabewerte werden stattdessen an entsprechende Continuations gereicht. So wird `f` nun durch ein neues Argument mit dem Typ `T => Nothing` ergänzt, der Typ der Eingabe entspricht dem ursprünglichen Rückgabetyp. Die `map`-Funktion selbst wird durch ein neues Argument mit dem Typ `List[T] => Nothing` ergänzt, auch hier entspricht der Typ der Eingabe dem ursprünglichen Rückgabetyp.
+
+Die Auswertungsreihenfolge ist entscheidend für die Web-Transformation, die implizite Auswertungsreihenfolge der verwendeten Sprache (etwa bei geschachtelten Ausdrücken) muss ausformuliert werden, das Programm wird _sequentalisiert_. Die Transformation ist global, es müssen alle verwendet Funktionen (auch in Bibliotheken etc.) transformiert werden. 
+
+Aufgrund des Aspekts der Sequentialisierung ist die Transformation mit Continuations auch für das Programmieren von Compilern relevant. Man spricht bei diesem "Web-Stil" auch von _Continuation Passing Style_ (_CPS_).
+
 
 
 
@@ -131,7 +161,7 @@ def testWeb() : Unit = addAllCostsCont(testList, m => webDisplay("Total cost: "+
 
 
 :::success
-- [ ] VL 12
+- [ ] VL 12 ab 1:12:00
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Fixpunkt-Kombinator
 - [ ] PP
