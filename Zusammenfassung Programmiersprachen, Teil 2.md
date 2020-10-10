@@ -11,7 +11,7 @@ langs: de
 
 
 # Webprogrammierung mit Continuations
-Angenommen, man will eine interaktive Webanwendung über mehrere Webseiten hinweg schreiben, so wird man vor eine Herausforderung gestellt: Das Webprotokoll HTTP ist zustandslos, d.h. Anfragen sind unabhängig voneinander und es ist kein Zugriff auf vorherige Anfragen und den dabei übermittelten Daten möglich. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
+Angenommen, man will eine interaktive Webanwendung über mehrere Webseiten hinweg programmieren, so wird man vor eine Herausforderung gestellt: Das Webprotokoll HTTP ist zustandslos, d.h. Anfragen sind unabhängig voneinander und es ist kein Zugriff auf vorherige Anfragen und dabei übermittelte Daten möglich. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
 ```scala
 import scala.io.StdIn.readLine
 
@@ -25,16 +25,16 @@ def progSimple(): Unit = {
 } 
 ```
 
-Hier finden nacheinander zwei Eingaben durch den Nutzer statt, wobei beide Werte relevant für das Ergebnis sind. Würde man diese Funktion im Web umsetzen wollen, so dass der Nutzer auf zwei verschiedenen Seiten die Werte eingibt und absendet und auf einer dritten Seite das Ergebnis angezeigt bekommt, dann ist aufgrund der Zustandslosigkeit von HTTP ein spezieller Programmierstil notwendig. 
+Hier finden nacheinander zwei Eingaben durch den Nutzer statt, wobei das Ergebnis aus beiden Werten berechnet wird. Würde man diese Funktion im Web umsetzen wollen, so dass der Nutzer auf zwei verschiedenen Seiten die Werte eingibt und absendet und auf einer dritten Seite das Ergebnis angezeigt bekommt, dann ist aufgrund der Zustandslosigkeit von HTTP ein spezieller Programmierstil notwendig. 
 
 Der Ablauf zerfällt dabei in die folgenden Teilprogramme:
-- **Teilprogramm $a$** generiert das Formular für die erste Zahl
-- **Teilprogramm $b$** konsumiert die Zahl aus dem ersten Formular und generiert das zweite Formular
+- **Teilprogramm $a$** generiert das Formular für die erste Zahl.
+- **Teilprogramm $b$** konsumiert die Zahl aus dem ersten Formular und generiert das Formular für die zweite Zahl.
 - **Teilprogramm $c$** konsumiert die Daten aus $b$, berechnet die Ausgabe und erzeugt die Seite mit dem Ergebnis.
 
-Nun stellt sich die Frage, wie im zustandslosen Protokoll das Teilprogramm $c$ auf die in $a$ eingegebenen Daten zugreifen kann. Hierzu muss der eingegebene Wert über $b$ weitergereicht werden, etwa als verstecktes Formularfeld in HTML oder Parameter in der URL. 
+Nun stellt sich die Frage, wie im zustandslosen Protokoll das Teilprogramm $c$ auf die in $a$ eingegebenen Daten zugreifen kann. Hierzu muss der eingegebene Wert über $b$ weitergereicht werden, etwa als verstecktes Formularfeld in HTML oder als Parameter in der URL. 
 
-Wir können die Zustandslosigkeit mit dem Rückgabetyp `Nothing` modellieren, dabei brechen alle Funktionen mit einem Fehler die Berechnung ab und besitzen keinen Rückgabewert.
+Wir können die Zustandslosigkeit mit dem Rückgabetyp `Nothing` modellieren, dabei brechen wir alle Funktionen mit einem Fehler ab, so dass sie nicht zurückkehren.
 ```scala
 def webDisplay(s: String) : Nothing = {
   println(s)
@@ -52,9 +52,9 @@ def progB(n: Int) = webRead("First number was "+n+"\nSecond number:", "progC")
 def progC(n1: Int, n2: Int) = webDisplay("Sum of "+n1+" and "+n2+" is "+(n1+n2))
 ```
 
-Hier wird die Weitergabe der Daten von einem Teilprogramm zum nächsten nur durch die Ausgaben und Eingaben in der Konsole durch den Nutzer modelliert, d.h. es wird bspw. erst `progA` mit `2` aufgerufen, dann `progB` mit `3` und zuletzt `progC` mit `2` und `3`.
+Hier wird die Weitergabe der Daten von einem Teilprogramm zum nächsten nur durch die Ausgaben und Eingaben in der Konsole durch den Nutzer modelliert, d.h. es wird bspw. erst `progA` mit `2` aufgerufen, dann `progB` mit `3` und zuletzt `progC` mit `2` und `3`. Hier ist der Nutzen der durchgeführten Programmtransformation noch nicht sonderlich klar erkenntbar.
 
-Wir können aber auch die jeweils noch notwendigen Schritte als Programm repräsentiert werden, hierbei spricht man von _Continuations_. Im Fall von `progA` muss anschließend noch die zweite Zahl eingelesen, beide Zahlen addiert und das Ergebnis ausgegeben werden.
+Es können aber auch die jeweils noch notwendigen Schritte als _Continuation_ repräsentiert werden, im Fall von `progA` muss etwa noch die zweite Zahl eingelesen werden, dann müssen beide Zahlen addiert und das Ergebnis ausgegeben werden.
 
 ```scala
 val continuations = new mutable.HashMap[String, Int=>Nothing]
@@ -64,7 +64,7 @@ def getNextId : String = {
   "c"+nextIndex
 }
 
-def webReadCont(prompt: String, k: Int => Nothing) : Nothing = {
+def webRead_k(prompt: String, k: Int => Nothing) : Nothing = {
   val id = getNextId
   continuations += (id -> k)
   println(prompt)
@@ -72,24 +72,19 @@ def webReadCont(prompt: String, k: Int => Nothing) : Nothing = {
   sys.error("Program terminated")
 }
 
-def webDisplay(s: String) : Nothing = {
-  println(s)
-  sys.error("Program terminated")
-}
-
 def continue(kId: String, result: Int): Nothing = continuations(kId)(result)
 
 def webProg =
-  webReadCont("First number:", (n: Int) =>
-    webReadCont("Second number:", (m: Int) =>
+  webRead_k("First number:", (n: Int) =>
+    webRead_k("Second number:", (m: Int) =>
       webDisplay("Sum of "+n+" and "+m+" is "+(n+m))))
 ```
 
-Nun kann zuerst `webProg` aufgerufen werden, wobei der Name der nächsten Continuation ausgegeben wird. `continue` kann dann mit dieser Continuation und der ersten Zahl aufgerufen werden, die dabei ausgegebene Continuation kann dann `continue` mit der zweiten Zahl übergeben werden, woraufhin das Ergebnis angezeigt wird.
+Nun kann zuerst `webProg` aufgerufen werden, es wird die nächste Continuation ausgegeben. Mit dieser Continuation und der ersten Zahl kann dann `continue` aufgerufen werden, die dabei ausgegebene Continuation kann dann `continue` mit der zweiten Zahl übergeben werden, woraufhin das Ergebnis angezeigt wird.
 
-In Bezug auf Webprogrammierung entsprechen die Continuations Auswertungszuständen, die hinterlegt werden, wobei der Client eine ID erhält, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons in allen Instanzen das Programm korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da diese nicht unabhängig sind.
+In Bezug auf Webprogrammierung entsprechen die Continuations Auswertungszuständen, die hinterlegt werden, wobei der Client einen Bezeichner erhält, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons das Programm in allen Instanzen korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten Session-ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da diese nicht unabhängig sind.
 
-Betrachten wir nun den allgemeineren Fall der n-fachen Addition. Im folgenden Programm wird eine Liste von Gegenständen rekursiv durchlaufen, wobei der Nutzer für jeden Gegenstand aufgefordert wird, einen Preis einzugeben. Nachdem alle Listenelemente abgearbeitet wurden, wird die Summe der Zahlen ausgegeben.
+Betrachten wir nun den allgemeineren Fall der n-fachen Addition: Im folgenden Programm wird eine Liste von Gegenständen rekursiv durchlaufen, wobei der Nutzer für jeden Gegenstand aufgefordert wird, einen Preis einzugeben. Nachdem alle Listenelemente abgearbeitet wurden, wird die Summe der Zahlen ausgegeben.
 
 ```scala
 def inputNumber(prompt: String) : Int = {
@@ -108,19 +103,19 @@ def test() : Unit = println("Total cost: " + addAllCosts(testList))
 
 Dieses Programm besitzt nach Anpassung an den "Web-Stil" die Form:
 ```scala
-def addAllCostsCont(itemList: List[String], k: Int => Nothing) : Nothing = {
+def addAllCosts_k(itemList: List[String], k: Int => Nothing) : Nothing = {
   itemList match {
     case List() => k(0)
     case first :: rest =>
-      webReadCont("Cost of "+first+":",
-        (n: Int) => addAllCostsCont(rest, (m: Int) => k(m+n)))
+      webRead_k("Cost of "+first+":",
+        (n: Int) => addAllCosts_k(rest, (m: Int) => k(m+n)))
   }
 }
 
-def testWeb() : Unit = addAllCostsCont(testList, m => webDisplay("Total cost: "+m))
+def testWeb() : Unit = addAllCosts_k(testList, m => webDisplay("Total cost: "+m))
 ```
 
-Die Funktion `addAllCostsCont` wird aufgerufen mit der Liste von Gegenständen und der Contination `m => webDisplay("Total cost: "+m)`. Im Fall der leeren Liste wird die Continuation `k` auf `0` aufgerufen, es würde also `Total cost: 0` angezeigt werden. Ist die Liste nicht leer, so wird durch `webReadCont` der Nutzer dazu aufgefordert, den Preis des ersten Gegenstandes einzugegeben. Dabei wird die Continuation `n => addAllCostsCont(rest, m => k(m+n))` übergeben, diese Continuation wird also vom Nutzer/Client als nächstes mit dem entsprechenden Preis aufgerufen. Dabei wird die Continuation `m => webDisplay("Total cost: "+m+n)` an `addAllCostsCont` zurückgereicht, d.h. die Nutzereingabe `n` wurde den Kosten hinzugefügt.
+Die Funktion `addAllCosts_k` wird aufgerufen mit der Liste von Gegenständen und der Contination `m => webDisplay("Total cost: "+m)`. Im Fall der leeren Liste wird die Continuation `k` auf `0` aufgerufen, es würde also `Total cost: 0` angezeigt werden. Ist die Liste nicht leer, so wird durch `webRead_k` der Nutzer dazu aufgefordert, den Preis des ersten Gegenstandes einzugegeben. Dabei wird die Continuation `n => addAllCosts_k(rest, m => k(m+n))` übergeben, diese Continuation wird also vom Nutzer/Client als nächstes mit dem entsprechenden Preis aufgerufen. Dabei wird die Continuation `m => k(m+n)` an `addAllCosts_k` zurückgereicht (wobei `n` durch Scalas interne Closures an die Eingabe gebunden ist), d.h. die Nutzereingabe `n` wird jeweils den Kosten hinzugefügt.
 
 Die Funktion `addAllCosts` lässt sich geschickt mit Map umformulieren:
 ```scala
@@ -129,18 +124,18 @@ def addAllCostsMap(items: List[String]) : Int = {
 }
 ```
 
-Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch Map transformieren. Die Transformation ist also "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten. Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
+Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch Map transformieren. Die Web-Transformation ist also "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten (bis auf primitive Operationen). Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
 ```scala
-def map[S,T](c: List[S], f: S => T) : List[T] = c match {
+def map[X,Y](l: List[X], f: X => Y) : List[Y] = c match {
   case List() => List()
   case first::rest => f(first)::map(rest,f)
 }
 
-def mapCont[S,T](c: List[S],
-                 f: (S, T => Nothing) => Nothing,
-                 k: List[T] => Nothing) : Nothing = c match {
+def map_k[X,Y](l: List[X],
+               f: X, (Y => Nothing) => Nothing,
+               k: List[Y] => Nothing) : Nothing = l match {
   case List() => k(List())
-  case first :: rest => f(first, t => mapCont(rest, f, (tr: List[T]) => k(t::tr)))
+  case x::xs => f(x, y => map_k(xs, f, (ys: List[Y]) => k(y::ys)))
 }
 ```
 
@@ -173,7 +168,7 @@ Bei der CPS-Transformation von Funktionen und Werten sind die folgenden Schritte
 
 3. Weitergabe des Ergebnisses an `k`, bei Konstante `val c: T = x` etwa `def c_k(k: T => Nothing): Nothing = k(x)`
 
-4. Sequentialisierung durch Weiterreichen der Zwischenergebnisse, aus `f(f(42))` wird bspw. `f_k(42, n => f_k(n,k))` oder aus `f(1) + g(2)` wird `f(1, n => g(2, m => k(n+m)))`
+4. Sequentialisierung durch Weiterreichen der Zwischenergebnisse, aus `f(f(42))` wird bspw. `f_k(42, n => f_k(n,k))` oder aus `f(1) + g(2)` wird `f_k(1, n => g_k(2, m => k(n+m)))`
 
 Weitere Beispiele der CPS-Transformation:
 ```scala

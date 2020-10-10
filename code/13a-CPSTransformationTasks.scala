@@ -1,6 +1,6 @@
 /** Function for testing */
-def webDisplay(s: Any) : Nothing = {
-  println(s.toString)
+def webDisplay(x: Any) : Nothing = {
+  println(x.toString)
   sys.error("Program terminated")
 }
 
