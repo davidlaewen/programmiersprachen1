@@ -12,36 +12,35 @@
 
 (define (h)
   (let/cc k
-    (begin
-      (set! exception-handler (lambda (msg) (begin (displayln msg) (k))))
+    (begin ; evaluates expressions in order, ignoring results of all but the last expression
+      (set! exception-handler (lambda (msg) (begin (displayln msg) (k)))) ; display message, then call continuation
       (displayln (g 1))
       (displayln (g 0))
       (displayln (g 2)))))
 
 ; ---------------------------------
 
-(define breakpoint false)
-
+(define breakpoint false) ; initialize with dummy values
 (define repl false)
 
-(define (break)
+(define (break) ; call causes binding of 'breakpoint' to current continuation
   (let/cc k
     (begin
       (set! breakpoint k)
       (repl))))
 
-(define (continue)
+(define (continue) ; call most recently bound continuation to continue evaluation
   (breakpoint))
 
 (define (main)
   (display 1)
-  (break)
+  (break) ; use '(break)' as debugging breakpoint
   (display 2)
   (break)
   (display 3))
 
 (let/cc k
-  (set! repl k))
+  (set! repl k)) ; rebind 'repl' to "empty" continuation(?)
 
 ; --------------------------------
 
