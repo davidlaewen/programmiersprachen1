@@ -12,7 +12,7 @@ type Env = Map[String,Value]
 case class NumV(n: Int) extends Value
 case class ClosureV(f: Fun, env: Env) extends Value
 
-implicit def num2exp(n: Int) : Exp = Num(n)
+implicit def int2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(s)
 
 def wth(x: String, xDef: Exp, body: Exp) : Exp = App(Fun(x,body), xDef)

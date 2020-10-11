@@ -84,6 +84,8 @@ Nun kann zuerst `webProg` aufgerufen werden, es wird die nächste Continuation a
 
 In Bezug auf Webprogrammierung entsprechen die Continuations Auswertungszuständen, die hinterlegt werden, wobei der Client einen Bezeichner erhält, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons das Programm in allen Instanzen korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten Session-ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da diese nicht unabhängig sind.
 
+Eine Continuation ist eine Repräsentation des Call-Stacks als Funktion. 
+
 Betrachten wir nun den allgemeineren Fall der n-fachen Addition: Im folgenden Programm wird eine Liste von Gegenständen rekursiv durchlaufen, wobei der Nutzer für jeden Gegenstand aufgefordert wird, einen Preis einzugeben. Nachdem alle Listenelemente abgearbeitet wurden, wird die Summe der Zahlen ausgegeben.
 
 ```scala
@@ -207,6 +209,164 @@ def odd_k(n: Int, k: Boolean => Nothing) : Nothing = n match {
 ```
 
 
+# CPS-Interpreter
+- **Funktionsapplikationen:** Aus `f(x)` mit `f: X => Y` wird `(k: Y => ...) => f_k(x, y => k(y))`
+
+- **Konstanten:** Aus `c` wird `k => k(c)`
+
+- **Funktionsdefinitionen:** Aus `x => y` wird `k => k( (x, dynK) => dynK(x) )`
+
+
+# First-Class Continuations
+In Programmiersprachen mit _First-Class Continuations_ (bspw. Scheme, Racket) gibt es Sprachkonstrukte, um die aktuelle Continuation zu jedem Zeitpunkt abzugreifen und um damit zu arbeiten (also um die Continuation zu reifizieren, zu binden, als Parameter zu übergeben oder aufzurufen). Mit solch einem Sprachfeature kann der Programmier bspw. fortgeschrittene Kontrollstrukturen selbst definieren.
+
+In Racket gibt es die Funktion `let/cc`, mit dieser kann die aktuelle Continuation an einen Identifier gebunden und im Rumpf von `let/cc` aufgerufen werden.
+```scheme
+[>] (number->string (+ 1 (let/cc k (string-length (k 3)))))
+"4"
+```
+
+Im obigen Beispiel werden die Funktionsaufrufe vor dem Aufruf von `let/cc` als Continuation an `k` gebunden, im Rumpf von `let/cc` wird dann `k` mit `3` aufgerufen und damit die Continuation fortgesetzt, es werden die in der Contination gespeicherten Funktionsaufrufe angewendet und `"4"` ausgegeben. Der Aufruf von `k` kehrt nicht zurück, wodurch der Funktionsaufruf von `string-length` zwischen `let/cc` und `k` nicht mehr auf das Ergebnis angewendet wird. 
+
+Die Continuation kann auch durch `set!` an einen globalen Identifier gebunden werden, um sie außerhalb des Rumpfs von `let/cc` aufrufen zu können:
+```scheme
+[>] (number->string (+ 1 (let/cc k (begin (set! c k) (k 3)))))
+"4"
+
+[>] (c 5)
+"6"
+```
+
+# FAE mit First-Class-Continuations
+Nun wollen wir unseren FAE-Interpreter First-Class-Continuations als Sprachfeature hinzufügen. Wir ergänzen dazu das folgende Sprachkonstrukt:
+```scala
+case class LetCC(param: String, body: Exp) extends Exp
+```
+
+Bei einem Aufruf von `LetCC` soll, wie in Racket, die aktuelle Contination an den Bezeichner `param` gebunden werden, wobei die Bindung im Rumpf von `LetCC` gültig ist.
+
+In einem Programm, das bereits in CPS vorliegt, wäre das Bestimmen der aktuellen Continuation trivial. Für unsere Implementation von `LetCC` wollen wir aber nicht alle Programme transformieren, sondern stattdessen den Interpreter selbst in CPS verfassen. Bei einer Implementierung durch die automatische CPS-Transformation von Programmen müsste jedes Programm erst transformiert werden. Der Interpreters muss hingegen nur ein Mal transformiert werden. Der erste Schritt zur Implementierung von `LetCC` ist also das Transformieren des Interpreters.
+
+## CPS-Transformation des Interpreters
+Wir beginnen mit unserem FAE-Interpreter:
+```scala
+def eval(e: Exp, env: Env) : Value = e match {
+  case Num(n) => NumV(n)
+  case Id(x) => env(x)
+  case Add(l,r) => (eval(l,env),eval(r,env)) match {
+    case (NumV(a),NumV(b)) => NumV(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case f@Fun(_,_) => ClosureV(f,env)
+  case App(f,a) => eval(f,env) match {
+    case ClosureV(f,cEnv) =>
+      eval(f.body, cEnv+(f.param -> eval(a,env))) // call-by-value
+    case _ => sys.error("Can only apply functions")
+  }
+}
+```
+
+Wir ersetzen den Rückgabetypen mit `Nothing` und ergänzen einen Continuation-Parameter `k` mit dem Typ `Value => Nothing`. Der `Num`-, `Id`- und `Fun`-Fall sind trivial, da diese nicht-rekursiv sind, wir reichen das Ergebnis einfach an `k` weiter. Im `Add`- und `App`-Fall muss die Auswertung des linken und rechten Unterausdrucks sequentialisiert werden, wir werten von links nach rechts aus.
+```scala
+def eval(e: Exp, env: Env, k: Value => Nothing) : Nothing = e match {
+  case Num(n) => k(NumV(n))
+  case Id(x) => k(env(x))
+  case Add(l,r) => eval(l, env, lv => eval(r, env, rv => (lv,rv) match {
+    case (NumV(a),NumV(b)) => k(NumV(a+b))
+    case _ => sys.error("Can only add numbers")
+  }))
+  case f@Fun(_,_) => k(ClosureV(f,env))
+  case App(f,a) => eval(f, env, fv => fv match {
+    case ClosureV(Fun(p,b),cEnv) =>
+      eval(a, env, av => eval(b, cEnv+(p -> av), k))
+    case _ => sys.error("Can only apply functions")
+  })
+}
+```
+
+Im `Add`-Fall werten wir erst den linken Unterausdruck aus und übergeben dabei eine Continuation, die das Ergebnis an `lv` bindet und mit der Auswertung des rechten Unterausdrucks fortfährt. Deren Ergebnis wird durch die übergebene Continuation an `rv` gebunden. Wie im ursprünglichen Interpreter werden nun durch Pattern Matching die Zahlen extrahiert und ein `NumV`-Objekt mit deren Summe erzeugt, dieses wird nun aber an `k` überreicht.
+
+Im `App`-Fall wird auch erst der linke Teilausdruck ausgewertet und diesmal durch die Continuation an `fv` gebunden, durch Pattern Matching werden Parameter und Rumpf der Funktion sowie die Umgebung im Closure gebunden. Nun wird das Argument ausgewertet, durch die übergebene Continuation an `av` gebunden und zuletzt `eval` mit dem Rumpf, der Umgebung inkl. neuer Bindung und der Continuation `k` aufgerufen.
+
+Um den Interpreter auch ohne Rückgabe testen zu können, verwenden wir folgende Funktion:
+```scala
+def startEval(e: Exp) : Value = {
+  var res: Value = null
+  val s: Value => Nothing = v => { res = v; sys.error("Program terminated") }
+  try { eval(e, Map(), s) } catch { case _: Throwable => () }
+  res
+}
+```
+
+Es wird `eval` eine Continuation überreicht, die das Ergebnis der Auswertung bindet und dann mit einem Fehler die Auswertung beendet (Rückgabetyp `Nothing`). Die Auswertung selbst wird in einem Try-Catch-Block gestartet, um den Fehler abzufangen. Das durch die Continuation gebundene Ergebnis kann von `startEval` ausgegeben werden.
+
+## Implementierung von 'LetCC'
+Jetzt wo der Interpreter selbst CPS-transformiert ist, können wir das neue Sprachkonstrukt `LetCC` mit wenig Aufwand ergänzen, da die Continuations auf Interpreter-Ebene  den Continuations in unserer Sprache sehr nahe sind. Zuerst erweitern wir `Exp` um das neue Sprachkonstrukt:
+```scala
+case class LetCC(param: String, body: Exp) extends Exp
+```
+
+Im Interpreter ergänzen wir den `LetCC`-Fall, hier setzen wir die Auswertung rekursiv im Body fort, wobei wir den Parameter an die aktuelle Continuation `k` binden. Da `k` den Typ `Value => Nothing`, die Umgebung aber den Typ `Map[String,Value]` besitzt, können wir die Continuation nicht direkt in der Umgebung binden. Stattdessen erweitern wir `Value` um den Fall `ContV`:
+```scala
+case class ContV(k: Value => Nothing) extends Value
+```
+
+Nun sind Continations eine Werte-Art und können wie andere Werte an Identifier gebunden werden. Es fehlt noch die Anwendung einer Continuation auf ein Argument, hierzu überladen wir das `App`-Konstrukt, so dass damit Funktionen und Continuations angewendet werden können. Im `App`-Fall ergänzen wir einen Fall für `ContV` neben dem Fall für `ClosureV`:
+```scala
+case App(f,a) => eval(f, env, fv => fv match {
+  case ClosureV(Fun(p,b),cEnv) =>
+    eval(a, env, av => eval(b, cEnv+(p -> av), k))
+  case ContV(k2) => eval(a, env, av => k2(av))
+  case _ => sys.error("Can only apply functions")
+})
+```
+
+Im `ContV`-Zweig werten wir das Argument aus und übergeben dabei eine Continuation, die das Ergebnis an `av` bindet und dann der aufzurufenden Continuation `k2` aus dem `ContV`-Objekt `av` überreicht. Dabei wird die aktuelle Continuation `k` ignoriert, die Auswertung "springt" ohne zurückzukehren. Der Wechsel zur Continuation `k2` entspricht quasi einem Austauschen des Call-Stacks.
+
+Durch das "Wrappen" der Interpreter-Continuations konnten wir diese also in Continuations für unsere Sprache umwandeln.
+
+
+# Delimited Continuations
+Die (_Undelimited_) Continuations, die wir bisher kennen gelernt haben, führen bei einem Aufruf zu einem "Sprung", wobei die Auswertung nicht mehr zur Stelle des Aufrufs zurückkehrt. Somit ist keine Komposition (d.h. "Nacheinanderschalten") von Continuations möglich, sie können also nicht kombiniert werden.
+
+Dies ist mit _Delimited Continuation_ möglich, sie repräsentieren nur einen Ausschnitt des Call-Stacks (während _Undelimited Continuations_ den gesamten Call-Stack repräsentieren) und kehren nach ihrem Aufruf zurück. Aus diesem Grund werden Delimited Continuations auch als _Composable Continuations_ bezeichnet.
+
+In der Racket-Bibliothek `racket/control` gibt es die zwei Funktionen `shift` und `reset`, mit denen Delimited Continuations erzeugt werden können. Dabei verhält sich `shift` ähnlich wie `let/cc`, `shift` bindet aber nur die Continuation ab dem nächstliegenden Aufruf von `reset`, die Continuation wird also durch `reset` begrenzt (_delimitiert_) und repräsentiert nur den Call-Stack bis zum nächsten Aufruf von `reset`.
+```scheme
+(* 2 (reset (+ 1 (shift k (k 5)))))
+```
+
+Im obigen Beispiel wird die Continuation, die durch `shift` an `k` gebunden wird, durch `reset` beschränkt auf den Aufruf von `+` mit `1`. Wird `k` auf `5` aufgerufen, so wird nur die Addition auf `5` durchgeführt, die Multiplikation vor `reset` gehört nicht zur Continuation. Somit entspricht die Berechnung `(* 2 (+ 1 5))` und das Ergebnis ist `12`. Da es sich bei `k` um eine Delimited Continuation handelt, ist auch Continuation-Komposition möglich:
+```scheme
+(* 2 (reset (+ 1 (shift k (k (k 5))))))
+```
+
+In diesem Fall wird `k` zwei Mal auf `5` angewendet, die Berechnung entspricht also 
+`(* 2 (+ 1 (+ 1 5)))` und das Ergebnis ist `14`.
+
+## Interpreter mit Delimited Continuations
+Wir können im CPS-transformierten Interpreter mit wenig Aufwand Sprachkonstrukte hinzufügen, die `shift` und `reset` aus Racket entsprechen. Wir ergänzen `Exp` um die zwei neuen Cases `Shift` und `Reset`:
+```scala
+case class Shift(param: String, body: Exp) extends Exp
+case class Reset(body: Exp) extends Exp
+```
+
+Wir müssen den Typ des Interpreters ändern, da Aufrufe von Delimited Continuations zurückkehren und die Berechnung nicht abbrechen. Dadurch haben Continuations den Typ `Value => Value` und der Interpreter gibt somit auch einen `Value` zurück. Im Interpreter ergänzen wir die entsprechenden Fälle und passen den `App`-Fall an (Änderungen mit `<--` markiert):
+```scala
+def eval(e: Exp, env: Env, k: Value => Value) : Value = e match {
+  // ...
+  case App(f,a) => eval(f, env, fv => fv match {
+    case ClosureV(Fun(p,b),cEnv) =>
+      eval(a, env, av => eval(b, cEnv+(p -> av), k))
+    case ContV(k2) => eval(a, env, av => k(k2(av))) // <--
+    case _ => sys.error("Can only apply functions")
+  })
+  case Reset(e) => k(eval(e,env,x=>x)) // <--
+  case Shift(p,b) => eval(b, env+(p -> ContV(k)), x=>x) // <--
+}
+```
+
+Im `Reset`-Fall wird die aktuelle Continuation zurückgesetzt, indem die Identitätsfunktion anstelle von `k` weitergereicht wird. Im `Shift`-Fall wird wie im `LetCC`-Fall die aktuelle Continuation "umhüllt" und in der Umgebung an den Identifier gebunden. Außerdem wird hier auch die Continuation zurückgesetzt (weil dies dem Verhalten in Racket entspricht). Bei der Applikation von Continuations wird nun die aktuelle Continuation nicht mehr verworfen, sondern wird mit dem Ergebnis der Applikation aufgerufen, d.h. es findet eine Komposition der aktuellen Continuation nach der aufgerufenen Continuation statt.
 
 
 
@@ -220,6 +380,6 @@ def odd_k(n: Int, k: Boolean => Nothing) : Nothing = n match {
 - [ ] VL 13
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Fixpunkt-Kombinator
-- [ ] PP
+- [ ] PPI
 - [ ] Alle Vorlesungen bis 14. 10. - 2 Wochen für Lecture Notes, Wiederholungen, Lernen, Probeklausur, evtl. Altklausuren
 :::

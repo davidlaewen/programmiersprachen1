@@ -1,6 +1,21 @@
 #lang racket
 
-(define exception-handler (lambda (msg) (display "Unhandled exception")))
+(define a
+  (number->string
+   (+ 1 (let/cc k (* 2 (k 3))))))
+
+(define c "dummy")
+
+(define (b)
+  (number->string
+   (+ 3 (let/cc k
+          (begin (set! c k) (k 3)))))) ; mutate c, bind to continuation k
+; 'begin' evaluates expressions in order, ignoring results of all but the last expression
+; c can now be used to call continuation outside of the let/cc body
+
+; ---------------------------------------------
+
+(define exception-handler "dummy")
 
 (define (f n)
   (+ 5 (if (zero? n)
@@ -12,8 +27,8 @@
 
 (define (h)
   (let/cc k
-    (begin ; evaluates expressions in order, ignoring results of all but the last expression
-      (set! exception-handler (lambda (msg) (begin (displayln msg) (k)))) ; display message, then call continuation
+    (begin
+      (set! exception-handler (lambda (msg) (begin (displayln msg) (k)))) ; display message; call continuation
       (displayln (g 1))
       (displayln (g 0))
       (displayln (g 2)))))
