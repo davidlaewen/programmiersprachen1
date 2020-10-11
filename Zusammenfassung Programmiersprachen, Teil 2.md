@@ -369,6 +369,21 @@ def eval(e: Exp, env: Env, k: Value => Value) : Value = e match {
 Im `Reset`-Fall wird die aktuelle Continuation zurückgesetzt, indem die Identitätsfunktion anstelle von `k` weitergereicht wird. Im `Shift`-Fall wird wie im `LetCC`-Fall die aktuelle Continuation "umhüllt" und in der Umgebung an den Identifier gebunden. Außerdem wird hier auch die Continuation zurückgesetzt (weil dies dem Verhalten in Racket entspricht). Bei der Applikation von Continuations wird nun die aktuelle Continuation nicht mehr verworfen, sondern wird mit dem Ergebnis der Applikation aufgerufen, d.h. es findet eine Komposition der aktuellen Continuation nach der aufgerufenen Continuation statt.
 
 
+# Monaden
+In unseren bisherigen Interpretern haben wir bereits einige verschiedene "Rekursions-Patterns" gesehen: 
+- Im [ersten Interpreter](https://pad.its-amazing.de/programmiersprachen1teil1#Erster-Interpreter-AE) haben wir direkte Rekursion, bei der die `eval`-Funktion rekursiv auf den Unterausdrücken aufgerufen wird. Die rekursive Auswertung entspricht exakt der rekursiven Datenstruktur, in denen die Programme repräsentiert sind.
+
+- Bei der Einführung von Environments in [AEId](https://pad.its-amazing.de/programmiersprachen1teil1#Identifier-mit-Umgebung-AEId) oder in [FAE](https://pad.its-amazing.de/programmiersprachen1teil1#Closures) wird bspw. die Environment bei der rekursiven Auswertung im abstrakten Syntaxbaum (AST) nach unten weitergereicht, d.h. der zusätzliche Parameter `env` wird entlang der Datenstruktur propagiert. 
+
+- Bei der Ergänzung von mutierbaren Boxen in [BCFAE](https://pad.its-amazing.de/programmiersprachen1teil1#Interpreter) haben wir den `Store`-Parameter hinzugefügt, der im AST auf einer Ebene erst bei einem rekursiven Aufruf übergeben wird, dann (evtl. modifiziert) zurückkehrt und beim nächsten rekursiven Aufruf wieder übergeben wird.
+
+- Der CPS-transformierte Interpreter entspricht dem Continuation Passing Style, den wir bereits ausführlich besprochen haben. 
+
+Monaden können aufgefasst werden als Möglichkeit, solche Rekursionstile bzw. -patterns zu definieren und darüber zu abstrahieren.
+
+
+
+
 
 
 
@@ -377,7 +392,7 @@ Im `Reset`-Fall wird die aktuelle Continuation zurückgesetzt, indem die Identit
 
 
 :::success
-- [ ] VL 13
+- [ ] VL 15 ab 1:00:00
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Fixpunkt-Kombinator
 - [ ] PPI

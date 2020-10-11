@@ -35,22 +35,22 @@ def eval(e: Exp, env: Env, k: Value => Nothing) : Nothing = e match {
   case LetCC(p,b) => eval(b, env+(p -> ContV(k)), k)
 }
 
-/** Non-CPS Interpreter:
- *
- * def eval(e: Exp, env: Env) : Value = e match {
- *  case Num(n) => NumV(n)
- *  case Id(x) => env(x)
- *  case Add(l,r) => (eval(l,env),eval(r,env)) match {
- *    case (NumV(a),NumV(b)) => NumV(a+b)
- *    case _ => sys.error("Can only add numbers")
- *  }
- *  case f@Fun(_,_) => ClosureV(f,env)
- *  case App(f,a) => eval(f,env) match {
- *    case ClosureV(f,cEnv) =>
- *      eval(f.body, cEnv+(f.param -> eval(a,env))) // call-by-value
- *    case _ => sys.error("Can only apply functions")
- *  }
- * }
+/* Non-CPS Interpreter:
+
+def eval(e: Exp, env: Env) : Value = e match {
+  case Num(n) => NumV(n)
+  case Id(x) => env(x)
+  case Add(l,r) => (eval(l,env),eval(r,env)) match {
+    case (NumV(a),NumV(b)) => NumV(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case f@Fun(_,_) => ClosureV(f,env)
+  case App(f,a) => eval(f,env) match {
+    case ClosureV(f,cEnv) =>
+      eval(f.body, cEnv+(f.param -> eval(a,env))) // call-by-value
+    case _ => sys.error("Can only apply functions")
+  }
+}
  */
 
 def startEval(e: Exp) : Value = {
