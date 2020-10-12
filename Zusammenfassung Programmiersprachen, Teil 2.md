@@ -379,7 +379,36 @@ In unseren bisherigen Interpretern haben wir bereits einige verschiedene "Rekurs
 
 - Der CPS-transformierte Interpreter entspricht dem Continuation Passing Style, den wir bereits ausführlich besprochen haben. 
 
+:::success
+Monad-Intro mit Option-Monad
+:::
+
 Monaden können aufgefasst werden als Möglichkeit, solche Rekursionstile bzw. -patterns zu definieren und darüber zu abstrahieren.
+```scala
+trait Monad[M[_]] {
+    def unit[A](a: A) : M[A]
+    def bind[A,B](m: M[A], f: A => M[B]) : M[B]
+  }
+```
+
+Ein Monad ist ein Tripel aus einem Typkonstruktor (`M[_]`) und zwei Funktionen, nämlich `unit` und `bind`. Dabei müssen die folgenden _Monad-Gesetze_ gelten:
+- `bind(unit(x),f) == f(x)`
+- `bind(x, y => unit(y)) == x`
+- `bind(bind(x,f),g) == bind(x, y => bind(f(y),g))`
+
+D.h. `unit` ist eine Art "neutrales Element" und `bind` ist assoziativ. 
+
+In Scala kann mit der folgenden Funktion die Syntax der `for`-Comprehensions für das Programmieren mit Monaden genutzt werden:
+```scala
+implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) = new {
+    def map[B](f: A => B): Any = mm.bind(m, (x: A) => mm.unit(f(x)))
+    def flatMap[B](f: A => M[B]): M[B] = mm.bind(m, f)
+  }
+```
+
+Diese Syntax kann für alle Datentypen angewendet werden, für die `map` und `flatMap` definiert ist. Durch die obige implizite Definition, in der wir `map` und `flatMap` so definieren, dass sie gerade der `unit`- und der `bind`-Operation entsprechen, sorgen wir dafür, dass die `for`-Comprehension-Syntax für die `Monad`-Klasse genutzt werden kann.
+
+Monaden dienen zur Funktionskomposition für Fälle, in denen der Rückgabetyp einer Funktion nicht dem Parametertyp der danach anzuwendenden Funktion entspricht, sondern ein "Zwischenschritt" notwendig ist.
 
 
 
@@ -392,7 +421,7 @@ Monaden können aufgefasst werden als Möglichkeit, solche Rekursionstile bzw. -
 
 
 :::success
-- [ ] VL 15 ab 1:00:00
+- [ ] VL 16
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Fixpunkt-Kombinator
 - [ ] PPI
