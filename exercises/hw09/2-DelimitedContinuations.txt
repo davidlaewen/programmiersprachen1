@@ -1,7 +1,0 @@
-Task 1:
-Given inputs l1 and l2 (lists of numbers), f computes a list containing |l1| copies of l2, in which the first, second, etc. element of l1 has been added to every element in l2 in the first, second, etc. copy of l2. All the copies are appended to a single list. 
-
-l1 = '(1 2 3), l2 = '(9 12 154)
-(f l1 l2) = '((+ 9 1) (+ 12 1) (+ 154 1) (+ 9 2) (+ 12 2) (+ 154 2) (+ 9 3) (+ 12 3) (+ 154 3))
-		  = '(10 13 155 11 14 156 12 15 157)
-
