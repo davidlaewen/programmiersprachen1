@@ -1,9 +1,0 @@
-Original second function: 
-
-Returns head of department only if employee with ID personId is in department with ID depId. 
-Otherwise returns None.
-
-
-Incorrent solution: 
-
-Always returns head of department with ID depId, even if employee with ID personId is not in the department.
