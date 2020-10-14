@@ -64,7 +64,7 @@ def ex1(m: Monad[Option]) : Option[Boolean] =
     m.bind(g(x+"z"), (y: Boolean) =>
       m.unit(!y)))
 
-implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) : Object = new {
+implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) = new {
   def map[B](f: A => B): Any = mm.bind(m, (x: A) => mm.unit(f(x)))
   def flatMap[B](f: A => M[B]): M[B] = mm.bind(m, f)
 }
