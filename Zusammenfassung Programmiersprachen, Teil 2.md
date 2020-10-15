@@ -300,6 +300,8 @@ def startEval(e: Exp) : Value = {
 
 Es wird `eval` eine Continuation überreicht, die das Ergebnis der Auswertung bindet und dann mit einem Fehler die Auswertung beendet (Rückgabetyp `Nothing`). Die Auswertung selbst wird in einem Try-Catch-Block gestartet, um den Fehler abzufangen. Das durch die Continuation gebundene Ergebnis kann von `startEval` ausgegeben werden.
 
+Die CPS-Transformation des Interpreters hat zur Folge, dass der Interpreter nicht mehr vom Call-Stack der Hostsprache abhängig ist, da Programme in CPS diesen nicht verwenden.
+
 ## Implementierung von 'LetCC'
 Jetzt wo der Interpreter selbst CPS-transformiert ist, können wir das neue Sprachkonstrukt `LetCC` mit wenig Aufwand ergänzen, da die Continuations auf Interpreter-Ebene  den Continuations in unserer Sprache sehr nahe sind. Zuerst erweitern wir `Exp` um das neue Sprachkonstrukt:
 ```scala
@@ -379,7 +381,7 @@ In unseren bisherigen Interpretern haben wir bereits einige verschiedene "Rekurs
 
 - Der CPS-transformierte Interpreter entspricht dem Continuation Passing Style, den wir bereits ausführlich besprochen haben. 
 
-:::success
+:::warning
 Monad-Intro mit Option-Monad
 :::
 
@@ -410,6 +412,156 @@ Diese Syntax kann für alle Datentypen angewendet werden, für die `map` und `fl
 
 Monaden dienen zur Funktionskomposition für Fälle, in denen der Rückgabetyp einer Funktion nicht dem Parametertyp der danach anzuwendenden Funktion entspricht, sondern ein "Zwischenschritt" notwendig ist.
 
+## Operationen auf Monaden
+
+## Beispiele für Monaden
+
+## Monadentransformer
+
+## IO-Monad?
+
+
+# Monadischer Interpreter
+Interfacing, Transformer, Bausteinsystem
+
+
+# Defunktionalisierung
+:::info
+**Defunktionalisierung** bezeichnet die Umwandlung von Higher-Order-Funktionen in First-Order-Funktionen. Diese Umwandlung ist sowohl eine Compilertechnik als auch eine Programmiertechnik.
+:::
+
+:::info
+Eine **abstrakte Maschine** bezeichnet in der theoretischen Informatik einen endlichen Automaten dessen Zustandsmenge unendlich groß sein kann.
+:::
+
+In einem zu defunktionalisierenden Programm dürfen keine anonyme Funktionen auftreten. Um das Programm so umzuschreiben, dass keine anonymen Funktionen auftreten, wird _Lambda Lifting_ (auch _Closure Conversion_ genannt) verwendet.
+
+## Lambda-Lifting
+Ziel von _Lambda-Lifting_ ist es, lokale Funktionen in Top-Level-Funktionen umzuwandeln. Lambda-Lifting kommt auch häufig in Compilern zum Einsatz, bspw. findet man im Bytecode, der beim Kompilieren von Scala-Programmen erzeugt wird, Funktionsdefinition für alle anonymen Funktionen im Programm.
+
+Im folgenden Programm gibt es zwei anonyme Funktionen, nämlich `y => y*n` und `y => y+n`.
+```scala
+def map(f: Int => Int, l: List[Int]) : List[Int] = l match {
+  case List() => List()
+  case x::xs => f(x)::map(f,xs)
+}
+
+def addAndMulNToList(n: Int, l: List[Int]) : List[Int] = 
+  map(y => y*n, map(y => y+n, l))
+```
+
+Diese müssen extrahiert und als Top-Level-Funktionen definiert werden:
+```scala
+val f = (n: Int) => (y: Int) => y+n
+val g = (n: Int) => (y: Int) => y*n
+```
+
+Dadurch lässt sich die Funktion `addAndMultNToList` folgendermaßen ohne anonyme Funktionen umschreiben:
+```scala
+def addAndMulNToListLL(n: Int, l: List[Int]) : List[Int] = 
+  map(g(n), map(f(n), l))
+```
+
+**Vorgehensweise:**
+1. Anonyme Funktionen im Programm suchen und benennen
+2. Den anonymen Funktionen entsprechende Top-Level-Funktionen anlegen
+3. Code aus der ursprünglichen anonymen Funktion in die neue Funktion kopieren, freie Variablen suchen und als Parameter hinzufügen.
+4. Eingabe der ursprünglichen anonymen Funktion durch Currying als weiteren Parameter ergänzen.
+5. Anonyme Funktion im Programm durch Aufruf der neuen Top-Level-Funktion ersetzen
+6. Lambda-Lifting im Rumpf der neuen Top-Level-Funktion fortsetzen, falls dort anonyme Funktionen auftreten
+
+Nun wenden wir dieses Verfahren auf unseren CPS-transformierten Interpreter an. Hier ist die ursprüngliche Fassung des Interpreters, wobei alle anonymen Funktionen durch Kommentare benannt sind:
+```scala
+object CPSTransformed {
+  def eval[T](e: Exp, env: Env, k: Value => T) : T = e match {
+    case Num(n: Int) => k(NumV(n))
+    case Id(x: String) => k(env(x))
+    case Add(l: Exp, r: Exp) =>
+      eval(l, env, lVal => /* addC1 */ 
+        eval(r, env, rVal => /* addC2 */ (lVal,rVal) match {
+        case (NumV(a),NumV(b)) => k(NumV(a+b))
+        case _ => sys.error("Can only add numbers")
+      }))
+    case f@Fun(_,_) => k(ClosureV(f,env))
+    case App(f,a) =>
+      eval(f, env, fVal => /* appC1 */ fVal match {
+        case ClosureV(Fun(p,b),cEnv) => eval(a, cEnv, aVal => /* appC2 */ 
+          eval(b, env+(p -> aVal), k))
+        case _ => sys.error("Can only apply functions")
+      })
+  }
+}
+```
+
+Wir extrahieren die vier anonymen Funktionen und ersetzen ihre Verwendung durch Aufrufe der neuen Top-Level-Funktionen (entsprechend der obigen Schritte). Dadurch erhalten wir eine semantisch gleichbedeutende Fassung des Interpreters, in der aber keine anonymen Funktionen auftreten:
+```scala
+object LambdaLifted {
+  def addC1[T](r: Exp, env: Env, k: Value => T)(lVal: Value): T =
+    eval(r, env, addC2(lVal,k))
+  def addC2[T](lVal: Value, k: Value => T)(rVal: Value): T = (lVal,rVal) match {
+      case (NumV(a),NumV(b)) => k(NumV(a+b))
+      case _ => sys.error("Can only add numbers")
+    }
+  def appC1[T](a: Exp, env: Env, k: Value => T)(fVal: Value) : T  = fVal match {
+      case ClosureV(Fun(p,b),cEnv) => eval(a, cEnv, appC2(b,p,env,k))
+      case _ => sys.error("Can only apply functions")
+    }
+  def appC2[T](b: Exp, p: String, env: Env, k: Value => T)(aVal: Value) : T =
+    eval(b, env+(p -> aVal), k)
+
+  def eval[T](e: Exp, env: Env, k: Value => T) : T = e match {
+    case Num(n: Int) => k(NumV(n))
+    case Id(x: String) => k(env(x))
+    case Add(l: Exp, r: Exp) =>
+      eval(l, env, addC1(r,env,k))
+    case f@Fun(_,_) => k(ClosureV(f,env))
+    case App(f,a) =>
+      eval(f, env, appC1(a,env,k))
+  }
+}
+```
+
+## Defunktionalisierungsschritt
+In unserem ersten Beispiel liegen nach dem Lambda-Liftin noch Higher-Order-Funktionen vor, nämlich `f` und `g`.
+```scala
+val f = (n: Int) => (y: Int) => y + n
+val g = (n: Int) => (y: Int) => y * n
+
+def addAndMulNToListLL(n: Int, l: List[Int]) : List[Int] =
+  map(g(n), map(f(n), l))
+```
+
+Das Programm soll nun so umgeformt werden, dass nur First-Order-Funktionen auftreten. Um den Closure nach dem ersten Currying-Schritt zu repräsentieren, legen wir einen Datencontainer an, der für beide Funktionen den Wert von `n` halten kann.
+```scala
+sealed abstract class FunctionValue
+case class F(n: Int) extends FunctionValue
+case class G(n: Int) extends FunctionValue
+```
+
+Außerdem legen wir eine Funktion `apply` an, die mit Instanzen von `FunctionValue` zusammen mit dem zweiten Argument aufgerufen werden kann, um den zweiten Schritt des Currying durchzuführen.
+```scala
+def apply(f: FunctionValue, y: Int) : Int = f match {
+  case F(n) => y + n
+  case G(n) => y * n
+}
+
+def map(f: FunctionValue, l: List[Int]) : List[Int] = l match {
+  case List() => List()
+  case x::xs => apply(f,x)::map(f,xs)
+}
+
+def addAndMulNToList(n: Int, l: List[Int]) : List[Int] =
+  map(G(n), map(F(n), l))
+```
+
+**Vorgehensweise:**
+1. Lege abstrakte Oberklasse `FunctionValue` an mit Unterklassen für alle Funktionen
+2. Lege `apply`-Funktion mit Fällen für alle Unterklassen von `FunctionValue` an, kopiere Rümpfe der Top-Level-Funktionen in die Fälle.
+3. Ersetze Typ von Higher-Order-Parametern mit `FunctionValue`
+4. Forme Aufrufe der Higher-Order-Funktionen mit `apply` um (`f(x)` wird zu `apply(f,x)`)
+
+
+
 
 
 
@@ -421,9 +573,10 @@ Monaden dienen zur Funktionskomposition für Fälle, in denen der Rückgabetyp e
 
 
 :::success
-- [ ] VL 16
+- [ ] VL 20
 - [ ] Mark & Sweep fertig zusammenfassen (???)
-- [ ] Fixpunkt-Kombinator
+- [ ] Option-Monad
 - [ ] PPI
-- [ ] Alle Vorlesungen bis 14. 10. - 2 Wochen für Lecture Notes, Wiederholungen, Lernen, Probeklausur, evtl. Altklausuren
+- [ ] Alle Vorlesungen bis 16.10.
+- [ ] 2 Wochen für Lecture Notes, Wiederholungen, Lernen, Probeklausur, evtl. Altklausuren
 :::
