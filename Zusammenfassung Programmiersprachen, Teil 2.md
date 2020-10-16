@@ -561,7 +561,94 @@ def addAndMulNToList(n: Int, l: List[Int]) : List[Int] =
 4. Forme Aufrufe der Higher-Order-Funktionen mit `apply` um (`f(x)` wird zu `apply(f,x)`)
 
 
+# Typsysteme
+Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Im Kontext von Typsystemen und Typecheckern spricht man von den Eigenschaften _Soundness_ und _Completeness_. Ein Typsystem in _complete_, wenn es jeden bei der Ausführung auftretenden Typfehler vor der Ausführung meldet und _sound_, wenn es nur Fehler meldet, die tatsächlich bei der Ausführung auftreten.
 
+Aus dem _Satz von Rice_ folgt, dass es für eine Turing-vollständige Sprache kein perfektes Typsystem (das Soundness und Completeness erfüllt) geben kann.
+
+:::info
+**Satz von Rice:** Sei $\mathcal{P}$ die Menge aller Turing-berechenbaren Funktionen und $\mathcal{S} \subsetneq \mathcal{P}$ eine nicht-leere, echte Teilmenge davon, so ist die Menge der Turingmaschinen, deren berechnete Funktion in $\mathcal{S}$ liegt, nicht entscheidbar.
+
+Damit sind alle semantischen Eigenschaften von Programmen in Turing-vollständigen Sprachen nicht entscheidbar (d.h. es gibt keinen Algorithmus, der für jedes Programm entscheiden kann, ob die Eigenschaft zutrifft).
+:::
+
+Dies wird bereits an folgendem Beispiel deutlich:
+```scala
+f()
+((x: Int) => x+1) + 3
+```
+
+Um entscheiden zu können, ob im obigen Programm ein Fehler durch die Addition einer Funktion und einer Zahl entsteht, müsste entschieden werden, ob `f` terminiert. Dazu müsste das Halteproblem entscheidbar sein. Das das Halteproblem unentscheidbar ist, ist durch Widerspruch bewiesen, dass kein perfektes Typsystem existiert.
+
+Es sind aber durchaus Typsysteme möglich, die entweder Completeness oder Soundness erfüllen. Die erste Eigenschaft bedeutet, dass jedes Programm, in dem kein (Typ-)Fehler gefunden wird, bei der Ausführung auch keinen (Typ-)Fehler produziert. Es können aber auch vermeintliche Fehler gefunden werden, die zur Laufzeit gar nicht auftreten, wodurch es sich um eine _Überapproximation_ handelt. Ein Typsystem dieser Art ist in den meisten Fällen nützlicher als ein Typsystem, dass Soundness erfüllt, aber dafür manche Fehler nicht erkennt.
+
+Die Syntax von unseren Sprachen wird durch eine _kontextfreie Grammatik_ in Form der Case Classes definiert. Typkorrektheit ist aber keine kontextfreie Eigenschaft, wie etwa am folgenden Programm deutlich wird:
+```scala
+wth("x", Add("x",3))
+```
+
+Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist also offensichtlich _kontextsensitiv_
+
+Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden, damit es möglich ist, Fehler zu berichtigen. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist Kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen der Unterausdrücke.
+
+## Interpreter mit Typsystem
+In unseren bisherigen Interpretern haben wir beim Auftreten von Typfehlern (bspw. Addition von zwei Funktionen) einen Laufzeitfehler geworfen, wie etwa hier im FAE-Interpreter:
+```scala
+case Add(l,r) => (eval(l,env),eval(r,env)) match {
+  case (NumV(a),NumV(b)) => NumV(a+b)
+  case _ => sys.error("Can only add numbers")
+}
+```
+
+Nun wollen wir für die folgende Sprache ein Typsystem definieren, so dass vor der Auswertung eines Programms überprüft werden kann, ob dieses typsicher ist.
+```scala
+sealed abstract class Exp
+case class Num(n: Int) extends Exp
+case class Bool(b: Boolean) extends Exp
+case class Add(l: Exp, r: Exp) extends Exp
+case class If(c: Exp, t: Exp, f: Exp) extends Exp
+```
+
+Wir definieren eine neue abstrakte Klasse `Type` mit den zwei konkreten Unterklassen `NumType` und `BoolType`. Diese entsprechen den zwei Wertetypen, die die Auswertung eines Ausdrucks ergeben kann.
+```scala
+sealed abstract class Type
+case class BoolType() extends Type
+case class NumType() extends Type
+```
+
+Um Typechecking auf Programmen bzw. Ausdrücken unserer Sprache durchzuführen, definieren wir eine Funktion `typeCheck`. Diese ist strukturell rekursiv und kompositional aufgebaut.
+```scala
+def typeCheck(e: Exp) : Type = e match {
+  case Num(_) => NumType()
+  case Bool(_) => BoolType()
+  case Add(l,r) => (typeCheck(l),typeCheck(r)) match {
+    case (NumType(),NumType()) => NumType()
+    case _ => sys.error("Type error in Add")
+  }
+  case If(c,t,f) => (typeCheck(c),typeCheck(t),typeCheck(f)) match {
+    case (BoolType(),tType,fType) =>
+      if (tType == fType) tType else sys.error("Type error in If")
+    case _ => sys.error("Type error in If")
+  }
+}
+```
+
+Der `Num`- und `Bool`-Fall sind trivial, hier ist offensichtlich um welchen Typ es sich handelt. Im `Add`-Fall muss der Typechecker auf beiden Unterausdrücken `NumType` ergeben, da in unserer Sprache nur Addition von Zahlen erfolgreich ausgewertet werden kann. Sind die Summanden nicht beide vom Typ `NumType`, so geben wir eine Fehlermeldung aus. Im `If`-Fall ist klar, dass der Typechecker auf der Bedingung `BoolType` ergeben muss, der Typ des `If`-Ausdrucks selbst lässt sich aber nicht ohne weiteres feststellen. Je nachdem, welcher Zweig betreten wird, müsste entweder der Typ von `t` oder von `f` rekursiv bestimmt und ausgegeben werden.
+
+Um zu entscheiden, welcher Zweig betreten wird, müssten die Bedingung ausgewertet werden. Würde man diese Auswertung im Typechecker durchführen, so verliert dieser gewissermaßen seinen Nutzen, denn wenn er bei Typfehlern in einer `If`-Bedingung die gleichen Laufzeitfehler liefert wie der Interpreter selbst, so könnte die Typsicherheit direkt durch das Ausführen des Programms überprüft werden. Außerdem wäre es in einer komplexeren Sprache (z.B. der Turing-vollständigen FAE-Sprache) nicht möglich, die Bedingung ohne den Kontext des `If`-Ausdrucks auszuwerten, zudem könnte die Auswertung der Bedingung evtl. nicht terminieren, wodurch der Typechecker kein Ergebnis liefert. In jedem Fall verliert der Typechecker seinen Nutzen als Prüfmittel vor der eigentlichen Auswertung, sobald er Teile des Programms auswertet.
+
+Aus diesen Gründen bleibt nur die Möglichkeit, den Typ beider Zweige zu bestimmen und auf Gleichheit zu prüfen, falls `t` und `f` den gleichen Typ besitzen, kann dieser ausgegeben werden. Dadurch wird aber bei gewissen Programmen ein Typfehler gefunden, obwohl diese fehlerfrei auswerten:
+```scala
+val ex1 = If(false,true,1)
+val ex = Add(2, If(true,3,true))
+```
+
+Dies ist ein Beispiel für eine Überapproximation im Interesse von Completeness???
+
+:::info
+**Type Soundness** ist folgendermaßen definiert:
+Für alle `e: Exp`, `v: Exp` und `t: Type` gilt: Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder++ `eval(e)` führt zu Laufzeitfehler (kein Typfehler) ++oder++ `eval(e)` terminiert nicht. 
+:::
 
 
 
