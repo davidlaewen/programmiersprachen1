@@ -645,12 +645,22 @@ val ex = Add(2, If(true,3,true))
 
 Dies ist ein Beispiel für eine Überapproximation im Interesse von Completeness???
 
+## Soundness und Completeness
 :::info
 **Type Soundness** ist folgendermaßen definiert:
 Für alle `e: Exp`, `v: Exp` und `t: Type` gilt: Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder++ `eval(e)` führt zu Laufzeitfehler (kein Typfehler) ++oder++ `eval(e)` terminiert nicht. 
 :::
 
+## Simply-Typed Lambda Calculus (STLC)
+:::info
+- **Soundness von STLC:**
+Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert nicht ++oder++ `typeCheck(eval(e),Map()) == t`, wobei `eval(e)` in beiden Fällen keinen Laufzeitfehler verursacht.
 
+- **Terminierung von STLC:**
+Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert.
+:::
+
+STLC ist nicht Turing-vollständig und in STLC können nur terminierende Programme verfasst werden. Aus diesem Grund wird STLC häufig auf Typ-Ebene verwendet, da man bspw. Typfunktionen und deren Applikation formulieren will, aber nicht-terminierende Programme auf Typ-Ebene unbedingt verhindern will, da sonst der Typechecker nicht mehr zwingend terminiert.
 
 
 
@@ -660,7 +670,7 @@ Für alle `e: Exp`, `v: Exp` und `t: Type` gilt: Falls `typeCheck(e) == t`, so g
 
 
 :::success
-- [ ] VL 20
+- [ ] VL 22
 - [ ] Mark & Sweep fertig zusammenfassen (???)
 - [ ] Option-Monad
 - [ ] PPI
