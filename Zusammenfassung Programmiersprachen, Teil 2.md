@@ -663,6 +663,10 @@ Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert.
 STLC ist nicht Turing-vollständig und in STLC können nur terminierende Programme verfasst werden. Aus diesem Grund wird STLC häufig auf Typ-Ebene verwendet, da man bspw. Typfunktionen und deren Applikation formulieren will, aber nicht-terminierende Programme auf Typ-Ebene unbedingt verhindern will, da sonst der Typechecker nicht mehr zwingend terminiert.
 
 
+# Hindley-Milner-Typinferenz
+Algorithmus erfüllt Soundness (wenn Typannotation gefunden, dann ist Typecheck erfolgreich) und Completeness (wenn es Typannotation gibt, so das Typecheck erfolgreich, so wird diese gefunden).
+
+
 
 
 
