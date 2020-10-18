@@ -236,7 +236,7 @@ assert(eval(twoTimesFour) == 8)
 var threeTimesFourPlusFour = Add(Mul(Num(3),Num(4)), Num(4))
 assert(eval(threeTimesFourPlusFour) == 16)
 ```
-Bei der Implementation eines Interpreters ist ein vollständiges Verständnis der Metasprache (hier Scala) notwendig, um die Eigenschaften der Implementation vollständig zu kennen. Der `Int`-Datentyp hat bspw. gewisse Einschränkungen, die nun auch in der implementierten Sprache existieren.
+Bei der Implementation eines Interpreters ist ein umfassendes Verständnis der _Metasprache_ (hier Scala) notwendig, um die Eigenschaften der Implementation vollständig zu kennen. Der `Int`-Datentyp hat bspw. gewisse Einschränkungen, die nun auch in der implementierten Sprache existieren.
 
 
 # Syntaktischer Zucker und Desugaring
@@ -310,8 +310,8 @@ Es können auch wieder Identifier mithilfe einer _Environment_ der Sprache hinzu
 
 
 # Identifier mit Umgebung (AEId)
-Um Identifier in den Ausdrücken verwenden zu können, ist eine zusätzliche Datenstruktur notwendig, nämlich eine Umgebung (_environment_), in der die Paare aus Identifiern und Werten gespeichert und ausgelesen werden.
-Wir verwenden für die Identifier den Datentyp `Symbol`, für die Umgebung definieren wir das Typ-Alias `Env`, dass eine `Map` von `Symbol` nach `Int` bezeichnet.
+Um Identifier in den Ausdrücken verwenden zu können, ist eine zusätzliche Datenstruktur notwendig, nämlich eine Umgebung (_Environment_), in der die Paare aus Identifiern und Werten gespeichert und ausgelesen werden.
+Wir verwenden für die Identifier den Datentyp `String`, für die Umgebung definieren wir das Typ-Alias `Env`, dass eine `Map` von `String` nach `Int` bezeichnet.
 ```scala
 import scala.language.implicitConversions
 
@@ -322,19 +322,17 @@ implicit def num2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(Symbol(s))
 
 // type definition, 'Env' is alias for type on right hand side
-type Env = Map[Symbol, Int]
+type Env = Map[String, Int]
 
 def eval(e: Exp, env: Env) : Int = e match {
   case Num(n) => n
-  // pass environment on during recursion
-  case Add(l,r) => eval(l,env) + eval(r,env)
+  case Add(l,r) => eval(l,env) + eval(r,env) // pass environment recursively
   case Mul(l,r) => eval(l,env) * eval(r,env)
-  // look up identifier in map, return associated value 
-  case Id(x) => env(x)
+  case Id(x) => env(x) // return associated value from map
 }
 
 // examples
-val env = Map('x -> 2, 'y -> 4)
+val env = Map("x" -> 2, "y" -> 4)
 val a = Add(Mul("x",5), Mul("y",7))
 assert(eval(a, env) == 38)
 val b = Mul(Mul("x", "x"), Add("x", "x"))
@@ -627,12 +625,12 @@ val ac = subst(Fun("x", Add("x","y")), "y", Add("x",5))
 ```
 In diesem Beispiel ist das `x` in `Add(x, 5)` nach der Substitution an den Parameter `x` der Funktion gebunden, obwohl dies vorher nicht der Fall war. Die dabei entstehende Bindung ist unerwartet, das unerwünschte "Einfangen" des Identifiers wird als _Accidental Capture_ bezeichnet und allgemein als Verletzung von lexikalischem Scoping angesehen.
 
+## Capture-Avoiding Substitution
 :::info
 Zwei Funktionen sind **alpha-äquivalent**, wenn sie bis auf den Namen des Parameters (oder der Parameter) identisch sind.
 `Fun("x", Add("x",1))` und `Fun("y", Add("y",1))` sind bspw. _alpha-äquivalent_.
 :::
 
-## Capture-Avoiding Substitution
 Wir nutzen Alpha-Äquivalenz, um Accidental Captures zu verhindern. Dazu brauchen wir einen "Generator", um bisher ungenutzte Namen zu erzeugen, die wir dann zur Umbenennung verwenden können.
 ```scala
 def freshName(names: Set[String], default: String) : String = {
@@ -1480,27 +1478,31 @@ Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adresse
 Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
 
 
-# Interpretationsarten
-_Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch das entsprechende Feature in der Hostsprache. _Syntaktische Interpretation_ bezeichnet hingegen die Implementierung eines Features durch Reduktion auf Features niedrigerer Ebene in der Hostsprache. 
+# Meta- und syntaktische Interpretation
+Jede Sprachsemantik einer Programmiersprache lässt sich in einer Meta-Sprache auf verschiedene Arten implementieren, dabei ist die Unterscheidung zwischen _Metainterpretation_ und _syntaktischer Interpretation_ von besonderer Wichtigkeit.
 
-In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unsere Rekursion verwendet haben. Auch das Speichermanagement wird durch Scala übernommen und nicht in unserem Interpreter definiert.
+_Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch das entsprechende Feature in der Hostsprache, _syntaktische Interpretation_ hingegen die Implementierung eines Features durch Reduktion auf primitivere Sprachkonstrukte der Hostsprache. Metainterpretation ist (falls überhaupt möglich) leichter zu implementieren, erlaubt aber keine Anpassung eines Sprachkonstrukts gegenüber der Implementation in der Hostsprache. Syntaktische Interpretation erlaubt eine andere, selbst festgelegte Implementation und die Kontrolle darüber, wobei aber ein umfangreiches Verständnis des Sprachkonstrukts notwendig ist, um dieses mit einfacheren Mitteln selbst zu implementieren.
+
+In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme oder das Speichermanagement wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unseren Interpreter nutzen und implizit das Speichermanagement von Scala übernehmen.
 
 Andere Sprachfeatures werden hingegen nicht durch das entsprechende Feature in der Hostsprache umgesetzt, z.B. Identifier (inkl. Scoping) oder Closures. Hier liegt syntaktische Interpretation vor. Bei der Entwerfen des Interpreters muss man sich also bewusst sein, welche Verhaltensweisen und Einschränkungen mit den Features der Hostsprache einhergehen und entscheiden, welche Features man selbst implementieren und welche man "weiterreichen" möchte. 
 
-Man könnte Funktionen und Identifier in [FAE](#Higher-Order-Funktionen-FAE) auch vollständig durch Metainterpretation umsetzen, indem man die Definition von `Exp` folgendermaßen abändert:
+Wir könnten in [FAE](#Higher-Order-Funktionen-FAE) aber auch mehr Metainterpretation verwenden, indem wir etwa die Funktionen durch Funktionen der Metasprache umsetzen:
 ```scala
 sealed trait Exp
 case class Num(n: Int) extends Exp
-case class Add(l: Exp, r: Exp) extends Exp
+case class Id(x: String) extends Exp
+case class Add(lhs: Exp, rhs: Exp) extends Exp
 case class Fun(f: Exp => Exp) extends Exp 
-case class App(f: Exp, a: Exp) extends Exp
+case class App(fun: Exp, arg: Exp) extends Exp
 ```
 
-Eine Repräsentation, bei der Funktionen der Metasprache verwendet werden, nennt man _Higher-Order Abstract Syntax (HOAS)_.
+Eine solche Repräsentation von Funktionen der Objektsprache durch Funktionen der Metasprache nennt man _Higher-Order Abstract Syntax (HOAS)_.
 
-Der Interpreter wird nun extrem einfach, aber die Kontrolle über das Verhalten von Identifiern und Bindungen (also etwa Scoping) geht verloren.
+Der Interpreter wird nun extrem einfach, aber die Kontrolle über das Verhalten von Identifiern und Bindungen (also bspw. Scoping) geht verloren.
 ```scala
 def eval(e: Exp) : Exp = e match {
+  case Id(x) => sys.error("Unbound identifier: "+x)
   case Add(l,r) => (eval(l),eval(r)) match {
     case (Num(a),Num(b)) => Num(a+b)
     case _ => sys.error("Can only add numbers")
@@ -1513,7 +1515,35 @@ def eval(e: Exp) : Exp = e match {
 }
 ```
 
-Wir können auch Closures durch Metainterpretation umsetzen (s. `9b-ClosuresMetainterpretation`), hier spricht man von _Closure Conversion_. Umgekehrt wäre es auch denkbar, Zahlen und Arithmetik durch syntaktische Interpretation zu implementieren, etwa durch binäre Kodierung von Zahlen in Boolean-Arrays einer bestimmten Größe.
+Es ist auch möglich, Closures durch Metainterpretation umzusetzen:
+```scala
+sealed abstract class Value
+type Env = Map[String, Value]
+case class NumV(n: Int) extends Value
+case class FunV(f: Value => Value) extends Value
+
+def eval(e: Exp) : Env => Value = e match {
+  case Num(n: Int) => (env) => NumV(n)
+  case Id(x) => env => env(x)
+  case Add(l,r) => { (env) =>
+    (eval(l)(env),  eval(r)(env)) match {
+      case (NumV(v1),NumV(v2)) => NumV(v1+v2)
+      case _ => sys.error("can only add numbers")
+    }
+  }
+  case Fun(param,body) => (env) => FunV( (v) => eval(body)(env + (param -> v)))
+  case App(f,a) => (env) => (eval(f)(env), eval(a)(env)) match {
+    case (FunV(g),arg) => g(arg)
+    case _ => sys.error("can only apply functions")
+  }
+}
+```
+
+Anstelle von Closures bestehend aus einer Funktion und der zugehörigen Umgebung liefert die Auswertung von Funktionen eine `FunV`-Instanz mit einer Scala-Funktion, die die Auswertung des Rumpfes mit der korrekten Umgebung (vom Zeitpunkt, zu dem der `Fun`-Ausdruck ausgewertet wird, entsprechend der Closure-Umgebung) durchführt. Die Closures der Objektsprache sind also durch die Closures der Metasprache implementiert.
+
+Durch das zusätzliche Auslagern des Umgebungsparameters aus `eval` durch Currying ist dieser Interpreter kompositional, d.h. alle rekursiven Aufrufe von `eval` sind auf Unterausdrücken des aktuellen Ausdrucks. Dadurch lässt sich Programmäquivalenz in der Objektsprache leicht durch Äquivalenz in der Metasprache beweisen. Außerdem lässt sich der Interpreter auch im [Visitor-Stil](#Abstraktion-durch-Visitor) implementieren (s. [Übung 6b](https://github.com/DavidLaewen/programmiersprachen1/blob/master/exercises/hw06/6b-CompositionalInterpreter.scala))
+
+Es könnten auch mehr Sprachkonstrukte von FAE durch syntaktische Interpretation umgesetzt werden, bspw. könnte man Zahlen als Sequenz von Ziffern anstelle von Scala-`Int`s repräsentieren. Wir werden noch Implementation kennenlernen, die nicht mehr von Scalas Speichermanagement und Higher-Order-Funktionen abhängen.
 
 
 # Objekt-Algebren

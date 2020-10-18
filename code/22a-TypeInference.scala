@@ -75,7 +75,7 @@ def typeCheck(e: Exp, gamma: Map[String,Type]) : (List[(Type,Type)],Type) = e ma
   case Fun(p,b) =>
     val xt = freshTypeVar()
     val resBody = typeCheck(b,gamma+(p->xt))
-      (resBody._1, FunType(xt,resBody._2))
+    (resBody._1, FunType(xt,resBody._2))
   case App(f,a) =>
     val toType = freshTypeVar()
     (typeCheck(f,gamma),typeCheck(a,gamma)) match {

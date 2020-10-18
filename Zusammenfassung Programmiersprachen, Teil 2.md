@@ -522,7 +522,7 @@ object LambdaLifted {
 ```
 
 ## Defunktionalisierungsschritt
-In unserem ersten Beispiel liegen nach dem Lambda-Liftin noch Higher-Order-Funktionen vor, nämlich `f` und `g`.
+In unserem ersten Beispiel liegen nach dem Lambda-Lifting noch Higher-Order-Funktionen vor, nämlich `f` und `g`.
 ```scala
 val f = (n: Int) => (y: Int) => y + n
 val g = (n: Int) => (y: Int) => y * n
