@@ -10,8 +10,248 @@ langs: de
 [TOC]
 
 
+# Objekt-Algebren
+_Objekt-Algebren_ (_Object Algebras_) sind eine Abstraktion, die eng mit [algebraischen Datentypen](https://en.wikipedia.org/wiki/Algebraic_data_type) und [Church-Kodierungen](#Church-Kodierungen) verwandt ist. Zudem haben sie einige Gemeinsamkeiten mit dem [Visitor Pattern](https://pad.its-amazing.de/programmiersprachen1teil1#Abstraktion-durch-Visitor).
+
+Sie sind ein mächtiger und teilweise auch effizienter Mechanismus zur Modularisierung von Programmen und ein sehr junges Forschungsgebiet, zu dem es erst seit etwa 2012 Veröffentlichungen gibt.
+
+## Binärbäume im Objekt-Algebra-Stil
+Betrachten wir zuerst eine Implementation von Binärbäumen im Visitor-Stil (völlig analog zum [Interpreter im Visitor-Stil](#Abstraktion-durch-Visitor)):
+```scala
+sealed abstract class BTree
+case class Node(l: BTree, r: BTree) extends BTree
+case class Leaf(n: Int) extends BTree
+
+case class Visitor[T](node: (T,T) => T, leaf: Int => T)
+
+def foldExp[T](v: Visitor[T], b: BTree) : T = b match {
+  case Node(l,r) => v.node(foldExp(v,l), foldExp(v,r))
+  case Leaf(n)   => v.leaf(n)
+}
+
+val sumVisitor = new Visitor[Int]((l,r) => l+r, n => n)
+
+assert(foldExp(sumVisitor, Node(Leaf(1),Leaf(2))) == 3)
+```
+
+Im Objekt-Algebra-Stil wird der Datentyp nicht durch eine abstrakte Klasse mit verschiedenen _Cases_, sondern durch die Funktionen der Faltungsoperation definiert, die Daten werden also durch ihre eigene Faltung repräsentiert:
+```scala
+trait BTreeInt[T] {
+  def node(l: T, r: T) : T
+  def leaf(n: Int) : T
+}
+
+def ex1[T](semantics: BTreeInt[T]) : T = {
+  import semantics._
+  node(leaf(1),leaf(2))
+}
+
+object TreeSum extends BTreeInt[Int] {
+  def node(l: Int, r: Int) = l+r
+  def leaf(n: Int) = n
+}
+
+assert(ex1(TreeSum) == 3)
+```
+
+Dadurch muss zur Durchführung einer Faltung nur eine Instanziierung von `BTreeInt` (hier etwa `TreeSum`) an einen Wert des Datentyps (hier etwa `ex1`) überreicht werden, in der die Faltungsoperation für beide Fälle konkretisiert sind.e
+
+**Eigenschaften des Objekt-Algebra-Stils:**
+- Jeder Konstruktor des Datentyps (hier `Node` und `Leaf`) wird zu einer Funktion in der abstrakten "Signaturklasse" mit Typparameter `T` (hier `BTreeInt[T]`), wobei rekursive Vorkommen des Datentyps durch `T` ersetzt werden.
+
+- Konkrete Werte des Datentyps sind als Funktion mit Typparameter `T` definiert, wobei die Eingabe eine Instanz der Signaturklasse und die Ausgabe vom Typ `T` ist.
+
+- Konkrete Faltungen werden zu Instanziierungen der Signaturklasse (hier `TreeSum`), in der die Faltungsfunktionen für die verschiedenen Fälle definiert werden.
+
+Die Argumente der Faltungsfunktion werden also in einem `Trait` zusammengefasst und können als Objekt überreicht werden. Dadurch lässt sich der Datentyp durch Vererbung erweitern (etwa um Blätter, die Strings enthalten):
+```scala
+trait BTreeMixed[T] extends BTreeInt[T] {
+  def leaf(s: String) : T
+}
+
+def ex2[T](semantics: BTreeMixed[T]) : T = {
+  import semantics._
+  node(leaf(1),node("a"))
+}
+```
+
+## Peano-Zahlen im Objekt-Algebra-Stil
+Wir können die Church-Kodierungen für Zahlen folgendermaßen in Scala nachbilden, wobei Zahlen Instanzen von `Num` sind und (entsprechend der Church-Kodierung) aus ihrer eigenen Faltungsfunktion bestehen:
+```scala
+trait Num {
+  def fold[T](s: T => T, z: T) : T
+}
+
+case object Zero extends Num {
+  def fold[T](s: T => T, z: T) : T = z
+}
+
+case object One extends Num {
+  def fold[T](s: T => T, z: T) : T = s(z)
+}
+
+def succ(n: Num) : Num = {
+  new Num {
+    def fold[T](s: T => T, z: T) : T = s(n.fold(s,z))
+  }
+}
+```
+
+Bei der Implementierung im Objekt-Algebra-Stil werden die Funktionen der Faltung (also Parameter von `fold`) wieder zu einem Objekt zusammengefasst:
+```scala
+trait NumSig[T] {
+  def s(p: T) : T
+  def z: T
+}
+
+trait Num { def apply[T](x: NumSig[T]) : T }
+```
+
+Eine Objekt-Algebra ist eine Klasse, die ein generisches _Abstract Factory Interface_ implementiert, das im wissenschaftlichen Gebiet der _universellen Algebra_ als _algebraische Signatur_ bezeichnet wird. Die obige Implementation im Objekt-Algebra-Stil ist eine _algebraische Struktur_ mit den Operationen `s` und `z`. Der Typ der Operationen (hier `NumSig`) wird als _Signatur_ oder _Funktor_ bezeichnet, bei `Num` handelt es sich um eine _(Funktor-)Algebra_.
+
+:::info
+Eine **algebraische Struktur** besteht gewöhnlich aus einer nichtleeren Menge (_Grundmenge_ oder _Trägermenge_) und einer Familie von _inneren Verknüpfungen_ (_Grundoperationen_) auf der Menge. Ein Beispiel für eine einfache algebraische Struktur ist etwa das _Monoid_.
+
+Ein **Monoid** ist eine algebraische Struktur bestehend aus einer Menge $M$, einer Abbildung $\odot: M \times M \to M$ und einem neutralen Element $e \in M$, so dass $\forall a \in M$ gilt: $e \odot a = a \odot e = a$. Außerdem gilt $\forall a,b,c \in M: (a \odot b) \odot c = a \odot (b \odot c)$ (_Assoziativität_).
+:::
+
+Wir implementieren Zahlen und Addition im Objekt-Algebra-Stil folgendermaßen:
+```scala
+val zero: Num = new Num { def apply[T](x: NumSig[T]): T = x.z }
+val one: Num = new Num { def apply[T](x: NumSig[T]): T = x.s(x.z) }
+val two: Num = new Num { def apply[T](x: NumSig[T]) : T = x.s(one.apply(x))}
+
+def plus(a: Num, b: Num) : Num = new Num {
+  def apply[T](x: NumSig[T]) : T = a.apply(new NumSig[T] {
+    def s(p: T): T = x.s(p)
+    def z: T = b.apply(x)
+  })
+}
+```
+
+Dieser Stil ermöglicht verschiedene konkrete Implementierungen des Interfaces, bei denen die Argumente für die Faltung übergeben werden, die die `Num`-Objekte in der `apply`-Funktion noch erwarten.
+```scala
+object NumAlg extends NumSig[Int] {
+  def s(x: Int) : Int = x+1
+  def z = 0
+}
+
+assert(two(NumAlg) == 2)
+assert(plus(one,two)(NumAlg) == 3)
+```
+Wir können bspw. das Objekt `NumAlg` überreichen, um die Church-kodierten Zahlen in Scala-Integer umzuwandeln. Dabei wird implizit `apply` mit der übergebenen `NumSig`-Instanziierung aufgerufen. 
+
+In diesem Fall bietet der Objekt-Algebra-Stil keine speziellen Vorteile, anders ist es aber bei unserem Interpreter.
+
+## Interpreter im Objekt-Algebra-Stil
+Der Objekt-Algebra-Stil erzwingt Kompositionalität, deshalb wandeln wir unsere kompositionale Implementation von FAE, in der Closures durch Metainterpretation umgesetzt sind, zur Umwandlung.
+```scala
+trait Exp[T] {
+  implicit def num(n: Int) : T
+  implicit def id(name: String) : T
+  def add(l: T, r: T) : T
+  def fun(param: String, body: T) : T
+  def app(fun: T, arg: T) : T
+  def wth(x: String, xDef: T, body: T) : T = app(fun(x,body),xDef)
+}
+
+sealed abstract class Value
+type Env = Map[String,Value]
+case class ClosureV(f: Value => Value) extends Value
+case class NumV(n: Int) extends Value
+
+trait eval extends Exp[Env => Value] {
+  def id(x: String) : Env => Value = env => env(x)
+  def fun(p: String, b: Env => Value) : Env => Value =
+    env => ClosureV(v => b(env+(p -> v)))
+  def app(fun: Env => Value, arg: Env => Value) : Env => Value =
+    env => fun(env) match {
+      case ClosureV(f) => f(arg(env))
+      case _ => sys.error("Can only apply functions")
+    }
+  def num(n: Int) : Env => Value = _ => NumV(n)
+  def add(l: Env => Value, r: Env => Value) : Env => Value =
+    env => (l(env),r(env)) match {
+      case (NumV(a),NumV(b)) => NumV(a+b)
+      case _ => sys.error("Can only add numbers")
+    }
+}
+
+object eval extends eval
+
+def test[T](semantics: Exp[T]) = {
+  import semantics._
+  app(app(fun("x",fun("y",add("x","y"))),5),3)
+}
+
+assert(test(eval)(Map()) == NumV(8))
+```
+
+Dieser Stil erlaubt vollständige Modularität, so dass Sprachkonstrukte nach Bedarf hinzugefügt werden können. Wir können die Sprache etwa folgendermaßen um Multiplikation erweitern:
+```scala
+trait ExpWithMul[T] extends Exp[T] {
+  def mul(l: T, r: T) : T
+}
+
+object evalWithMul extends eval with ExpWithMul[Env => Value] {
+  def mul(l: Env => Value, r: Env => Value) : Env => Value =
+    env => (l(env),r(env)) match {
+      case (NumV(a),NumV(b)) => NumV(a*b)
+      case _ => sys.error("Can only multiply numbers")
+    }
+}
+def test2[T](semantics: ExpWithMul[T]) = {
+  import semantics._
+  app(app(fun("x",fun("y",mul("x","y"))),5),3)
+}
+
+assert(test2(evalWithMul)(Map()) == NumV(15))
+```
+
+## Expression Problem
+Bei unserem Interpreter gibt es zwei Arten von Erweiterung: Zum einen gibt es die Erweiterung um zusätzliche Funktionen neben `eval` (bspw. `print` oder `countNodes`), zum anderen gibt es die Erweiterung um zusätzliche Sprachkonstrukte. 
+- Unsere bisherige (funktionale) Implementation mit Pattern Matching erlaubt die modulare Erweiterung um neue Funktionen -- es können neben `eval` weitere Funktion angelegt werden, die auf Expressions operieren. Die Erweiterung um neue Sprachkonstrukte ist aber nicht modular möglich, denn die Funktionen können nach ihrer Definition nicht mehr um zusätzliche Fälle erweitert werden.
+```scala
+sealed trait Exp
+case class Num(n: Int) extends Exp
+case class Add(l: Exp, r: Exp) extends Exp
+
+def eval(e: Exp) : Int = e match {
+  case Num(n) => n
+  case Add(l,r) => eval(l) + eval(r)
+}
+
+// ...
+```
+
+- Bei einer objektorientierten Implementierung können Funktionen nicht nachträglich hinzugefügt werden, da diese in jedem Konstruktor definiert werden müssen. Modulare Ergänzung neuer Sprachkonstrukte ist hingegen gut möglich, die abstrakte Oberklasse kann nachträglich erweitert werden. 
+```scala
+sealed abstract class Exp {
+  def eval() : Int
+}
+
+case class Num(n: Int) extends Exp {
+  def eval() = n
+}
+
+case class Add(l: Exp, r: Exp) extends Exp {
+  def eval() = l.eval + r.eval
+}
+
+// ...
+```
+
+Der große Vorteil des Objekt-Algebra-Stils ist die modulare Erweiterbarkeit in beiden Dimensionen. Es können sowohl neue Sprachkonstrukte modular ergänzt, als auch neue Funktionen neben `eval` hinzugefügt werden. Sie stellen im Allgemeinen eine Lösung für das sogenannte _Expression Problem_ dar.
+
+:::info
+Das **Expression Problem** beschreibt die Suche nach einer Datenabstraktion, bei der sowohl neue Datenvarianten (Cases), als auch neue Funktionen, die auf dem Datentyp operieren, ergänzt werden können, ohne dass bisheriger Code modifiziert werden muss und wobei Typsicherheit gewährt ist ([Wikipedia-Artikel](https://en.wikipedia.org/wiki/Expression_problem)).
+
+Bei einem funktionalen Ansatz ist typischerweise die Erweiterung mit Operationen gut unterstützt, bei einem objektorientierten Ansatz hingegen die Erweiterung mit neuen Datenvarianten.
+:::
+
+
 # Webprogrammierung mit Continuations
-Angenommen, man will eine interaktive Webanwendung über mehrere Webseiten hinweg programmieren, so wird man vor eine Herausforderung gestellt: Das Webprotokoll HTTP ist zustandslos, d.h. Anfragen sind unabhängig voneinander und es ist kein Zugriff auf vorherige Anfragen und dabei übermittelte Daten möglich. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
+Angenommen, man will eine interaktive Webanwendung über mehrere Webseiten hinweg programmieren, so wird man vor eine Herausforderung gestellt: Das Webprotokoll HTTP ist zustandslos, d.h. ein Programm im Web terminiert nach jeder Anfrage. Anfragen sind unabhängig voneinander und es ist kein Zugriff auf vorherige Anfragen und dabei übermittelte Daten möglich. Betrachten wir etwa die interaktive Funktion `progSimple` im folgenden Code:
 ```scala
 import scala.io.StdIn.readLine
 
@@ -20,17 +260,17 @@ def inputNumber(prompt: String) : Int = {
   Integer.parseInt(readLine())
 }
 
-def progSimple(): Unit = {
-  println(inputNumber("Enter first number:") + inputNumber("Enter second number:"))
+def progSimple() : Unit = {
+  println(inputNumber("First number:") + inputNumber("Second number:"))
 } 
 ```
 
-Hier finden nacheinander zwei Eingaben durch den Nutzer statt, wobei das Ergebnis aus beiden Werten berechnet wird. Würde man diese Funktion im Web umsetzen wollen, so dass der Nutzer auf zwei verschiedenen Seiten die Werte eingibt und absendet und auf einer dritten Seite das Ergebnis angezeigt bekommt, dann ist aufgrund der Zustandslosigkeit von HTTP ein spezieller Programmierstil notwendig. 
+Hier finden nacheinander zwei Eingaben durch den Nutzer statt, wobei das Ergebnis aus beiden Werten berechnet wird. Würde man diese Funktion im Web umsetzen wollen, so dass der Nutzer auf zwei verschiedenen Seiten die Werte eingibt und absendet und auf einer dritten Seite das Ergebnis angezeigt bekommt, dann wäre aufgrund der Zustandslosigkeit von HTTP ein spezieller Programmierstil notwendig. 
 
 Der Ablauf zerfällt dabei in die folgenden Teilprogramme:
-- **Teilprogramm $a$** generiert das Formular für die erste Zahl.
+- **Teilprogramm $a$** zeigt das Formular für die erste Zahl an.
 - **Teilprogramm $b$** konsumiert die Zahl aus dem ersten Formular und generiert das Formular für die zweite Zahl.
-- **Teilprogramm $c$** konsumiert die Daten aus $b$, berechnet die Ausgabe und erzeugt die Seite mit dem Ergebnis.
+- **Teilprogramm $c$** konsumiert die Daten aus dem zweiten Formular, berechnet die Ausgabe und erzeugt die Seite mit dem Ergebnis.
 
 Nun stellt sich die Frage, wie im zustandslosen Protokoll das Teilprogramm $c$ auf die in $a$ eingegebenen Daten zugreifen kann. Hierzu muss der eingegebene Wert über $b$ weitergereicht werden, etwa als verstecktes Formularfeld in HTML oder als Parameter in der URL. 
 
@@ -52,10 +292,26 @@ def progB(n: Int) = webRead("First number was "+n+"\nSecond number:", "progC")
 def progC(n1: Int, n2: Int) = webDisplay("Sum of "+n1+" and "+n2+" is "+(n1+n2))
 ```
 
-Hier wird die Weitergabe der Daten von einem Teilprogramm zum nächsten nur durch die Ausgaben und Eingaben in der Konsole durch den Nutzer modelliert, d.h. es wird bspw. erst `progA` mit `2` aufgerufen, dann `progB` mit `3` und zuletzt `progC` mit `2` und `3`. Hier ist der Nutzen der durchgeführten Programmtransformation noch nicht sonderlich klar erkenntbar.
+Hier wird die Weitergabe der Daten von einem Teilprogramm zum nächsten nur durch die Ausgaben und Eingaben in der Konsole (also händisch durch den Nutzer) modelliert, d.h. es wird bspw. erst `progA` mit `2` aufgerufen, dann `progB` mit `3` und zuletzt `progC` mit `2` und `3`. Dadurch ist der Nutzen der durchgeführten Programmtransformation noch nicht sonderlich klar erkennbar. Wie könnten ausdrücken wenn wir die noch bevorstehenden Schritte zum Zeitpunkt des letzten Programmabbruchs zur Verfügung hätten.
 
-Es können aber auch die jeweils noch notwendigen Schritte als _Continuation_ repräsentiert werden, im Fall von `progA` muss etwa noch die zweite Zahl eingelesen werden, dann müssen beide Zahlen addiert und das Ergebnis ausgegeben werden.
+## Implementierung mit Continuations
+Es können aber auch die jeweils noch notwendigen Schritte als _Continuation_ repräsentiert werden, im Fall von `progA` muss etwa noch die zweite Zahl eingelesen werden, dann müssen beide Zahlen addiert und das Ergebnis ausgegeben werden. In der ursprünglichen Variante des Programms
+```scala
+def progSimple() : Unit = {
+  println(inputNumber("First number:") + inputNumber("Second number:"))
+}
+```
+entspricht das der folgenden anonymen Funktion:
+```scala
+val cont1 = (n: Int) => println(n + inputNumber("Second number:"))
+```
 
+Die Continuation zum Zeitpunkt der zweiten Eingabe entspricht dem folgenden Wert:
+```scala
+val cont2 = (m: Int) => println(n + m)
+```
+
+Durch das Ablegen dieser Continuations in einer Map und der Ausgabe des zugehörigen Schlüssels können wir `webRead` umgestalten und es dem Nutzer ermöglichen, die Auswertung ab dem letzten Zwischenstand fortzusetzen.
 ```scala
 val continuations = new mutable.HashMap[String, Int=>Nothing]
 var nextIndex : Int = 0
@@ -80,12 +336,15 @@ def webProg =
       webDisplay("Sum of "+n+" and "+m+" is "+(n+m))))
 ```
 
-Nun kann zuerst `webProg` aufgerufen werden, es wird die nächste Continuation ausgegeben. Mit dieser Continuation und der ersten Zahl kann dann `continue` aufgerufen werden, die dabei ausgegebene Continuation kann dann `continue` mit der zweiten Zahl übergeben werden, woraufhin das Ergebnis angezeigt wird.
+Nun kann zuerst `webProg` aufgerufen werden, es wird die ID für die nächste Continuation ausgegeben. Mit dieser ID und der ersten Zahl kann dann `continue` aufgerufen werden, die dabei ausgegebene ID kann dann `continue` mit der zweiten Zahl übergeben werden, woraufhin das Ergebnis angezeigt wird. Die Bezeichner `n` und `m` sind zum Zeitpunkt, zu dem `webDisplay` aufgerufen wird, durch Scalas interne Closures gebunden und können korrekt aufgelöst werden.
 
-In Bezug auf Webprogrammierung entsprechen die Continuations Auswertungszuständen, die hinterlegt werden, wobei der Client einen Bezeichner erhält, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons das Programm in allen Instanzen korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten Session-ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da diese nicht unabhängig sind.
+In Bezug auf Webprogrammierung entsprechen die Continuations Zwischenzuständen der Auswertung, die serverseitig hinterlegt werden. Dabei erhält der Client (im Hintergrund) einen Bezeichner, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons das Programm in allen Instanzen korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten Session-ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da alle Instanzen über eine Session-ID laufen und damit nicht unabhängig sind.
 
-Eine Continuation ist eine Repräsentation des Call-Stacks als Funktion. 
+Diese Eigenschaft ist auch bei unsere Implementierung erkennbar, es kann eine ausgegebene ID mehrfach aufgerufen werden, wobei die Auswertung jeweils dann mit der nächsten ID korrekt fortgesetzt werden kann und das korrekte Ergebnis liefert.
 
+Eine Continuation kann als Repräsentation des Call-Stacks in einer Funktion aufgefasst werden.
+
+## Rekursion im Web-Stil
 Betrachten wir nun den allgemeineren Fall der n-fachen Addition: Im folgenden Programm wird eine Liste von Gegenständen rekursiv durchlaufen, wobei der Nutzer für jeden Gegenstand aufgefordert wird, einen Preis einzugeben. Nachdem alle Listenelemente abgearbeitet wurden, wird die Summe der Zahlen ausgegeben.
 
 ```scala
@@ -94,7 +353,7 @@ def inputNumber(prompt: String) : Int = {
   Integer.parseInt(readLine())
 }
 
-def addAllCosts(items: List[String]): Int = items match {
+def addAllCosts(il: List[String]): Int = il match {
   case List() => 0
   case first :: rest => inputNumber("Cost of "+first+":") + addAllCosts(rest)
 }
@@ -103,30 +362,28 @@ val testList = List("Banana", "Apple", "Orange")
 def test() : Unit = println("Total cost: " + addAllCosts(testList))
 ```
 
-Dieses Programm besitzt nach Anpassung an den "Web-Stil" die Form:
+Dieses Programm besitzt nach der "Web-Stil"-Transformation die Form:
 ```scala
-def addAllCosts_k(itemList: List[String], k: Int => Nothing) : Nothing = {
-  itemList match {
-    case List() => k(0)
-    case first :: rest =>
-      webRead_k("Cost of "+first+":",
-        (n: Int) => addAllCosts_k(rest, (m: Int) => k(m+n)))
-  }
+def addAllCosts_k(il: List[String], k: Int => Nothing) : Nothing = il match {
+  case List() => k(0)
+  case first :: rest =>
+    webRead_k("Cost of "+first+":",
+      (n: Int) => addAllCosts_k(rest, (m: Int) => k(m+n)))
 }
 
 def testWeb() : Unit = addAllCosts_k(testList, m => webDisplay("Total cost: "+m))
 ```
 
-Die Funktion `addAllCosts_k` wird aufgerufen mit der Liste von Gegenständen und der Contination `m => webDisplay("Total cost: "+m)`. Im Fall der leeren Liste wird die Continuation `k` auf `0` aufgerufen, es würde also `Total cost: 0` angezeigt werden. Ist die Liste nicht leer, so wird durch `webRead_k` der Nutzer dazu aufgefordert, den Preis des ersten Gegenstandes einzugegeben. Dabei wird die Continuation `n => addAllCosts_k(rest, m => k(m+n))` übergeben, diese Continuation wird also vom Nutzer/Client als nächstes mit dem entsprechenden Preis aufgerufen. Dabei wird die Continuation `m => k(m+n)` an `addAllCosts_k` zurückgereicht (wobei `n` durch Scalas interne Closures an die Eingabe gebunden ist), d.h. die Nutzereingabe `n` wird jeweils den Kosten hinzugefügt.
+Die Funktion `addAllCosts_k` wird aufgerufen mit der Liste von Gegenständen und der Contination `m => webDisplay("Total cost: "+m)`. Im Fall der leeren Liste wird die Continuation `k` auf `0` aufgerufen, es würde also `Total cost: 0` angezeigt werden. Ist die Liste nicht leer, so wird durch `webRead_k` der Nutzer dazu aufgefordert, den Preis des ersten Gegenstandes einzugegeben. Dabei wird die Continuation `n => addAllCosts_k(rest, m => k(m+n))` übergeben, diese Continuation wird also vom Nutzer/Client als nächstes mit dem entsprechenden Preis aufgerufen. Dabei wird die Continuation `m => k(m+n)` an `addAllCosts_k` zurückgereicht, d.h. die Nutzereingabe `n` wird jeweils den Kosten hinzugefügt.
 
-Die Funktion `addAllCosts` lässt sich geschickt mit Map umformulieren:
+Die Funktion `addAllCosts` lässt sich geschickt mit `map` umformulieren:
 ```scala
 def addAllCostsMap(items: List[String]) : Int = {
   items.map((s: String) => inputNumber("Cost of " + s + ":")).sum
 }
 ```
 
-Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch Map transformieren. Die Web-Transformation ist also "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten (bis auf primitive Operationen). Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
+Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch `map` transformieren. Die Web-Transformation ist also "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten (bis auf primitive Operationen). Es benötigen alle Funktionen einen Continuation-Parameter, damit sie auch innerhalb anderer Programme im Web-Stil eingesetzt werden sollen. Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
 ```scala
 def map[X,Y](l: List[X], f: X => Y) : List[Y] = c match {
   case List() => List()
@@ -141,36 +398,50 @@ def map_k[X,Y](l: List[X],
 }
 ```
 
-Bei der Transformation wird überall der Rückgabetyp mit `Nothing` ersetzt, die vorherigen Rückgabewerte werden stattdessen an entsprechende Continuations gereicht. So wird `f` nun durch ein neues Argument mit dem Typ `T => Nothing` ergänzt, der Typ der Eingabe entspricht dem ursprünglichen Rückgabetyp. Die `map`-Funktion selbst wird durch ein neues Argument mit dem Typ `List[T] => Nothing` ergänzt, auch hier entspricht der Typ der Eingabe dem ursprünglichen Rückgabetyp.
+Bei der Transformation wird überall der Rückgabetyp mit `Nothing` ersetzt, die ursprünglichen Rückgabewerte werden stattdessen an die Continuation gereicht. So wird `f` nun durch ein neues Argument mit dem Typ `Y => Nothing` ergänzt, der Typ der Eingabe entspricht dem ursprünglichen Rückgabetyp. Die `map`-Funktion selbst wird durch ein neues Argument mit dem Typ `List[T] => Nothing` ergänzt, auch hier entspricht der Typ der Eingabe dem ursprünglichen Rückgabetyp.
 
-Die Auswertungsreihenfolge ist entscheidend für die Web-Transformation, die implizite Auswertungsreihenfolge der verwendeten Sprache (etwa bei geschachtelten Ausdrücken) muss ausformuliert werden, das Programm wird _sequentalisiert_. Die Transformation ist global, es müssen alle verwendet Funktionen (auch in Bibliotheken etc.) transformiert werden. 
+Die Auswertungsreihenfolge ist entscheidend für die Web-Transformation, die implizite Auswertungsreihenfolge des Ausgangsprogramms (etwa bei geschachtelten Ausdrücken) muss explizit ausformuliert werden, das Programm wird _sequentalisiert_. 
+
+Außerdem ist die Transformation global, es müssen alle verwendeten Funktionen (auch aus Bibliotheken etc.) transformiert werden. 
 
 Aufgrund des Aspekts der Sequentialisierung ist die Transformation mit Continuations auch für das Programmieren von Compilern relevant. Man spricht bei diesem "Web-Stil" auch von _Continuation Passing Style_ (_CPS_).
 
 # Continuation Passing Style
 Programme in CPS besitzen die folgenden Eigenschaften:
 - Alle Zwischenwerte besitzen einen Namen.
-- Die Funktionsanwendungen werden sequentialisiert (und die Auswertungsreihenfolge ist somit explizit).
-- Alle Ausdrücke erhalten einen Continuation-Parameter und liefern keinen Rückgabewert (Rückgabetyp `Nothing`), sondern rufen den Continuation-Parameter auf dem Ergebnis auf.
-- Alle Aufrufe sind _Tail Calls_.
+- Die Auswertungsschritte werden sequentialisiert (und die Auswertungsreihenfolge ist somit explizit).
+- Alle Ausdrücke erhalten einen Continuation-Parameter und liefern keinen Rückgabewert (Rückgabetyp `Nothing`), sondern rufen den Continuation-Parameter auf ihrem Ergebnis auf.
+- Alle Funktionsaufrufe sind _Tail Calls_ (da Funktionen nicht zurückkehren).
 
 :::info
 Man spricht von einem **Tail Call**, wenn bei einem rekursiven Aufruf im Rumpf einer Funktion keine weitere Berechnung nach der Rückkehr des Aufrufs stattfindet.
-Der Aufruf `f(n+1)` ist in `def f(n: Int): Int = f(n+1)` ein Tail Call, in `def f(n: Int): Int = f(n+1)*2` jedoch nicht.
+Der Aufruf `f(n+1)` in `def f(n: Int): Int = f(n+1)` ist ein Tail Call, in `def f(n: Int): Int = f(n+1)*2` jedoch nicht.
 
-Liegt nach der CPS-Umwandlung eine "triviale" Continuation (d.h. `k` bleibt unverändert) bei einem rekursiven Aufruf vor, so handelt es sich um einen Tail Call.
+Liegt nach der CPS-Transformation eine "triviale" Continuation (d.h. `k` bleibt unverändert) bei einem rekursiven Aufruf vor, so lag ursprünglich ein Tail Call vor. Das wird bspw. an der folgenden Funktion deutlich:
+```scala
+def sumAcc(l: List[Int], acc: Int) : Int = l match {
+  case Nil => acc
+  case x::xs => sumAcc(xs, x+acc)
+}
 
-Bei Rekursion mit Tail Call (_Endrekursion_) muss der Kontext des rekursiven Aufrufs nicht auf dem Call Stack gespeichert werden, in Scala wird deshalb einfache Endrekursion erkannt und entsprechend optimiert. In Java werden auch endrekursive Aufrufe auf dem Stack hinterlegt, weshalb Schleifen bzgl. des Speicherverbrauchs vorzuziehen sind. In Racket wird bei keiner Form von Endrekursion der Stack unnötig gefüllt.
+def sumAcc_k(l: List[Int], acc: Int, k: Int => Nothing) : Nothing = l match {
+  case Nil => k(acc)
+  case x::xs => sumAcc_k(xs, acc+x, k)
+}
+```
+Die Funktion berechnet die Summe aller Zahlen in einer Liste, verwendeten aber im Gegensatz zu einer herkömmlichen Lösung (`case x::xs => x+sum(xs)`) einen zusätzlichen Parameter, in dem die aktuelle Zwischensumme gehalten wird. Dadurch liegt im rekursiven Fall ein Tail Call vor und in der CPS-transformierten Variante wird `k` unverändert weitergereicht, was bei der herkömmlichen Lösung nicht der Fall wäre.
+
+Bei Rekursion mit Tail Call (_Endrekursion_) muss der Kontext des rekursiven Aufrufs nicht auf dem Call Stack gespeichert werden, in Scala wird deshalb einfache Endrekursion erkannt und entsprechend optimiert. In Java werden auch endrekursive Aufrufe auf dem Stack hinterlegt, wodurch rekursive Berechnungen immer einen größeren Speicherverbrauch haben als iterative. In Racket findet bei Endrekursion nie eine "Kontextanhäufung" auf dem Call-Stack statt.
 :::
 
 Bei der CPS-Transformation von Funktionen und Werten sind die folgenden Schritte notwendig:
-1. Ersetzen aller Rückgabetypen durch `Nothing`, wobei auch der Typ von Konstanten durch Nothing ersetzt wird
+1. Ersetzen aller Rückgabetypen durch `Nothing`, wobei auch der Typ bei Konstanten `c: T` durch `T => Nothing` ersetzt wird
 
 2. Ergänzen eines Parameters `k` mit Typ `R => Nothing`, wobei `R` der ursprüngliche Rückgabetyp ist (Konstanten der Form `c: T` werden also in Funktionen der Form `c_k(k: T => Nothing): Nothing` umgewandelt)
 
 3. Weitergabe des Ergebnisses an `k`, bei Konstante `val c: T = x` etwa `def c_k(k: T => Nothing): Nothing = k(x)`
 
-4. Sequentialisierung durch Weiterreichen der Zwischenergebnisse, aus `f(f(42))` wird bspw. `f_k(42, n => f_k(n,k))` oder aus `f(1) + g(2)` wird `f_k(1, n => g_k(2, m => k(n+m)))`
+4. Sequentialisierung durch Weiterreichen der Zwischenergebnisse, aus `f(f(42))` wird bspw. `k => f_k(42, fRes => f_k(fRes,k))` oder aus `f(1) + g(2)` wird `k => f_k(1, fRes => g_k(2, gRes => k(fRes+gRes)))`
 
 Weitere Beispiele der CPS-Transformation:
 ```scala
@@ -193,7 +464,7 @@ def even(n: Int) : Boolean = n match {
   case 0 => true
   case n => odd(n-1)
 }
-  def odd(n: Int) : Boolean = n match {
+def odd(n: Int) : Boolean = n match {
   case 0 => false
   case n => even(n-1)
 }
@@ -209,12 +480,14 @@ def odd_k(n: Int, k: Boolean => Nothing) : Nothing = n match {
 ```
 
 
-# CPS-Interpreter
-- **Funktionsapplikationen:** Aus `f(x)` mit `f: X => Y` wird `(k: Y => ...) => f_k(x, y => k(y))`
+# Automatische CPS-Transformation
+Nun wollen wir die CPS-Transformation auf Ausdrücken in FAE automatisieren. 
 
 - **Konstanten:** Aus `c` wird `k => k(c)`
 
 - **Funktionsdefinitionen:** Aus `x => y` wird `k => k( (x, dynK) => dynK(x) )`
+
+- **Funktionsapplikationen:** Aus `f(x)` mit `f: X => Y` wird `(k: Y => ...) => f_k(x, y => k(y))`
 
 
 # First-Class Continuations

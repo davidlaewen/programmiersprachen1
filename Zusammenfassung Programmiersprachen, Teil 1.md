@@ -296,6 +296,12 @@ def foldExp[T](v: Visitor[T], e: Exp) : T = e match {
   case Num(n) => v.num(n)
   case Add(l,r) => v.add(foldExp(v,l), foldExp(v,r))
 }
+
+val evalVisitor = new Visitor[Int](n => n, (l,r) => l + r)
+val countVisitor = Visitor[Int](n => 1, (l,r) => l + r + 1)
+
+assert(foldExp(evalVisitor,  Add(2,4)) == 6)
+assert(foldExp(countVisitor, Add(2,4)) == 3)
 ```
 
 Der wesentliche Unterschied zwischen einem Interpreter und einem Visitor ist, dass der Visitor selbst nicht rekursiv ist. Stattdessen wird das grundlegende Rekursionsmuster in einer Funktion abstrahiert (als Faltung, hier in `foldExp`). Dadurch können beliebige _kompositionale_ Definitionen auf der Datenstruktur (hier `Exp`) definiert werden, ohne dass weitere Funktionen notwendig sind. 
@@ -1544,175 +1550,6 @@ Anstelle von Closures bestehend aus einer Funktion und der zugehörigen Umgebung
 Durch das zusätzliche Auslagern des Umgebungsparameters aus `eval` durch Currying ist dieser Interpreter kompositional, d.h. alle rekursiven Aufrufe von `eval` sind auf Unterausdrücken des aktuellen Ausdrucks. Dadurch lässt sich Programmäquivalenz in der Objektsprache leicht durch Äquivalenz in der Metasprache beweisen. Außerdem lässt sich der Interpreter auch im [Visitor-Stil](#Abstraktion-durch-Visitor) implementieren (s. [Übung 6b](https://github.com/DavidLaewen/programmiersprachen1/blob/master/exercises/hw06/6b-CompositionalInterpreter.scala))
 
 Es könnten auch mehr Sprachkonstrukte von FAE durch syntaktische Interpretation umgesetzt werden, bspw. könnte man Zahlen als Sequenz von Ziffern anstelle von Scala-`Int`s repräsentieren. Wir werden noch Implementation kennenlernen, die nicht mehr von Scalas Speichermanagement und Higher-Order-Funktionen abhängen.
-
-
-# Objekt-Algebren
-_Objekt-Algebren_ (_Object Algebras_) sind eine Abstraktion, die eng mit [algebraischen Datentypen](https://en.wikipedia.org/wiki/Algebraic_data_type) und [Church-Kodierungen](#Church-Kodierungen) verwandt ist. Zudem haben sie einige Gemeinsamkeiten mit dem [Visitor Pattern](#Abstraktion-durch-Visitor).
-
-Sie sind ein mächtiger und teilweise auch effizienter Mechanismus zur Modularisierung von Programmen und sind ein sehr junges Forschungsgebiet, zu dem es erst seit etwa 2012 Veröffentlichungen gibt.
-
-## Peano-Zahlen als Objekt-Algebra
-Wir können die Church-Kodierungen für Zahlen folgendermaßen in Scala nachbilden:
-```scala
-trait Num {
-  def fold[T](s: T => T, z: T) : T
-}
-
-case object Zero extends Num {
-  def fold[T](s: T => T, z: T) : T = z
-}
-
-case object One extends Num {
-  def fold[T](s: T => T, z: T) : T = s(z)
-}
-
-def succ(n: Num) : Num = {
-  new Num {
-    def fold[T](s: T => T, z: T) : T = s(n.fold(s,z))
-  }
-}
-```
-
-Bei der Implementierung im Objekt-Algebra-Stil werden die zwei Funktionen (also Argumente) der Faltung zu einem Objekt zusammengefasst:
-```scala
-trait NumSig[T] {
-  def s(p: T) : T
-  def z: T
-}
-
-trait Num { def apply[T](x: NumSig[T]) : T}
-```
-
-Eine Objekt-Algebra ist eine Klasse, die ein generisches _Abstract Factory Interface_ implementiert, das einer bestimmten Art von _algebraischer Signatur_ entspricht. Die obige Implementation im Objekt-Algebra-Stil ist eine _algebraische Struktur_ mit den Operationen `s` und `z`. Der Typ der Operationen (hier `NumSig`) wird als _Signatur_ oder _Funktor_ bezeichnet, bei `Num` handelt es sich um eine _(Funktor-)Algebra_.
-
-:::info
-Eine _algebraische Struktur_ besteht gewöhnlich aus einer nichtleeren Menge (_Grundmenge_ oder _Trägermenge_) und einer Familie von _inneren Verknüpfungen_ (_Grundoperationen_) auf der Menge. Ein Beispiel für eine einfache algebraische Struktur ist etwa das _Monoid_.
-
-Ein **Monoid** ist eine algebraische Struktur bestehend aus einer Menge $M$, einer Abbildung $\odot: M \times M \to M$ und einem neutralen Element $e \in M$, so dass $\forall a \in M$ gilt: $e \odot a = a \odot e = a$. Außerdem gilt $\forall a,b,c \in M: (a \odot b) \odot c = a \odot (b \odot c)$ (_Assoziativität_).
-:::
-
-Wir implementieren Zahlen und Addition im Objekt-Algebra-Stil folgendermaßen:
-```scala
-val zero: Num = new Num { def apply[T](x: NumSig[T]): T = x.z }
-val one: Num = new Num { def apply[T](x: NumSig[T]): T = x.s(x.z) }
-val two: Num = new Num { def apply[T](x: NumSig[T]) : T = x.s(one.apply(x))}
-
-def plus(a: Num, b: Num) : Num = new Num {
-  def apply[T](x: NumSig[T]) : T = a.apply(new NumSig[T] {
-    def s(p: T): T = x.s(p)
-    def z: T = b.apply(x)
-  })
-}
-```
-
-Dieser Stil ermöglicht verschiedene konkrete Implementierungen des Interfaces, bei denen die Argumente für die Faltung übergeben werden, die die `Num`-Objekte in der `apply`-Funktion noch erwarten.
-```scala
-object NumAlg extends NumSig[Int] {
-  def s(x: Int) : Int = x+1
-  def z = 0
-}
-
-assert(two.apply(NumAlg) == 2)
-assert(plus(one,two).apply(NumAlg) == 3)
-```
-Wir können bspw. das Objekt `NumAlg` überreichen, um die Church-kodierten Zahlen in Scala-Integer umzuwandeln. In diesem Fall bietet der Objekt-Algebra-Stil keine speziellen Vorteile, anders ist es aber bei unserem Interpreter.
-
-## Interpreter im Objekt-Algebra-Stil
-```scala
-trait Exp[T] {
-  implicit def num(n: Int) : T
-  implicit def id(name: String) : T
-  def add(l: T, r: T) : T
-  def fun(param: String, body: T) : T
-  def app(fun: T, arg: T) : T
-  def wth(x: String, xDef: T, body: T) : T = app(fun(x,body),xDef)
-}
-
-sealed abstract class Value
-type Env = Map[String,Value]
-case class ClosureV(f: Value => Value) extends Value
-case class NumV(n: Int) extends Value
-
-trait eval extends Exp[Env => Value] {
-  def id(x: String) : Env => Value = env => env(x)
-  def fun(p: String, b: Env => Value) : Env => Value =
-    env => ClosureV(v => b(env+(p -> v)))
-  def app(fun: Env => Value, arg: Env => Value) : Env => Value =
-    env => fun(env) match {
-      case ClosureV(f) => f(arg(env))
-      case _ => sys.error("Can only apply functions")
-    }
-  def num(n: Int) : Env => Value = _ => NumV(n)
-  def add(l: Env => Value, r: Env => Value) : Env => Value =
-    env => (l(env),r(env)) match {
-      case (NumV(a),NumV(b)) => NumV(a+b)
-      case _ => sys.error("Can only add numbers")
-    }
-}
-
-object eval extends eval
-
-def test[T](semantics: Exp[T]) = {
-  import semantics._
-  app(app(fun("x",fun("y",add("x","y"))),5),3)
-}
-assert(test(eval)(Map()) == NumV(8))
-```
-
-Dieser Stil erlaubt vollständige Modularität, so dass einzelne Sprachkonstrukte nach Bedarf hinzugefügt oder entfernt werden können. Wir können die Sprache etwa folgendermaßen um Multiplikation erweitern:
-```scala
-trait ExpWithMul[T] extends Exp[T] {
-  def mul(l: T, r: T) : T
-}
-
-object evalWithMul extends eval with ExpWithMul[Env => Value] {
-  def mul(l: Env => Value, r: Env => Value) : Env => Value =
-    env => (l(env),r(env)) match {
-      case (NumV(a),NumV(b)) => NumV(a*b)
-      case _ => sys.error("Can only multiply numbers")
-    }
-}
-def test2[T](semantics: ExpWithMul[T]) = {
-  import semantics._
-  app(app(fun("x",fun("y",mul("x","y"))),5),3)
-}
-```
-
-## Expression Problem
-Bei unserem Interpreter gibt es zwei Arten von Erweiterung: Zum einen gibt es die Erweiterung um zusätzliche Funktionen neben `eval` (bspw. `print` oder `countNodes`), zum anderen gibt es die Erweiterung um zusätzliche Sprachkonstrukte. 
-- Unsere bisherige Implementation mit Pattern Matching erlaubt die modulare Erweiterung um neue Funktionen -- es können neben `eval` weitere Funktion angelegt werden, die auf Expressions operieren. Die Erweiterung um neue Sprachkonstrukte ist aber nicht modular möglich, die Interpreter-Funktion kann nach ihrer Definition nicht erweitert werden.
-```scala
-sealed trait Exp
-case class Num(n: Int) extends Exp
-case class Add(l: Exp, r: Exp) extends Exp
-case class Id(x: String) extends Exp
-...
-
-def eval(e: Exp, env: Env) : Value = e match {
-  case Num(n) => ...
-  case Add(l,r) => ...
-  ...
-}
-```
-
-- Bei einer objektorientierten Implementierung können die Funktionen im Objekt nicht nachträglich verändert werden. Modulare Ergänzung neuer Sprachkonstrukte ist hingegen gut möglich, das Objekt kann nachträglich erweitert werden. 
-```scala
-sealed abstract class Exp {
-  def eval(env: Env) : Value
-}
-
-case class Mul extends Exp {
-  def eval(env: Env) : Value = ...
-}
-```
-
-Der große Vorteil der Objektalgebren ist die modulare Erweiterbarkeit in beiden Dimensionen. Es können sowohl neue Sprachkonstrukte modular ergänzt werden, als auch neue Funktionen neben `eval` hinzugefügt werden. Sie stellen im Allgemeinen eine mögliche Lösung für das _Expression Problem_ dar.
-
-:::info
-Das **Expression Problem** beschreibt die Suche nach einer Datenabstraktion, bei der sowohl neue Datenvarianten bzw. Cases, als auch neue Funktionen, die auf dem Datentyp operieren, ergänzt werden können, ohne dass bisheriger Code modifiziert werden muss und wobei Typsicherheit gewährt ist ([Wikipedia-Artikel](https://en.wikipedia.org/wiki/Expression_problem)).
-
-Bei einem funktionalen Ansatz ist typischerweise die Erweiterung mit Operationen gut unterstützt, bei einem objektorientierten Ansatz hingegen die Erweiterung mit neuen Datenvarianten (Klassen).
-:::
 
 
 
