@@ -481,13 +481,110 @@ def odd_k(n: Int, k: Boolean => Nothing) : Nothing = n match {
 
 
 # Automatische CPS-Transformation
-Nun wollen wir die CPS-Transformation auf Ausdrücken in FAE automatisieren. 
+Nun wollen wir die CPS-Transformation von Ausdrücken in FAE automatisieren. Die Transformationsregeln können folgendermaßen formalisiert werden:
 
 - **Konstanten:** Aus `c` wird `k => k(c)`
 
-- **Funktionsdefinitionen:** Aus `x => y` wird `k => k( (x, dynK) => dynK(x) )`
+- **Funktionsdefinitionen:** Aus `x => y` wird `k => k( (x, dynK) => dynK(y) )`
 
 - **Funktionsapplikationen:** Aus `f(x)` mit `f: X => Y` wird `(k: Y => ...) => f_k(x, y => k(y))`
+
+Im Fall von Funktionsdefinition müssen zwei Continuations beachtet werden: Die Continuation vom Zeitpunkt der Definition (`k`) sowie die _dynamische Continuation_ (`dynK`), die bei der Funktionsapplikation überreicht wird.
+
+Wir definieren einen zweiten Typ neben `Exp` um CPS-transformierte Ausdrücke zu repräsentieren, da sich zum einen die Syntax mancher Sprachkonstrukte durch die Transformation ändert (es kommt der zusätzliche Continuation-Parameter hinzu) und zum anderen um die Eigenschaften von CPS-transformierten Programmen explizit zu formulieren (und sicherzustellen).
+```scala
+sealed abstract class CPSExp
+sealed abstract class CPSVal extends CPSExp
+case class CPSNum(n: Int) extends CPSVal
+case class CPSFun(x: String, k: String, body: CPSExp) extends CPSVal
+case class CPSCont(v: String, body: CPSExp) extends CPSVal
+
+case class CPSVar(x: String) extends CPSVal { override def toString: String = x }
+implicit def string2cpsExp(s: String): CPSVar = CPSVar(s)
+
+case class CPSAdd(l: CPSVar, r: CPSVar) extends CPSVal
+case class CPSFunApp(f: CPSVar, a: CPSVar, k: CPSVar) extends CPSExp
+case class CPSContApp(k: CPSVal, a: CPSVal) extends CPSExp
+
+
+```
+
+Wir unterscheiden zwei syntaktische Kategorien, nämlich `CPSVal` (Werte) und `CPSExp` (Ausdrücke, die keinen Rückgabewert besitzen). Addition betrachten wir als primitive Operation, die nicht CPS-transformiert wird, und zählen diese somit zu `CPSVal`. Zu den Werten gehört auch die Repräsentation von Bezeichnern, `CPSVar`. Es wird zwischen Funktionsdefinitionen und Continuations unterschieden, wodurch auch die Applikation von Funktionen und Continuations getrennte Sprachkonstrukte sind. Bei Funktions- und Continuationapplikationen haben die Argumente den Typ `CPSVar`, somit kann es sich nicht um geschachtelte Ausdrücke handeln, diese würden nämlich nicht CPS entsprechen.
+
+Wir benötigen wieder einen Mechanismus, um "frische" Bezeichner zu generieren, diesen übernehmen von unserem substitutionsbasierten FAE-Interpreter:
+```scala
+def freeVars(e: Exp) : Set[String] =  e match {
+   case Id(x) => Set(x)
+   case Add(l,r) => freeVars(l) ++ freeVars(r)
+   case Fun(x,body) => freeVars(body) - x
+   case App(f,a) => freeVars(f) ++ freeVars(a)
+   case Num(n) => Set.empty
+}
+def freshName(names: Set[String], default: String) : String = {
+  var last : Int = 0
+  var freshName = default
+  while (names contains freshName) { freshName = default+last; last += 1; }
+  freshName
+}
+```
+
+Die CPS-Transformation von FAE-Ausdrücken läuft folgendermaßen ab:
+```scala
+def cps(e: Exp) : CPSCont = e match {
+  case Num(n) => {
+    CPSCont("k", CPSContApp("k", CPSNum(n)))
+  }
+  case Id(x) => {
+    val k = freshName(freeVars(e),"k")
+    CPSCont(k, CPSContApp(k, CPSVar(x)))
+  }
+  case Add(l,r) => {
+    val k = freshName(freeVars(e),"k")
+    val lv = freshName(freeVars(r),"lv")
+    CPSCont(k, CPSContApp(cps(l), CPSCont(lv, 
+      CPSContApp(cps(r), CPSCont("rv", 
+        CPSContApp(k, CPSAdd(lv,"rv")))))))
+  }
+  case Fun(p,b) => {
+    val k = freshName(freeVars(e),"k")
+    val dynK = freshName(freeVars(e),"dynK")
+    CPSCont(k, CPSContApp(k, CPSFun(p, dynK, CPSContApp(cps(b), dynK))))
+  }
+  case App(f,a) => {
+    val k = freshName(freeVars(e),"k")
+    val fv = freshName(freeVars(a),"fv")
+    CPSCont(k, CPSContApp(cps(f), CPSCont(fv,
+      CPSContApp(cps(a), CPSCont("av",
+        CPSFunApp(fv,"av",k))))))
+  }
+}
+```
+
+Entsprechend der zu Beginn formulierten Regeln zur Transformation werden Konstanten (`Num`- und `Id`-Ausdrücke) umgewandelt von `c` in `k => k(c)`, was als `CPSExp` dem Ausdruck `CPSCont(k, CPSContApp(k, c))` entspricht. Im `Add`- und `App`-Fall werden die zwei Unterausdrücke sequenziell umgewandelt, wobei die Zwischenergebnisse jeweils an einen Bezeichner (`CPSVar`, implizite Umwandlung von Strings) gebunden werden. 
+
+Der Bezeichner `k` darf jeweils nicht in `e` vorkommen, der Bezeichner für den transformierten linken Unterausdruck (`lv` bzw. `fv`) darf nur nicht im rechten Unterausdruck vorkommen und der Bezeichner für den transformierten rechten Unterausdruck kann frei gewählt werden, da zwischen dem bindenden Vorkommen und der Verwendung kein rekursive Transformation eines Unterausdrucks stattfindet.
+
+Im `Fun`-Fall wird der Rumpf mit der dynamischen Continuation transformiert und wird auch in den `CPSFun`-Ausdruck eingefügt. Auf diesen wird dann die Continuation vom Zeitpunkt der Definition angewendet.
+
+Bei der hier verwendeten Transformation handelt es sich um die sogenannte _Fischer-Transformation_.
+
+:::info
+Die **Fischer-CPS-Transformation** ist ein möglicher CPS-Transformationsalgorithmus von vielen verschiedenen. Der Vorteil der Algorithmus ist seine Einfachheit und die Tatsache, dass es sich um eine strukturelle Rekursion des abstrakten Syntaxbaums handelt. Ein großer Nachteil ist aber, dass sogenannte _administrativen Redexe_ bei der Umwandlung entstehen, dabei handelt es sich um Contination-Applikationen von anonymen Funktionen, die nicht im ursprünglichen Programm enthalten waren und direkt aufgelöst werden könnten.
+
+Bspw. ergibt die Fischer-Transformation von `Add(2,3)` den Ausdruck
+```scala
+CPSCont("k", CPSContApp(CPSCont("k", CPSContApp("k",2)),
+  CPSCont("lv", CPSContApp(CPSCont("k", CPSContApp("k",3)),
+    CPSCont("rv", CPSAdd("rv","lv"))))))
+```
+anstelle von 
+```scala
+CPSCont("k", CPSContApp("k", CPSAdd(2,3)))
+```
+
+Fortgeschrittenere Transformationsalgorithmen versuchen möglichst viele dieser administrativen Redexe zu vermeiden.
+:::
+
 
 
 # First-Class Continuations
