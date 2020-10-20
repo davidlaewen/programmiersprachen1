@@ -766,7 +766,7 @@ _Monaden_ sind eine Möglichkeit, über solche (und noch viel mehr) Funktionskom
 
 Zur Einführung von Monaden wollen wir aber vorerst einen anderen Stil betrachten.
 
-## Option-Monad
+## Einführung mit Option-Monade
 ```scala
 def expr = h(!g(f(27)+"z"))
 ```
@@ -845,12 +845,14 @@ trait Monad[M[_]] {
 }
 ```
 
-Ein Monad ist ein Tripel aus einem Typkonstruktor (`M[_]`) und zwei Funktionen, nämlich `unit` und `bind`. Es müssen zudem die folgenden _Monad-Gesetze_ gelten:
+Eine Monade ist ein Tripel aus einem Typkonstruktor (`M[_]`) und zwei Funktionen, nämlich `unit` und `bind`. Es müssen zudem die folgenden _Monadengesetze_ gelten:
 - `bind(unit(x),f) == f(x)`
 - `bind(x, y => unit(y)) == x`
 - `bind(bind(x,f),g) == bind(x, y => bind(f(y),g))`
 
-D.h. `unit` ist eine Art "neutrales Element" und `bind` ist assoziativ.
+D.h. `unit` ist eine Art "neutrales Element" und `bind` ist eine assoziative Operation.
+
+Monaden dienen zur Funktionskomposition für Fälle, in denen der Rückgabetyp einer Funktion nicht dem Parametertyp der danach anzuwendenden Funktion entspricht, sondern ein "Zwischenschritt" notwendig ist.
 
 Mit dem Monad-Interface kann das Einführungsbeispiel folgendermaßen ausgedrückt werden:
 ```scala
@@ -871,21 +873,103 @@ val expr2Res = expr2(OptionMonad)
 ```
 
 ## For-Comprehension-Syntax
-In Scala kann mit der folgenden Funktion die Syntax der `for`-Comprehensions für das Programmieren mit Monaden genutzt werden:
+Die geschachtelten Aufrufe von `bind` sind bei komplexeren Beispielen etwas unleserlich, es kann aber die sogenannte _Monad-Comprehension_-Notation verwendet werden, um die Ausdrücke einfacher auszudrücken. Monad Comprehensions werden in Haskell und manchen anderen Sprachen nativ unterstützt, in Scala müssen wir stattdessen die _For-Comprehension_-Syntax für diese Zwecke "hijacken".
+
+Diese Syntax wird im Normalfall für Listen und andere `Collection`-Datentypen verwendet:
 ```scala
-implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) = new {
-    def map[B](f: A => B): Any = mm.bind(m, (x: A) => mm.unit(f(x)))
-    def flatMap[B](f: A => M[B]): M[B] = mm.bind(m, f)
-  }
+val l = List(List(1,2),List(3,4))
+
+val res = for {
+  x <- l; 
+  y <- x } yield y+1 // == List(2,3,4,5)
 ```
 
-Diese Syntax kann für alle Datentypen angewendet werden, für die `map` und `flatMap` definiert ist. Durch die obige implizite Definition, in der wir `map` und `flatMap` so definieren, dass sie gerade der `unit`- und der `bind`-Operation entsprechen, sorgen wir dafür, dass die `for`-Comprehension-Syntax für die `Monad`-Klasse genutzt werden kann.
+Durch Desugaring werden For-Comprehensions in Aufrufe von `flatMap` und `map` umgewandelt:
+```scala
+val res = l.flatMap(x => x.map(y => y+1))
+```
 
-Monaden dienen zur Funktionskomposition für Fälle, in denen der Rückgabetyp einer Funktion nicht dem Parametertyp der danach anzuwendenden Funktion entspricht, sondern ein "Zwischenschritt" notwendig ist.
+Diese Syntax kann für alle Datentypen angewendet werden, für die `map` und `flatMap` definiert ist. Mit der folgenden Funktionsdefinition kann somit die Syntax der For-Comprehensions für das Programmieren mit Monaden genutzt werden:
+```scala
+implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) = new {
+  def map[B](f: A => B): Any = mm.bind(m, (x: A) => mm.unit(f(x)))
+  def flatMap[B](f: A => M[B]): M[B] = mm.bind(m, f)
+}
+```
+
+Durch die obige implizite Definition, in der wir `map` und `flatMap` so definieren, dass sie gerade der `unit`- und der `bind`-Operation entsprechen, sorgen wir dafür, dass die For-Comprehension-Syntax für die `Monad`-Klasse genutzt werden kann.
+
+Unser Option-Monad-Beispiel kann mit dieser Syntax wie folgt ausgedrückt werden:
+```scala
+def expr2(m: Monad[Option]) = for {
+  x <- f(27);
+  y <- g(x+"z") 
+} yield !y
+```
+
 
 ## Operationen auf Monaden
+Es lassen sich einige nützliche Operationen generisch für beliebige Monaden definieren:
+```scala
+def fmap[M[_],A,B](f: A => B)(implicit m: Monad[M]): M[A] => M[B] = 
+  a => m.bind(a, (x: A) => m.unit(f(x)))
+```
+
+`fmap` wandelt jede Funktion mit Typ `A => B` in eine Funktion vom Typ `M[A] => M[B]` um.
+
+```scala
+def sequence[M[_],A](l: List[M[A]])(implicit m: Monad[M]) : M[List[A]] = l match {
+  case x :: xs => 
+      m.bind(x, (y: A) => 
+        m.bind(sequence(xs), (ys : List[A]) =>
+		  m.unit(y :: ys)))
+  case Nil => m.unit(List.empty)
+}  
+```
+
 
 # Weitere Monaden
+++**Option-Monade:**++ Die _Option-Monade_ (auch _Maybe-Monade_ genannt) haben wir bereits in der [Einführung](#Einführung-mit-Option-Monade) kennengelernt.
+```scala
+object OptionMonad extends Monad[Option] {
+  override def bind[A,B](a: Option[A], f: A => Option[B]) : Option[B] = a match {
+    case Some(x) => f(x)
+    case None => None
+  }
+  override def unit[A](a: A) = Some(a)
+}	
+```
+
+++**Identitäts-Monade:**++ Die _Identitäts-Monade_ ist die einfachste Monade, die normaler Funktionsapplikation entspricht. Die Übergabe der Identitäts-Monade an monadischen Code liefert den Code im gewöhnlichen Programmierstil.
+
+```scala
+type Id[X] = X   
+object IdentityMonad extends Monad[Id] {
+  def bind[A,B](x: A, f: A => B) : B = f(x) 
+  def unit[A](a: A) : A = a
+}
+```
+Für diese Monade wird leider nicht die Syntax der For-Comprehensions unterstützt.
+
+++**Reader-Monade:**++ Die _Reader-Monade_ kodiert den "Environment Passing Style", den wir bspw. im FAE-Interpreter gesehen haben.
+```scala
+trait ReaderMonad[R] extends Monad[({type M[A] = R => A})#M] {
+  override def bind[A,B](x: R => A, f: A => R => B) : R => B = r => f(x(r))(r)
+  override def unit[A](a: A) : R => A = (_) => a
+}
+```
+
+Beim Typparameter `({type M[A] = R => A})#M` handelt es sich um eine Funktion auf Typ-Ebene, d.h. `M[A]` wird über die Gleichung `M[A] = R => A` definiert, wobei `R` ein zusätzlicher Typparameter der Monade ist.
+
+++**State-Monade:**++
+
+++**Listen-Monade:**++
+
+++**Continuation-Monade:**++
+
+
+
+
 
 # Monadentransformer
 
