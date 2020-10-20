@@ -43,7 +43,7 @@ object OptionStyle {
 
 /** abstraction over type constructor */
 trait Monad[M[_]] { // M is type parameter that expects a function.
-  def bind[A,B](m: M[A], f: A => M[B]) : M[B] // Types match those of bind and unit for Options, except
+  def bind[A,B](m: M[A], f: A => M[B]) : M[B] // Types match those of bind and unit for Option, except
   def unit[A](a: A) : M[A] // that the type constructor is now parameterized.
 }
 

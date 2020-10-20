@@ -754,33 +754,123 @@ Im `App`-Fall wird bei der Applikation von Continuations die aktuelle Continuati
 
 # Monaden
 In unseren bisherigen Interpretern haben wir bereits einige verschiedene "Rekursions-Patterns" gesehen: 
-- Im [ersten Interpreter](https://pad.its-amazing.de/programmiersprachen1teil1#Erster-Interpreter-AE) haben wir direkte Rekursion, bei der die `eval`-Funktion rekursiv auf den Unterausdrücken aufgerufen wird. Die rekursive Auswertung entspricht exakt der rekursiven Datenstruktur, in denen die Programme repräsentiert sind.
+- Im [ersten Interpreter](https://pad.its-amazing.de/programmiersprachen1teil1#Erster-Interpreter-AE) haben wir direkte Rekursion, bei der die `eval`-Funktion rekursiv auf den Unterausdrücken aufgerufen wird. Die rekursive Auswertung entspricht exakt der rekursiven Datenstruktur, in denen die Programme repräsentiert sind (_strukturelle Rekursion_).
 
-- Bei der Einführung von Environments in [AEId](https://pad.its-amazing.de/programmiersprachen1teil1#Identifier-mit-Umgebung-AEId) oder in [FAE](https://pad.its-amazing.de/programmiersprachen1teil1#Closures) wird bspw. die Environment bei der rekursiven Auswertung im abstrakten Syntaxbaum (AST) nach unten weitergereicht, d.h. der zusätzliche Parameter `env` wird entlang der Datenstruktur propagiert. 
+- Bei der Einführung von Environments in [AEId](https://pad.its-amazing.de/programmiersprachen1teil1#Identifier-mit-Umgebung-AEId) oder in [FAE](https://pad.its-amazing.de/programmiersprachen1teil1#Closures) wird die Environment bei der rekursiven Auswertung im abstrakten Syntaxbaum (AST) nach unten weitergereicht, d.h. der zusätzliche Parameter `env` wird entlang der Datenstruktur propagiert. 
 
-- Bei der Ergänzung von mutierbaren Boxen in [BCFAE](https://pad.its-amazing.de/programmiersprachen1teil1#Interpreter) haben wir den `Store`-Parameter hinzugefügt, der im AST auf einer Ebene erst bei einem rekursiven Aufruf übergeben wird, dann (evtl. modifiziert) zurückkehrt und beim nächsten rekursiven Aufruf wieder übergeben wird.
+- Bei der Ergänzung von mutierbaren Boxen in [BCFAE](https://pad.its-amazing.de/programmiersprachen1teil1#Interpreter) haben wir den `Store`-Parameter hinzugefügt, der immer von der aktuellen Auswertungsposition zur nächsten Auswertungsposition gereicht (und dazwischen potentiell modifizert) wird.
 
-- Der CPS-transformierte Interpreter entspricht dem Continuation Passing Style, den wir bereits ausführlich besprochen haben. 
+- Der [CPS-transformierte Interpreter](#FAE-mit-First-Class-Continuations) entspricht dem Continuation Passing Style, den wir bereits ausführlich besprochen haben. 
 
-:::warning
-Monad-Intro mit Option-Monad
-:::
+_Monaden_ sind eine Möglichkeit, über solche (und noch viel mehr) Funktionskompositions-Patterns zu abstrahieren. Durch Monaden ist es möglich, einmalig verfassten Code in all diese Stile zu übersetzen.
 
-Monaden können aufgefasst werden als Möglichkeit, solche Rekursionstile bzw. -patterns zu definieren und darüber zu abstrahieren.
+Zur Einführung von Monaden wollen wir aber vorerst einen anderen Stil betrachten.
+
+## Option-Monad
 ```scala
-trait Monad[M[_]] {
-    def unit[A](a: A) : M[A]
-    def bind[A,B](m: M[A], f: A => M[B]) : M[B]
-  }
+def expr = h(!g(f(27)+"z"))
 ```
 
-Ein Monad ist ein Tripel aus einem Typkonstruktor (`M[_]`) und zwei Funktionen, nämlich `unit` und `bind`. Dabei müssen die folgenden _Monad-Gesetze_ gelten:
+Angenommen, die Funktionen `f` und `h`, die im obigen Ausdruck aufgerufen werden, können in manchen Fällen keine Ausgabe liefern (was bspw. daran liegen könnte, dass sie intern Anfragen über ein Netzwerk schicken). In solch einem Fall wäre es sinnvoll, den `Option`-Datentyp zu verwenden, um auch bei fehlgeschlagener Auswertung `None` ausgeben zu können. Bei erfolgreicher Auswertung wird das Ergebnis mit `Some()` umhüllt:
+```scala
+def f(n: Int) : Option[String] = if (n < 100) Some("x") else None
+def g(x: String) : Option[Boolean] = Some(x == "x")
+def h(b: Boolean) : Option[Int] = if (b) Some(27) else None
+```
+
+Da aber Aufrufe der Funktionen potentiell `None` anstelle eines Ergebnisses liefern, muss `expr` modifiziert werden:
+```scala
+def expr = f(27) match {
+  case Some(x) => g(x+"z") match {
+    case Some(y) => h(!y)
+		case None => None
+  }
+	case None => None
+}
+```
+
+Bei jedem Aufruf muss anschließend ein Pattern-Match genutzt werden, um die zwei Fälle (`None` und `Some()`) zu unterscheiden und im `Some()`-Fall die Auswertung mit dem Ergebnis fortzusetzen. Es ist erkennbar, dass dieses Pattern bei jedem Aufruf einer Funktion mit Rückgabetyp `Option[T]` auftritt, wir abstrahieren also über das Pattern mit der folgenden Funktion:
+```scala
+def bindOption[A,B](a: Option[A], f: A => Option[B]) : Option[B] = a match {
+  case Some(x) => f(x)
+  case None => None
+}
+
+def expr = 
+  bindOption(f(27), (x: String) => 
+    bindOption(g(x+"z"), (y: Boolean) =>
+	  h(!y)))
+```
+
+Mit `bindOption` können wir jeden Ausdruck im "Option-Stil" vereinfachen und die Redundanz des wiederholten, gleichartigen Pattern-Matchings vermeiden.
+
+Angenommen, auf das verneinte Ergebnis von `g` wird nicht mehr `h` angewendet:
+```scala
+def expr2 = !g(f(27)+"z")
+```
+
+Dann muss das Ergebnis vor der Ausgabe wieder mit `Some()` "verpackt" werden, damit der Rückgabetyp `Option` (und damit der Option-Stil) erfüllt bleibt. Dies ist aber nicht mit `bindOption` möglich, sondern wir müssten `Some()` explizit aufrufen:
+```scala
+def expr2 =
+  bindOption(f(27), (x: String) =>
+    bindOption(g(x+"z"), (y: Boolean) =>
+      Some(!y)))
+```
+
+Da wir aber über das Pattern der Funktionskomposition abstrahieren wollen, soll der `Option`-Datentyp nicht sichtbar sein. Wir fügen also unserem Funktionskompositions-Interface stattdessen neben `bindOption` eine zweite Funktion `unitOption` hinzu:
+```scala
+def bindOption[A,B](a: Option[A], f: A => Option[B]) : Option[B] = a match {
+  case Some(x) => f(x)
+  case None => None
+}
+
+def unitOption[A](a: A) : Option[A] = Some(a)
+```
+
+Mit `unitOption` können wir `expr2` folgendermaßen ausdrücken:
+```scala
+def expr2 =
+  bindOption(f(27), (x: String) =>
+    bindOption(g(x+"z"), (y: Boolean) =>
+      unit(!y)))
+```
+
+Nun haben wir den Option-Stil abstrahiert, wir können aber einen Schritt weiter gehen und über den Typ `Option` abstrahieren, um beliebige Patterns auszudrücken. Dadurch erhalten wir das _Monad-Interface_.
+
+## Definition
+```scala
+trait Monad[M[_]] {
+  def unit[A](a: A) : M[A]
+  def bind[A,B](m: M[A], f: A => M[B]) : M[B]
+}
+```
+
+Ein Monad ist ein Tripel aus einem Typkonstruktor (`M[_]`) und zwei Funktionen, nämlich `unit` und `bind`. Es müssen zudem die folgenden _Monad-Gesetze_ gelten:
 - `bind(unit(x),f) == f(x)`
 - `bind(x, y => unit(y)) == x`
 - `bind(bind(x,f),g) == bind(x, y => bind(f(y),g))`
 
-D.h. `unit` ist eine Art "neutrales Element" und `bind` ist assoziativ. 
+D.h. `unit` ist eine Art "neutrales Element" und `bind` ist assoziativ.
 
+Mit dem Monad-Interface kann das Einführungsbeispiel folgendermaßen ausgedrückt werden:
+```scala
+object OptionMonad extends Monad[Option] {
+  override def unit[A](a: A) : Option[A] = Some(a)
+  override def bind[A,B](m: Option[A], f: A => Option[B]) : Option[B] = m match {
+    case Some(y) => f(y)
+    case None => None
+  }
+}
+
+def expr2(m: Monad[Option]) =
+  m.bind(f(27), (x: String) =>
+    m.bind(g(x+"z"), (y: Boolean) =>
+      m.unit(!y)))
+      
+val expr2Res = expr2(OptionMonad)
+```
+
+## For-Comprehension-Syntax
 In Scala kann mit der folgenden Funktion die Syntax der `for`-Comprehensions für das Programmieren mit Monaden genutzt werden:
 ```scala
 implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) = new {
@@ -795,12 +885,13 @@ Monaden dienen zur Funktionskomposition für Fälle, in denen der Rückgabetyp e
 
 ## Operationen auf Monaden
 
-## Beispiele für Monaden
+# Weitere Monaden
 
-## Monadentransformer
+# Monadentransformer
 
-## IO-Monad?
-
+:::warning
+IO-Monad?
+:::
 
 # Monadischer Interpreter
 Interfacing, Transformer, Bausteinsystem
