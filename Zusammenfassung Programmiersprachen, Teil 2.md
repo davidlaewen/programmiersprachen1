@@ -910,13 +910,17 @@ def expr2(m: Monad[Option]) = for {
 
 ## Operationen auf Monaden
 Es lassen sich einige nützliche Operationen generisch für beliebige Monaden definieren:
+
+`fmap` wandelt jede Funktion mit Typ `A => B` in eine Funktion vom Typ `M[A] => M[B]` um.
 ```scala
 def fmap[M[_],A,B](f: A => B)(implicit m: Monad[M]): M[A] => M[B] = 
   a => m.bind(a, (x: A) => m.unit(f(x)))
+
+assert( fmap((n: Int) => n.toString)(OptionMonad)(Some(1)) == Some("1") )
+
 ```
 
-`fmap` wandelt jede Funktion mit Typ `A => B` in eine Funktion vom Typ `M[A] => M[B]` um.
-
+`sequence` verknüpft eine Liste monadischer Werte zu einem einzelnen monadischen Wert, der eine Liste ist, aus einem Wert des Typs `List[M[A]]` wird ein Wert des Typs `M[List[A]]`.
 ```scala
 def sequence[M[_],A](l: List[M[A]])(implicit m: Monad[M]) : M[List[A]] = l match {
   case x :: xs => 
@@ -924,11 +928,33 @@ def sequence[M[_],A](l: List[M[A]])(implicit m: Monad[M]) : M[List[A]] = l match
         m.bind(sequence(xs), (ys : List[A]) =>
 		  m.unit(y :: ys)))
   case Nil => m.unit(List.empty)
-}  
+}
+
+def ex(implicit m: Monad[Option]) =
+  List(m.unit(1),m.unit(2),m.unit(3))
+
+// List[Option[Int]] => Option[List[Int]]
+assert( sequence(ex(OptionMonad))(OptionMonad) == Some(List(1,2,3)) )
 ```
 
+`mapM` verknüpft `sequence` und `map`. Es wird also aus `List[A]` erst `List[M[B]]` (durch `map`) und anschließend aus `List[M[B]]` (durch `sequence`) `M[List[B]]`.
+```scala
+def mapM[M[_],A,B](f : A => M[B], l: List[A])(implicit m: Monad[M]) : M[List[B]] =
+  sequence(l.map(f))
 
-# Weitere Monaden
+assert( mapM[Option,Int,String](n => Some(n.toString), List(1,2,3))(OptionMonad) 
+    == Some(List("1","2","3")) )
+```
+
+`join` kann verwendet werden, um einen zweifach in einer Monade "verpackten" Wert zu "entpacken". Der Eingabetyp ist also `M[M[A]]`, der Ausgabetyp `M[A]`.
+```scala
+def join[M[_],A](x : M[M[A]])(implicit m: Monad[M]) : M[A] = 
+  m.bind(x, (y : M[A]) => y)
+
+assert( join[Option,Int](Some(Some(1)))(OptionMonad) == Some(1) )
+```
+
+## Weitere Monaden
 ++**Option-Monade:**++ Die _Option-Monade_ (auch _Maybe-Monade_ genannt) haben wir bereits in der [Einführung](#Einführung-mit-Option-Monade) kennengelernt.
 ```scala
 object OptionMonad extends Monad[Option] {
@@ -955,31 +981,88 @@ Für diese Monade wird leider nicht die Syntax der For-Comprehensions unterstüt
 ```scala
 trait ReaderMonad[R] extends Monad[({type M[A] = R => A})#M] {
   override def bind[A,B](x: R => A, f: A => R => B) : R => B = r => f(x(r))(r)
-  override def unit[A](a: A) : R => A = (_) => a
+  override def unit[A](a: A) : R => A = _ => a
 }
 ```
 
-Beim Typparameter `({type M[A] = R => A})#M` handelt es sich um eine Funktion auf Typ-Ebene, d.h. `M[A]` wird über die Gleichung `M[A] = R => A` definiert, wobei `R` ein zusätzlicher Typparameter der Monade ist.
+Beim Typparameter `({type M[A] = R => A})#M` handelt es sich um eine Funktion auf Typ-Ebene, d.h. `M[A]` wird über die Gleichung `M[A] = R => A` definiert, wobei `R` ein zusätzlicher Typparameter der Monade ist. `R` wird bei jedem Funktionsaufruf als zusätzliches Argument weitergereicht, was in `M[A] = R => A` durch Currying ausgedrückt wird.
 
-++**State-Monade:**++
+++**State-Monade:**++ Bei der _State-Monade_ sind Berechnungen abhängig von einem Zustand `S`, der von Berechnung zu Berechnung gereicht wird. `S` wird also beim Aufruf übergeben und mit dem Ergebnis in einem Tupel ausgegeben, was mit Currying in der Gleichung `M[A] = S => (A,S)` ausgedrückt wird.
+```scala
+trait StateMonad[S] extends Monad[({type M[A] = S => (A,S)})#M] {
+  override def bind[A,B](x: S => (A,S), f: A => S => (B,S)) : S => (B,S) = 
+      s => x(s) match { case (a,s2) => f(a)(s2) }
+  override def unit[A](a: A) : S => (A,S) = s => (a,s)
+}
+```
 
-++**Listen-Monade:**++
+++**Listen-Monade:**++ Bei der _Listen-Monade_ erzeugen Berechnungen Listen von Ergebnissen, `bind` fügt jeweils alle Ergebnisse in einer Liste zusammen. In `bind` wird die Funktion `f` auf jedes Element der Liste angewendet und die Ergebnisse vom Typ `List[B]` werden zu einer Liste konkateniert.
+```scala
+object ListMonad extends Monad[List] {
+  override def bind[A,B](x: List[A], f: A => List[B]) : List[B] = x.flatMap(f)
+  override def unit[A](a: A) = List(a)
+}  
+```
 
-++**Continuation-Monade:**++
+++**Continuation-Monade:**++ Die _Continuation-Monade_ kodiert CPS, es gilt `M[A] = (A => R) => R`, wobei `R` ein zusätzlicher Typparameter ist, der den Rückgabetyp von Continuations angibt.
+```scala
+trait ContinuationMonad[R] extends Monad[({type M[A] = (A => R) => R})#M] {
+  type Cont[X] = (X => R) => R
+  override def bind[A,B](x: Cont[A], f: A => Cont[B]) : Cont[B] = 
+     k => x( a => f(a)(k))
+  override def unit[A](a: A) : Cont[A] = k => k(a)
+  def callcc[A,B](f: (A => Cont[B]) => Cont[A]) : Cont[A] = 
+    k => f( (a:A) => (_:B=>R) => k(a))(k)
+}
+```
 
+## Monadentransformer
+In der praktischen Programmierung will man oft die Eigenschaften verschiedener Monaden kombinieren, etwa um gleichzeitig die Option-Monade und die Listen-Monade zu nutzen. Mit _Monadentransformern_ ist die Komposition von Monaden möglich. Dabei handelt es sich um eine zusätzliche Fassung von jeder Monade, die mit einer weiteren Monade parametrisiert ist. 
 
+Wir verwenden wieder die Option-Monade als Beispiel und erweitern diese um eine äußere Monade:
+```scala
+type OptionT[M[_]] = { type x[A] = M[Option[A]] }
 
+class OptionTMonad[M[_]](val m: Monad[M]) extends Monad[OptionT[M]#x] {
+  override def bind[A,B](x: M[Option[A]], f: A => M[Option[B]]) : M[Option[B]] =
+    m.bind(x, (z: Option[A]) => z match {
+      case Some(y) => f(y)
+      case None => m.unit(None)
+    })
+  override def unit[A](a: A) : M[Option[A]] = m.unit(Some(a))
+  
+  def lift[A](x: M[A]) : M[Option[A]] = m.bind(x, (a: A) => m.unit(Some(a)))
+}
+```
 
-
-# Monadentransformer
+`lift` nimmt einen Wert vom Typ `M[A]` und macht daraus einen Wert vom Typ `M[Option[A]]`, umhüllt also den inneren Datentyp von `M` mit `Option`.
 
 :::warning
 IO-Monad?
 :::
 
 # Monadischer Interpreter
-Interfacing, Transformer, Bausteinsystem
+## Monadenbibliothek
+Bevor wir verschiedene Bausteine für Interpreter anlegen, wollen wir erst eine Bibliothek von Monaden und Monadenkompositionen anlegen. Dabei orientieren wir uns an dem Stil von Standardbibliotheken für Scala oder Haskell.
+```scala
+trait Monad {
+  type M[_]
+  def unit[A](a: A) : M[A]
+  def bind[A,B](m: M[A], f: A => M[B]) : M[B]
+  implicit def monadicSyntax[A](m:M[A]) = new {
+      def map[B](f: A => B) = bind(m, (x:A) => unit(f(x)))
+      def flatMap[B](f: A => M[B]) : M[B] = bind(m,f)
+  }
+}
+```
 
+Wir definieren den Typkonstruktor `M` innerhalb der Klasse und nicht als Typparameter, da die "Typgleichungen" somit leichter ausgedrückt werden können.
+
+Zuerst legen wir Interfaces für die Monaden an, in denen wir jeweils die Typgleichung für `M` und ggf. weitere benötigte Typen definieren. In den Interfaces legen wir auch zusätzlich benötigte Funktion neben `bind` und `unit` in abstrakter Form an. Wir definieren dann alle Monaden bis auf die Identitäts-Monade in Form von Monadentransformern, diesmal mit einer zusätzlichen inneren Monade. Dabei implementieren wir alle abstrakten Funktionen nun (unter Berücksichtigung der inneren Monade) konkret. Durch Komposition mit der Identitäts-Monade erzeugen wir effektiv eine Fassung ohne innere Monade, wodurch wir diese nicht getrennt definieren müssen. 
+
+:::warning
+Interfacing, Transformer, Bausteinsystem
+:::
 
 # Defunktionalisierung
 :::info
@@ -990,10 +1073,10 @@ Interfacing, Transformer, Bausteinsystem
 Eine **abstrakte Maschine** bezeichnet in der theoretischen Informatik einen endlichen Automaten dessen Zustandsmenge unendlich groß sein kann.
 :::
 
-In einem zu defunktionalisierenden Programm dürfen keine anonyme Funktionen auftreten. Um das Programm so umzuschreiben, dass keine anonymen Funktionen auftreten, wird _Lambda Lifting_ (auch _Closure Conversion_ genannt) verwendet.
+In einem zu defunktionalisierenden Programm dürfen keine anonyme Funktionen auftreten. Um das Programm ohne anonyme Funktionen umzuschreiben, wird _Lambda Lifting_ (auch _Closure Conversion_ genannt) verwendet.
 
-## Lambda-Lifting
-Ziel von _Lambda-Lifting_ ist es, lokale Funktionen in Top-Level-Funktionen umzuwandeln. Lambda-Lifting kommt auch häufig in Compilern zum Einsatz, bspw. findet man im Bytecode, der beim Kompilieren von Scala-Programmen erzeugt wird, Funktionsdefinition für alle anonymen Funktionen im Programm.
+## Lambda Lifting
+Ziel von _Lambda Lifting_ ist es, lokale Funktionen in Top-Level-Funktionen umzuwandeln. Lambda-Lifting kommt auch häufig in Compilern zum Einsatz, bspw. findet man im Bytecode, der beim Kompilieren von Scala-Programmen erzeugt wird, globale Funktionsdefinition für alle anonymen Funktionen im Programm.
 
 Im folgenden Programm gibt es zwei anonyme Funktionen, nämlich `y => y*n` und `y => y+n`.
 ```scala
@@ -1118,9 +1201,15 @@ def addAndMulNToList(n: Int, l: List[Int]) : List[Int] =
 
 
 # Typsysteme
-Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Im Kontext von Typsystemen und Typecheckern spricht man von den Eigenschaften _Soundness_ und _Completeness_. Ein Typsystem in _complete_, wenn es jeden bei der Ausführung auftretenden Typfehler vor der Ausführung meldet und _sound_, wenn es nur Fehler meldet, die tatsächlich bei der Ausführung auftreten.
+Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Im Kontext von Typsystemen und Typecheckern spricht man von den Eigenschaften _Soundness_ und _Completeness_. 
 
-Aus dem _Satz von Rice_ folgt, dass es für eine Turing-vollständige Sprache kein perfektes Typsystem (das Soundness und Completeness erfüllt) geben kann.
+:::info
+Ein Typsystem ist _sound_, wenn es jeden bei der Ausführung auftretenden Typfehler vor der Ausführung meldet und _complete_, wenn es nur Fehler meldet, die tatsächlich bei der Ausführung auftreten. Anders ausgedrückt: Einen Typecheck, der sound ist, bestehen **nur echt typsichere** Programme und einen Typecheck, der complete ist, bestehen **alle typsicheren** Programme. 
+
+Im Fall von Soundness bestehen evtl. **echt typsichere** Programme den Typecheck nicht, im Fall von Completeness bestehen evtl. **nicht typsichere** Programme den Typecheck.
+:::
+
+Aus dem _Satz von Rice_ folgt, dass es für eine Turing-vollständige Sprache kein perfektes Typsystem, das Soundness und Completeness erfüllt, geben kann.
 
 :::info
 **Satz von Rice:** Sei $\mathcal{P}$ die Menge aller Turing-berechenbaren Funktionen und $\mathcal{S} \subsetneq \mathcal{P}$ eine nicht-leere, echte Teilmenge davon, so ist die Menge der Turingmaschinen, deren berechnete Funktion in $\mathcal{S}$ liegt, nicht entscheidbar.
@@ -1134,18 +1223,18 @@ f()
 ((x: Int) => x+1) + 3
 ```
 
-Um entscheiden zu können, ob im obigen Programm ein Fehler durch die Addition einer Funktion und einer Zahl entsteht, müsste entschieden werden, ob `f` terminiert. Dazu müsste das Halteproblem entscheidbar sein. Das das Halteproblem unentscheidbar ist, ist durch Widerspruch bewiesen, dass kein perfektes Typsystem existiert.
+Um entscheiden zu können, ob im obigen Programm ein Fehler durch die Addition einer Funktion und einer Zahl entsteht, müsste entschieden werden, ob `f` terminiert. Dazu müsste das Halteproblem entscheidbar sein. Da das Halteproblem unentscheidbar ist, ist durch Widerspruch bewiesen, dass kein perfektes Typsystem existieren kann.
 
-Es sind aber durchaus Typsysteme möglich, die entweder Completeness oder Soundness erfüllen. Die erste Eigenschaft bedeutet, dass jedes Programm, in dem kein (Typ-)Fehler gefunden wird, bei der Ausführung auch keinen (Typ-)Fehler produziert. Es können aber auch vermeintliche Fehler gefunden werden, die zur Laufzeit gar nicht auftreten, wodurch es sich um eine _Überapproximation_ handelt. Ein Typsystem dieser Art ist in den meisten Fällen nützlicher als ein Typsystem, dass Soundness erfüllt, aber dafür manche Fehler nicht erkennt.
+Es sind aber durchaus Typsysteme möglich, die entweder Completeness oder Soundness erfüllen. Dabei ist Soundness meist die interessantere Eigenschaft, weil damit das Typsystem die Typsicherheit garantieren kann (was für Completeness nicht der Fall ist). Es werden jedoch manche Programme abgelehnt, die in Wahrheit ohne Typfehler ausgeführt werden könnten. Es handelt sich also um eine _konservative_ Abschätzung bzw. eine _Überapproximation_, da in manchen Fällen Programme "sicherheitshalber" abgelehnt werden, wenn die Typsicherheit nicht garantiert werden kann.
 
-Die Syntax von unseren Sprachen wird durch eine _kontextfreie Grammatik_ in Form der Case Classes definiert. Typkorrektheit ist aber keine kontextfreie Eigenschaft, wie etwa am folgenden Programm deutlich wird:
+Für unsere Sprachen wird die Syntax jeweils durch eine _kontextfreie Grammatik_ in Form der Case Classes definiert. Typkorrektheit ist aber keine kontextfreie Eigenschaft, was etwa am folgenden Programm deutlich wird:
 ```scala
 wth("x", Add("x",3))
 ```
 
-Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist also offensichtlich _kontextsensitiv_
+Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist also offensichtlich eine _kontextsensitive_ Eigenschaft.
 
-Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden, damit es möglich ist, Fehler zu berichtigen. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist Kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen der Unterausdrücke.
+Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden, damit es möglich ist, diese zu berichtigen. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist Kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen seiner Unterausdrücke.
 
 ## Interpreter mit Typsystem
 In unseren bisherigen Interpretern haben wir beim Auftreten von Typfehlern (bspw. Addition von zwei Funktionen) einen Laufzeitfehler geworfen, wie etwa hier im FAE-Interpreter:
@@ -1199,12 +1288,13 @@ val ex1 = If(false,true,1)
 val ex = Add(2, If(true,3,true))
 ```
 
-Dies ist ein Beispiel für eine Überapproximation im Interesse von Completeness???
+Hier handelt es sich um eine konservative Abschätzung -- Ausdrücke, in denen im `then`- und `else`-Zweig verschiedene Typen vorliegen, werden abgelehnt, da es keine Möglichkeit gibt, die Typsicherheit zu garantieren.
 
-## Soundness und Completeness
 :::info
-**Type Soundness** ist folgendermaßen definiert:
-Für alle `e: Exp`, `v: Exp` und `t: Type` gilt: Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder++ `eval(e)` führt zu Laufzeitfehler (kein Typfehler) ++oder++ `eval(e)` terminiert nicht. 
+**Soundness des Typsystems:**
+
+Für alle `e: Exp`, `v: Exp` und `t: Type` gilt: 
+Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder++ `eval(e)` führt zu einem Laufzeitfehler, der kein Typfehler ist ++oder++ `eval(e)` terminiert nicht. 
 :::
 
 ## Simply-Typed Lambda Calculus (STLC)
@@ -1216,7 +1306,7 @@ Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert nicht ++oder++ 
 Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert.
 :::
 
-STLC ist nicht Turing-vollständig und in STLC können nur terminierende Programme verfasst werden. Aus diesem Grund wird STLC häufig auf Typ-Ebene verwendet, da man bspw. Typfunktionen und deren Applikation formulieren will, aber nicht-terminierende Programme auf Typ-Ebene unbedingt verhindern will, da sonst der Typechecker nicht mehr zwingend terminiert.
+STLC ist nicht Turing-vollständig und in STLC können nur terminierende Programme verfasst werden. Aus diesem Grund wird STLC bei der Implementation von Programmiersprachen häufig auf Typ-Level verwendet, da man bspw. Typfunktionen und deren Applikation formulieren will, aber nicht-terminierende Ausdrücke auf Typ-Level verhindern muss, da sonst der Typechecker nicht mehr zwingend terminiert.
 
 
 # Hindley-Milner-Typinferenz
