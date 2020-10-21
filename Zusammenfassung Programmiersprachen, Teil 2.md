@@ -1201,7 +1201,9 @@ def addAndMulNToList(n: Int, l: List[Int]) : List[Int] =
 
 
 # Typsysteme
-Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Im Kontext von Typsystemen und Typecheckern spricht man von den Eigenschaften _Soundness_ und _Completeness_. 
+Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler (bspw. Addition von Funktionen oder Applikation einer Zahl) in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Ein Typsystem kann für die Fehler, die es erkennen soll, garantieren, dass diese bei keiner Ausführung eines Programms auftreten. Ein Test kann dagegen nur die fehlerfreie Ausführung eines Programms mit einer bestimmten Eingabe garantieren.
+
+Im Kontext von Typsystemen und Typecheckern spricht man von den Eigenschaften _Soundness_ und _Completeness_. 
 
 :::info
 Ein Typsystem ist _sound_, wenn es jeden bei der Ausführung auftretenden Typfehler vor der Ausführung meldet und _complete_, wenn es nur Fehler meldet, die tatsächlich bei der Ausführung auftreten. Anders ausgedrückt: Einen Typecheck, der sound ist, bestehen **nur echt typsichere** Programme und einen Typecheck, der complete ist, bestehen **alle typsicheren** Programme. 
@@ -1232,7 +1234,7 @@ Für unsere Sprachen wird die Syntax jeweils durch eine _kontextfreie Grammatik_
 wth("x", Add("x",3))
 ```
 
-Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist also offensichtlich eine _kontextsensitive_ Eigenschaft.
+Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist in diesem Fall also offensichtlich eine _kontextsensitive_ Eigenschaft und kann deshalb nicht direkt in der Grammatik der Sprache definiert werden. Dies gilt für die meisten Programmiersprachen.
 
 Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden, damit es möglich ist, diese zu berichtigen. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist Kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen seiner Unterausdrücke.
 
@@ -1252,7 +1254,22 @@ case class Num(n: Int) extends Exp
 case class Bool(b: Boolean) extends Exp
 case class Add(l: Exp, r: Exp) extends Exp
 case class If(c: Exp, t: Exp, f: Exp) extends Exp
+
+def eval(e: Exp) : Exp = e match {
+  case Add(l,r) => (eval(l), eval(r)) match {
+    case (Num(x),Num(y)) => Num(x+y)
+    case _ => sys.error("Can only add numbers")
+  }
+  case If(c,t,f) => eval(c) match {
+    case Bool(true) => eval(t)
+    case Bool(false) => eval(f)
+    case _ => sys.error("Condition must be a boolean")
+  }
+  case _ => e
+}
 ```
+
+Am Interpreter ist bereits erkennbar, welche Typfehler auftreten können: Eine Additionsoperation, bei der nicht beide Summanden Zahlen sind, oder ein `If`-Ausdruck, dessen Bedingung nicht zu einem `Bool` auswertet. Um diese Fehler zu erkennen, wollen wir Werte Klassifizieren und nach Typ unterscheiden. Wir wollen zwischen Zahlen und Booleans unterscheiden.
 
 Wir definieren eine neue abstrakte Klasse `Type` mit den zwei konkreten Unterklassen `NumType` und `BoolType`. Diese entsprechen den zwei Wertetypen, die die Auswertung eines Ausdrucks ergeben kann.
 ```scala
@@ -1261,7 +1278,7 @@ case class BoolType() extends Type
 case class NumType() extends Type
 ```
 
-Um Typechecking auf Programmen bzw. Ausdrücken unserer Sprache durchzuführen, definieren wir eine Funktion `typeCheck`. Diese ist strukturell rekursiv und kompositional aufgebaut.
+Um Typechecking auf Programmen bzw. Ausdrücken unserer Sprache durchzuführen, definieren wir eine Funktion `typeCheck`. Bei einem Typechecker handelt es sich um eine kompositionale Zuweisung von Typen zu Ausdrücken im Programm, der Typ eines Ausdrucks wird also durch seine Unterausdrücke bestimmt. Unsere `typeCheck`-Funktion ist dementsprechend strukturell rekursiv:
 ```scala
 def typeCheck(e: Exp) : Type = e match {
   case Num(_) => NumType()
@@ -1278,31 +1295,184 @@ def typeCheck(e: Exp) : Type = e match {
 }
 ```
 
-Der `Num`- und `Bool`-Fall sind trivial, hier ist offensichtlich um welchen Typ es sich handelt. Im `Add`-Fall muss der Typechecker auf beiden Unterausdrücken `NumType` ergeben, da in unserer Sprache nur Addition von Zahlen erfolgreich ausgewertet werden kann. Sind die Summanden nicht beide vom Typ `NumType`, so geben wir eine Fehlermeldung aus. Im `If`-Fall ist klar, dass der Typechecker auf der Bedingung `BoolType` ergeben muss, der Typ des `If`-Ausdrucks selbst lässt sich aber nicht ohne weiteres feststellen. Je nachdem, welcher Zweig betreten wird, müsste entweder der Typ von `t` oder von `f` rekursiv bestimmt und ausgegeben werden.
+Der `Num`- und `Bool`-Fall sind trivial, hier ist offensichtlich um welchen Typ es sich handelt. Im `Add`-Fall muss `typeCheck` auf beiden Unterausdrücken `NumType()` ergeben, da in unserer Sprache nur Addition von Zahlen erfolgreich ausgewertet werden kann. Sind die Summanden nicht beide vom Typ `NumType()`, so geben wir eine Fehlermeldung aus. Im `If`-Fall ist klar, dass der Typechecker auf der Bedingung `BoolType` ergeben muss, der Typ des `If`-Ausdrucks selbst lässt sich aber nicht ohne weiteres feststellen. Je nachdem, welcher Zweig betreten wird, müsste entweder der Typ von `t` oder von `f` rekursiv bestimmt und ausgegeben werden.
 
-Um zu entscheiden, welcher Zweig betreten wird, müssten die Bedingung ausgewertet werden. Würde man diese Auswertung im Typechecker durchführen, so verliert dieser gewissermaßen seinen Nutzen, denn wenn er bei Typfehlern in einer `If`-Bedingung die gleichen Laufzeitfehler liefert wie der Interpreter selbst, so könnte die Typsicherheit direkt durch das Ausführen des Programms überprüft werden. Außerdem wäre es in einer komplexeren Sprache (z.B. der Turing-vollständigen FAE-Sprache) nicht möglich, die Bedingung ohne den Kontext des `If`-Ausdrucks auszuwerten, zudem könnte die Auswertung der Bedingung evtl. nicht terminieren, wodurch der Typechecker kein Ergebnis liefert. In jedem Fall verliert der Typechecker seinen Nutzen als Prüfmittel vor der eigentlichen Auswertung, sobald er Teile des Programms auswertet.
+Um zu entscheiden, welcher Zweig betreten wird, müsste die Bedingung ausgewertet werden. Würde man diese Auswertung im Typechecker durchführen, so verliert dieser aber gewissermaßen seinen Nutzen, denn wenn er bei Typfehlern in einer `If`-Bedingung die gleichen Laufzeitfehler liefert wie der Interpreter, so bietet der Typechecker keinen Vorteil gegenüber einer Ausführung des Programms. 
+
+In einer komplexeren Sprache (z.B. der Turing-vollständigen FAE-Sprache) wäre es nicht möglich, die Bedingung ohne den Kontext des `If`-Ausdrucks auszuwerten, zudem könnte die Auswertung der Bedingung evtl. nicht terminieren, wodurch der Typechecker kein Ergebnis liefern würde. In jedem Fall verliert der Typechecker seinen Nutzen als Prüfmittel vor der eigentlichen Auswertung, sobald er Teile des Programms auswertet.
 
 Aus diesen Gründen bleibt nur die Möglichkeit, den Typ beider Zweige zu bestimmen und auf Gleichheit zu prüfen, falls `t` und `f` den gleichen Typ besitzen, kann dieser ausgegeben werden. Dadurch wird aber bei gewissen Programmen ein Typfehler gefunden, obwohl diese fehlerfrei auswerten:
 ```scala
 val ex1 = If(false,true,1)
-val ex = Add(2, If(true,3,true))
+val ex2 = Add(2, If(true,3,true))
 ```
 
-Hier handelt es sich um eine konservative Abschätzung -- Ausdrücke, in denen im `then`- und `else`-Zweig verschiedene Typen vorliegen, werden abgelehnt, da es keine Möglichkeit gibt, die Typsicherheit zu garantieren.
+Bei der Prüfung auf Gleichheit handelt es sich um eine konservative Abschätzung des Programmverhaltens -- Ausdrücke, in denen im `then`- und `else`-Zweig verschiedene Typen vorliegen, werden abgelehnt, da die Typsicherheit nicht gewährleistet werden kann.
+
+Wir können unsere Definition von Soundness für Typechecking noch etwas verfeinern: Soundness bedeutet auch, dass der Typecheck den Typ des Auswertungsergebnisses korrekt vorhersagt.
 
 :::info
 **Soundness des Typsystems:**
 
 Für alle `e: Exp`, `v: Exp` und `t: Type` gilt: 
-Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder++ `eval(e)` führt zu einem Laufzeitfehler, der kein Typfehler ist ++oder++ `eval(e)` terminiert nicht. 
+Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder++ `eval(e)` führt zu einem Laufzeitfehler, der nicht vom Typsystem abgedeckt wird, ++oder++ `eval(e)` terminiert nicht. 
 :::
 
 ## Simply-Typed Lambda Calculus (STLC)
+Wir beginnen mit substitutionsbasierten Interpreter für das ungetypte Lambda-Kalkül (FAE), da ohne getrennte Werte (`Value`) und Closures die Implementation eines Typsystem deutlich einfacher möglich ist. Wir ergänzen Funktionen um eine Annotation des Parametertyps, die vom Interpreter ignoriert wird. Diese Sprache ist die einfachste Form des _Simply-Typed Lambda Calculus_ (_STLC_).
+
+Zusätzlich fügen wir einige gängige Erweiterungen für des STLC hinzu, nämlich ein Sprachkonstrukt `JUnit`, Bindungen mit `Let` (ohne Typannotationen), Typ-Annotationen für beliebige Ausdrücke, Produkttypen (Tupel) und Summentypen (mit zwei Alternativen):
+```scala
+sealed abstract class Type
+
+sealed abstract class Exp
+case class Num(n: Int) extends Exp
+case class Id(name: String) extends Exp
+case class Add(lhs: Exp, rhs: Exp) extends Exp
+case class Fun(param: String, t: Type, body: Exp) extends Exp
+case class App (fun: Exp, arg: Exp) extends Exp
+case class Junit() extends Exp
+case class Let(x: String, xDef: Exp, body: Exp) extends Exp
+case class TypeAscription(e: Exp, t: Type) extends Exp
+
+case class Product(left: Exp, right: Exp) extends Exp
+case class Fst(e: Exp) extends Exp
+case class Snd(e: Exp) extends Exp
+
+case class SumLeft(left: Exp, right: Type) extends Exp
+case class SumRight(left: Type, right: Exp) extends Exp
+case class EliminateSum(e: Exp, funLeft: Exp, funRight: Exp) extends Exp
+```
+
+Wir erweitern den [substitutionsbasierten FAE-Interpreter](https://pad.its-amazing.de/programmiersprachen1teil1#Substitutionsbasierter-Interpreter1) um die zusätzlichen Fälle, wobei wir auch die Hilfsfunktionen `freshName`, `freeVars` und `subst` erweitern müssen. 
+```scala
+def freeVars(e: Exp) : Set[String] =  e match {
+  case Id(x) => Set(x)
+  case Fun(p,_,b) => freeVars(b)-x
+  // ...
+  case Junit() => Set.empty
+  case Let(x,xDef,b) => freeVars(xDef)++(freeVars(b) - x)
+  case Product(l,r) => freeVars(l)++freeVars(r)
+  case SumLeft(e,_) => freeVars(e)
+  case SumRight(_,e) => freeVars(e)
+  case EliminateSum(e,fl,fr) => freeVars(e)++freeVars(fl)++freeVars(fr)
+}
+
+def subst(e : Exp, x: String, xDef: Exp) : Exp = e match {
+  case Id(y) => if (x == y) xDef else Id(y)
+  // ...
+  case Fun(param,t,body) =>
+    if (param == x) e else {
+      val fvs = freeVars(body) ++ freeVars(xDef)
+      val newvar = freshName(fvs, param)
+      Fun(newvar, t,subst(subst(body, param, Id(newvar)), x, xDef))
+    }
+  case Let(y,ydef,body) =>
+    if (x == y) Let(y,subst(ydef,x,xDef),body) else {
+      val fvs = freeVars(body) ++ freeVars(xDef)
+      val newvar = freshName(fvs,y)
+      Let(newvar,subst(ydef,x,xDef),subst(subst(body,y,Id(newvar)),x,xDef))
+    }
+  case Junit() => e
+  // ...
+}
+
+def eval(e: Exp) : Exp = e match {
+  case Id(x) => sys.error("Unbound identifier: " + x)
+  case Add(l,r) => (eval(l), eval(r)) match {
+    case (Num(x),Num(y)) => Num(x+y)
+    case _ => sys.error("Can only add numbers")
+  }
+  case App(f,a) => eval(f) match {
+    case Fun(x,_,body) => eval( subst(body,x, eval(a)))
+    case _ => sys.error("Can only apply functions")
+  }
+  case TypeAscription(e,_) => eval(e)
+  case Let(x,xdef,body) => eval(subst(body,x,eval(xdef)))
+  case Product(a,b) => Product(eval(a),eval(b))
+  case Fst(e) => eval(e) match {
+    case Product(a,b) => a
+    case _ => sys.error("Can only select first from products")
+  }
+  case Snd(e) => eval(e) match {
+    case Product(a,b) => b
+    case _ => sys.error("Can only select second from products")
+  }
+  case SumLeft(e,t) => SumLeft(eval(e),t)
+  case SumRight(t,e) => SumRight(t,eval(e))
+  case EliminateSum(e,fl,fr) => eval(e) match {
+    case SumLeft(e2,_) => eval(App(fl,e2))
+    case SumRight(_,e2) => eval(App(fr,e2))
+    case _ => sys.error("Can only eliminate sums")
+  }
+  case _ => e // Num & Fun case
+}
+```
+
+Wir legen ein Typsystem an, das Zahlen, Funktionen, JUnit, Produkttypen und Summentypen unterscheidet:
+```scala
+case class NumType() extends Type
+case class FunType(from: Type, to: Type) extends Type
+case class JunitType() extends Type
+case class ProductType(left: Type, right: Type) extends Type
+case class SumType(left: Type, right: Type) extends Type
+```
+
+`FunType()`, `ProductType()` und `SumType()` sind dabei rekursiv definiert und enthalten selbst jeweils zwei Typen. Im Fall von Funktionen ist das der Parametertyp und der Ausgabetyp. Die Ergänzung der Annotation für den Argumenttyp bei Funktionen sorgt dafür, dass wir den `from`-Typ von Funktionen nicht "erraten" müssen.
+
+Um mit Identifiern umzugehen, benötigt unser Typechecker ein zweites Argument, nämlich eine Typumgebung `gamma`, in der der Typ von Identifiern hinterlegt wird und Erreichen des Identifiers ausgelesen wird.
+
+```scala
+def typeCheck(e: Exp, gamma: Map[String,Type]) : Type = e match {
+  case Num(_) => NumType()
+  case Id(x) => gamma.get(x) match {
+    case Some(t) => t
+    case _ => sys.error("Type error: Unbound identifier "+x)
+  }
+  case Add(l,r) => (typeCheck(l,gamma),typeCheck(r,gamma)) match {
+    case (NumType(),NumType()) => NumType()
+    case _ => sys.error("Type error: Can only add numbers")
+  }
+  case Fun(p,t,b) => FunType(t, typeCheck(b,gamma+(p -> t)))
+  case App(f,a) => typeCheck(f,gamma) match {
+    case FunType(from,to) =>
+      if (from == typeCheck(a,gamma)) to
+      else sys.error("Type error: Arg does not match expected type")
+    case _ => sys.error("Type error: Left expression must be a function")
+  }
+  case JUnit() => JUnitType()
+  case Let(x,xDef,b) => typeCheck(b,gamma+(x -> typeCheck(xDef,gamma)))
+  case TypeAscription(e,t) =>
+    if (typeCheck(e,gamma)==t) t
+    else sys.error("Type error: Type does not match")
+  case Product(l,r) => ProductType(typeCheck(l,gamma),typeCheck(r,gamma))
+  case Fst(e) => typeCheck(e,gamma) match {
+    case ProductType(l,_) => l
+    case _ => sys.error("Type error: Can only project products")
+  }
+  case Snd(e) => typeCheck(e,gamma) match {
+    case ProductType(_,r) => r
+    case _ => sys.error("Type error: Can only project products")
+  }
+  case SumLeft(l,t) => SumType(typeCheck(l,gamma),t)
+  case SumRight(t,r) => SumType(t,typeCheck(r,gamma))
+  case EliminateSum(c,fl,fr) => typeCheck(c,gamma) match {
+    case SumType(l,r) => (typeCheck(fl,gamma),typeCheck(fr,gamma)) match {
+      case (FunType(lf,lt),FunType(rf,rt)) if l==lf && r==rf && lt==rt =>
+        if (lTo==rTo) lTo
+        else sys.error("Type error: Functions must have same return type")
+      case _ => sys.error("Type error: 2nd and 3rd arg must be functions")
+    }
+    case _ => sys.error("Type error: Can only eliminate sums")
+  }
+}
+```
+
 :::info
-- **Soundness von STLC:**
+**Soundness von STLC:**
 Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert nicht ++oder++ `typeCheck(eval(e),Map()) == t`, wobei `eval(e)` in beiden Fällen keinen Laufzeitfehler verursacht.
 
-- **Terminierung von STLC:**
+**Terminierung von STLC:**
 Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert.
 :::
 
