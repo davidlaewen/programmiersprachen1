@@ -1225,29 +1225,31 @@ f()
 ((x: Int) => x+1) + 3
 ```
 
-Um entscheiden zu können, ob im obigen Programm ein Fehler durch die Addition einer Funktion und einer Zahl entsteht, müsste entschieden werden, ob `f` terminiert. Dazu müsste das Halteproblem entscheidbar sein. Da das Halteproblem unentscheidbar ist, ist durch Widerspruch bewiesen, dass kein perfektes Typsystem existieren kann.
+Um entscheiden zu können, ob im obigen Programm ein Fehler durch die Addition einer Funktion und einer Zahl entsteht, müsste entschieden werden, ob `f` terminiert -- dazu müsste das Halteproblem entscheidbar sein. Da das Halteproblem unentscheidbar ist, ist durch Widerspruch bewiesen, dass kein perfektes Typsystem existieren kann. Es ist nämlich in jeder Turing-vollständigen Sprache möglich, nicht-terminierende Programme zu formulieren.
 
 Es sind aber durchaus Typsysteme möglich, die entweder Completeness oder Soundness erfüllen. Dabei ist Soundness meist die interessantere Eigenschaft, weil damit das Typsystem die Typsicherheit garantieren kann (was für Completeness nicht der Fall ist). Es werden jedoch manche Programme abgelehnt, die in Wahrheit ohne Typfehler ausgeführt werden könnten. Es handelt sich also um eine _konservative_ Abschätzung bzw. eine _Überapproximation_, da in manchen Fällen Programme "sicherheitshalber" abgelehnt werden, wenn die Typsicherheit nicht garantiert werden kann.
 
-Für unsere Sprachen wird die Syntax jeweils durch eine _kontextfreie Grammatik_ in Form der Case Classes definiert. Typkorrektheit ist aber keine kontextfreie Eigenschaft, was etwa am folgenden Programm deutlich wird:
+Für unsere Sprachen wird die Syntax jeweils durch eine _kontextfreie Grammatik_ in Form der Case Classes definiert. Typkorrektheit ist aber keine kontextfreie Eigenschaft, was etwa an folgendem Programm deutlich wird:
 ```scala
 wth("x", Add("x",3))
 ```
 
-Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist in diesem Fall also offensichtlich eine _kontextsensitive_ Eigenschaft und kann deshalb nicht direkt in der Grammatik der Sprache definiert werden. Dies gilt für die meisten Programmiersprachen.
+Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist in diesem Fall also offensichtlich eine _kontextsensitive_ Eigenschaft und kann deshalb nicht direkt in der Grammatik der Sprache definiert werden. Aus diesem Grund ist ein Typsystem als zusätzlicher "Filter" notwendig, um Typkorrektheit zu garantieren. Dies gilt für die meisten Programmiersprachen.
 
-Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden, damit es möglich ist, diese zu berichtigen. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist Kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen seiner Unterausdrücke.
+Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen seiner Unterausdrücke.
 
 ## Interpreter mit Typsystem
 In unseren bisherigen Interpretern haben wir beim Auftreten von Typfehlern (bspw. Addition von zwei Funktionen) einen Laufzeitfehler geworfen, wie etwa hier im FAE-Interpreter:
 ```scala
-case Add(l,r) => (eval(l,env),eval(r,env)) match {
-  case (NumV(a),NumV(b)) => NumV(a+b)
-  case _ => sys.error("Can only add numbers")
-}
+// ...
+  case Add(l,r) => (eval(l,env),eval(r,env)) match {
+    case (NumV(a),NumV(b)) => NumV(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+// ...
 ```
 
-Nun wollen wir für die folgende Sprache ein Typsystem definieren, so dass vor der Auswertung eines Programms überprüft werden kann, ob dieses typsicher ist.
+Nun wollen wir für die folgende Sprache ein Typsystem definieren, so dass bereits vor der Auswertung eines Programms überprüft werden kann, ob dieses typsicher ist.
 ```scala
 sealed abstract class Exp
 case class Num(n: Int) extends Exp

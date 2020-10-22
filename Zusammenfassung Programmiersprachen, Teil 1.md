@@ -11,42 +11,52 @@ langs: de
 
 
 # Vorlesungsinhalte
-- gutes Verständnis von Programmiersprachen (allgemein, über _Trends_ hinweg) und deren Qualitäten, Vor- und Nachteile
-- Fähigkeit, Programmiersprachen in Features zu zerlegen und diese einzeln zu verstehen und zu analysieren
+- Verständnis von Programmiersprachen (allgemein, über aktuelle "Trends" hinweg) und deren Qualitäten, Vor- und Nachteile
+- Zerlegung von Programmiersprachen in Features sowie deren Analyse
+- Erlernen von strukturiertem Programmdesign durch Abstraktionen
+- Befähigung, auf informierte Art Programmiersprachen einzuschätzen und zu diskutieren
 - Implementieren von Programmiersprachen(-features) durch Interpreter in Scala
-- Auseinandersetzung mit wenigen Compiler-bezogenen Themen
-- Sprachen und deren Features, Zweck/Nutzen dieser Features, mögliche Implementationen und Vorzüge/Probleme dieser
+- Zweck/Nutzen verschiedener Sprachfeatures, mögliche Implementationen und deren Vorzüge/Probleme
 
 
 # Scala-Grundlagen
-[Scala](https://scala-lang.org/) ist statisch getypt, funktional, sowie objekt-orientiert. Scala-Programme können zu Java-Bytecode kompiliert und in einer JVM ausgeführt werden. Auswertung ist _eager_ (_call by value_).
-- **Konstanten** mit `val`, mutierbare **Variablen** mit `var`. Typ muss nicht deklariert werden, also bspw. `var n = 1` oder `var s = "abc"`. Typ kann aber auch explizit deklariert werden, also bspw. `var n: Int = 1` oder `var s: String = "abc"`.
-- **Funktionen** haben die Form `def f(<arg1>: <Type1>, ...) = <body>`, Aufruf bspw. durch `f(1)`. Rückgabetyp kann optional angegeben werden: `def f(<arg1>: <Type1>, ...): <ReturnType> = <body>`
+[Scala](https://scala-lang.org/) ist statisch getypt, funktional und objekt-orientiert. Scala-Programme werden zu Java-Bytecode kompiliert und in der JVM ausgeführt. Auswertung ist _eager_ (_Call By Value_).
+- **Konstanten** werden mit `val` und mutierbare **Variablen** mit `var` definiert. Der Typ muss dabei nicht deklariert werden (wird aber dennoch von Scala festgelegt), also bspw. `var n = 1` oder `var s = "abc"`. Der Typ kann aber auch explizit deklariert werden, also bspw. `var n: Int = 1` oder `var s: String = "abc"`.
+
+- **Funktionen** haben die Form `def f(param: Type, ...) = body` und werden durch `f(arg,...)` aufgerufen. Der Rückgabetyp kann optional angegeben werden: 
+`def f(param: Type, ...): ReturnType = body`
 ```scala
-def sum(a: Int, b: Int): Int = a + b
-val x = sum(5, 11)
+def square(n: Int) : Int = n*n
+val x = square(4)
 
 def concat(a: String, b: String): String = a + b
 val y = concat("Heiner", concat(" ", "Hacker"))
 ```
 
 ## Datentypen
-- `Int`, `String`, `Boolean`, `Double`, etc.
-- `Unit` entspricht Rückgabetyp `void` in Java (kein Rückgabewert, sondern "Seiteneffekt", bspw. `print`-Funktion)
-- **Map:** Abbildung einer Menge von Werten auf eine andere Menge von Werten. 
+- Es gibt die gängigen Datentypen `Int`, `String`, `Boolean`, `Double`, etc.
+
+- `Unit` entspricht dem Rückgabetyp `void` in Java (kein Rückgabewert, sondern "Seiteneffekt", bspw. bei der `print`-Funktion)
+
+- **Map:** Abbildung mit Key-Value-Paaren. 
 ```scala
-var map = Map(1 -> "a", 2 -> "b")
+var map: Map[Int,String] = Map(1 -> "a", 2 -> "b")
 assert(map(1) == "a")
 ```
-- **Tupel:** `(<first>, <second>, ...)`, erlauben Gruppierung heterogener Daten. Können zwischen 2 und 22 Werte beliebigen Typs enthalten.
+
+- **Tupel:** Erlauben Gruppierung heterogener Daten. Können zwischen 2 und 22 Werte beliebigen Typs enthalten.
 ```scala
-val t = (1, "abc", new Person("Bob"))
+val t: (Int,String,Boolean) = (1, "abc", true)
 val firstEntry = t._1
-val (num, string, person) = t
-assert(firstEntry == num)
+val (int, string, boolean) = t // binds all three fields
+assert(firstEntry == int)
 ```
-- **Listen:** `List(<first>, <second>, ...)`, Zugriff mit `<list>(<index>)`, nicht mutierbar
+
+- **Listen:** Besitzen einen einheitlichen Typ, bspw. `List[Int]`, Einträge sind nicht mutierbar.
 ```scala
+val nums = List(1,2,3)
+assert(nums(0) == 1)
+
 val nums = List.range(0, 10)
 val nums = (1 to 10 by 2).toList
 val letters = ('a' to 'f' by 2).toList
@@ -55,38 +65,47 @@ letters.foreach(println)
 nums.filter(_ > 3).foreach(println)
 val doubleNums = nums.map(_ * 2) 
 val bools = nums.map(_ < 5)
-val squares = nums.map(math.pow(_,2).toInt)
-val sum = foldLeft(0)(_ + _)
-val prod = foldLeft(1)(_ + _)
+val squares = nums.map(n => n*n)
+val sum = nums.fold(0)(_+_)
+val prod = nums.fold(1)(_*_)
 ```
-- **Arrays:** `Array(<first>, <second>, ...)`, Zugriff auch mit `<array>(<index>)`, mutierbar mit `<array>(<index>) = <new value>`
 
-- **Mengen:** `Set(<elem1>, <elem2>, ...)`, mutierbar mit `+` und `-` um einzelne Werte hinzuzufügen bzw. zu entfernen, `++` und `--` für Vereinigung bzw. Schnitt mit anderer Menge oder Liste.
+- **Arrays:** Besitzen auch einheitlichen Typ, sind im Gegensatz zu Listen mutierbar.
+```scala
+val a = Array(1,2,3)
+assert(a(0) == 1)
+a(0) = 10
+assert(a(0) == 10)
+```
 
-- **Either:** Repräsentiert einen Wert eines von zwei möglichen Typen. Jede Instanz von `Either` ist eine Instanz von `Right` oder von `Left`.
+- **Mengen:** `Set(1,2,3)`, mutierbar mit `+` und `-` um einzelne Werte hinzuzufügen bzw. zu entfernen, `++` und `--` für Vereinigung bzw. Schnitt mit anderem `Collectible`-Datentyp, bspw. Menge oder Liste.
+
+- **Either:** Repräsentiert einen Wert eines von zwei möglichen Typen. Jede Instanz von `Either` ist entweder eine Instanz von `Left` oder von `Right`.
+```scala
+val a: Either[Boolean,Int] = Left(true)
+val b: Either[Boolean,Int] = Right(3)
+```
 
 ## Objektorientierung
 - **Klassen:**
 ```scala
 class Person(var firstName: String, var lastName: String) {
-    def sayHello() = {
-        print(s"Hello, $firstName $lastName")
-    }
+  def sayHello() = print(s"Hello, $firstName $lastName")
 }
 
 val heiner = new Person("Heiner", "Hacker")
 
 heiner.sayHello() // prints "Hello, Heiner Hacker"
 println(heiner.firstName) // prints "Heiner"
-heiner.firstName = "Heinrich" // fields can be accessed without get and set methods
+heiner.firstName = "Heinrich" // field access without get and set methods
 heiner.lastName = "Knacker"
 heiner.sayHello() // now prints "Hello, Heinrich Knacker"
 ```
-- Werden die Felder der Klasse mit `var` definiert, so sind sie mutierbar.
-- **Abstrakte Klassen** mit Keyword `abstract`
-- **Traits:** Können nicht instanziiert werden, sondern sind Bausteine zur Konstruktion von Klassen. Lassen sich einer Klasse mit `with`/`extends` anfügen. Ist ein Trait _sealed_ (`sealed trait ...`), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. In diesem Fall kann bei Pattern Matching erkannt werden, ob alle Fälle (also alle Case Classes) abgedeckt sind.
+- Mit `var` definierte Felder einer Klasse sind mutierbar.
+- **Abstrakte Klassen** können mit dem Keyword `abstract` angelegt werden.
+- **Traits** sind Bausteine zur Konstruktion von Klassen und können nicht instanziiert werden. Sie lassen sich einer Klasse mit `with`/`extends` anfügen. Ist ein Trait _sealed_ (`sealed trait ...`), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. Dadurch kann bei Pattern Matching erkannt werden, ob alle Fälle (also alle Case Classes) abgedeckt sind.
 ```scala
-trait Speaker {
+abstract class Speaker {
     def sayCatchPhrase(): Unit // no function body, abstract
 }
 
@@ -95,46 +114,49 @@ trait Sleeper {
     def wakeUp(): Unit = println("I'm awake")
 }
 
-class Person(name: String, catchPhrase: String) extends Speaker with Sleeper {
+class Person(var name: String, catchPhrase: String) extends Speaker with Sleeper {
     def sayCatchPhrase(): Unit = println(catchPhrase)
+    override def sleep() = println("Zzzzzzz")
 }
 ```
-Überladen von Methoden in Klassen ist mit dem Keyword `override` möglich.
+Umdefinieren von Methoden in Unterklassen ist mit dem Keyword `override` möglich.
 - **Objekte:** Können mit Keyword `object` instanziiert werden.
-- Erweiterung von Klassen/Traits oder Implementation abstrakter Klassen mit `extends`.
-- **Case Classes:** Hilfreich bei der Verwendung von Klassen als Datencontainer. Erzeugung von Instanzen ist ohne `new` möglich, zudem gibt es eine Default-Implementation zum Vergleichen oder Hashen von Instanzen der Klasse. Mit Case Classes ist Pattern Matching möglich:
+
+- Mit `extends` können Klassen/Traits erweitert oder abstrakte Klassen implementiert werden
+
+- **Case Classes** sind hilfreich bei der Verwendung von Klassen als Datencontainer. Erzeugung von Instanzen ist ohne `new` möglich, zudem gibt es Default-Implementationen für das Vergleichen oder Hashen von Instanzen der Klasse. Mit Case Classes ist Pattern Matching möglich:
 ```scala
-trait UniPerson
+sealed abstract class UniPerson
 case class Student(val id: Int) extends UniPerson
 case class Professor(val subject: String) extends UniPerson
 
 def display(p: UniPerson) : String =
-    p match {
-        case Student(id) => s"Student number $id"
-        case Professor(subject) => s"Professor of $subject"
-    }
+  p match {
+    case Student(id) => s"Student number $id"
+    case Professor(subject) => s"Professor of $subject"
+}
 ```
 
-Alternativ:
+- Eine Implementation im objektorientierten Stil sieht dagegen folgendermaßen aus:
 ```scala
 abstract class UniPerson {
-    def display : String
+  def display : String
 }
 class Student(val id: Int) extends UniPerson {
-    def display = s"Student number $id"
+  def display = s"Student number $id"
 }
 class Professor(val subject: String) extends UniPerson {
-    def display = s"Professor of $subject"
+  def display = s"Professor of $subject"
 }
 ```
-Die erste Variante (Pattern-Match-Dekomposition) erlaubt das Hinzufügen weiterer Funktionen, die auf _Uni-Personen_ operieren, ohne den bestehenden Code zu modifizieren.
+Die erste Variante (Pattern-Match-Dekomposition) erlaubt das Hinzufügen weiterer Funktionen, die auf dem Datentyp `UniPerson` operieren, ohne Modifikation des bestehenden Codes.
 
-Die zweite Variante (objektorientierte Dekomposition) erlaubt das Hinzufügen weiterer _Uni-Personen_, ohne dass der bestehende Code verändert werden muss. 
+Die zweite Variante (objektorientierte Dekomposition) erlaubt das Hinzufügen weiterer Unterklassen von `UniPerson` ohne Modifikation des bestehenden Codes. 
 
-Die Schwierigkeit, die Vorzüge beider Repräsentationen zu vereinen, wird _Expression Problem_ genannt (mehr dazu im Kapitel [Objekt-Algebren](#Objekt-Algebren)).
+Die Schwierigkeit, die Vorzüge beider Repräsentationen zu vereinen, wird _Expression Problem_ genannt (mehr dazu im Kapitel [Objekt-Algebren](https://pad.its-amazing.de/programmiersprachen1teil2#Expression-Problem)).
 
 ## Kontrollstrukturen
-- `if`-`else`-Statements:
+- _If-Else_-Statements:
 ```scala
 if (1 < 2) print("Condition met")
 
@@ -149,7 +171,7 @@ if (a > b) {
 val x = if (1 == 1) "a" else "b" // usable as ternary operator, "a" is bound to x
 ```
 
-- `for`-Schleifen: 
+- _For_-Schleifen: 
 ```scala
 for (elem <- list) println(elem)
 
@@ -169,31 +191,37 @@ def pm(x: Any) = x match {
   case true => "x is true"
   case s: String => s"x is string $s"
   case (a,b,c) => s"x is tuple of $a, $b and $c"
+  case (a,b) if (a == b) => s"tuple ($a,$b) and $a == $b"
   case _ => "x is something else"
 }
 ```
 
 ## REPL
-- REPL lässt sich mit Befehl `scala` starten.
-
-- `.scala`-Dateien lassen sich in REPL laden mit `:load <filename>.scala`.
-- Ergebnisse der Auswertung werden automatisch an Variablennamen gebunden.
+- Anleitung zur Installation der Binaries [hier](https://www.scala-lang.org/download/)
+- REPL lässt sich mit Befehl `scala` starten
+- `.scala`-Dateien lassen sich in REPL laden mit `:load filename.scala`.
+- Ergebnisse werden automatisch an Variablennamen gebunden.
+- Typ eines Werts kann mit `:type` abgefragt werden
 - Bisherige Definitionen können mit `:reset` gelöscht werden.
 - REPL kann mit `:q` verlassen werden.
 
 
 ## Implizite Konvertierung
-Scala bietet die Möglichkeit, bestimmte Typkonvertierungsfunktionen automatisch zu nutzen, wenn so der erwartete Typ erfüllt werden kann. Dadurch können wir Ausdrücke für unsere Interpreter geschickter notieren.
+Scala bietet die Möglichkeit, bestimmte Typkonvertierungsfunktionen automatisch zu nutzen, wenn dadurch der erwartete Typ erfüllt werden kann. Mit dieser _impliziten Konvertierung_ können wir Ausdrücke für unsere Interpreter geschickter notieren.
 
 Hierzu muss die `implicitConversions`-Bibliothek importiert werden:
 ```scala
 import scala.language.implicitConversions
 
-implicit def num2exp(n: Int) : Exp = Num(n)
+abstract class BTree
+case class Node(l: BTree, r: BTree) extends BTree
+case class Leaf(n: Int) extends BTree
 
-val test = Add(1,2) // is converted to Add(Num(1), Num(2))
+implicit def int2btree(n: Int) : BTree = Leaf(n)
+
+val test = Node(1,2) // is implicitly converted to Node(Leaf(1), Leaf(2))
 ```
-Die Funktion `num2exp` wird durch das Keyword `implicit` automatisch auf Werte vom Typ `Int` aufgerufen, wenn an deren Stelle ein Wert vom Typ `Exp` erwartet wird.
+Die Funktion `int2btree` wird durch das Keyword `implicit` automatisch auf Werte vom Typ `Int` aufgerufen, wenn an deren Stelle ein Wert vom Typ `BTree` erwartet wird.
 
 ## Typ-Alias
 Mit dem Keyword `type` können neue Typen definiert werden:
@@ -202,23 +230,21 @@ type IntStringMap = Map[Int, String]
 ```
 
 ## Lambda-Ausdrücke und Currying
-Es können in Scala Funktionen als Werte (_Lambda-Ausdrücke_) definiert werden. Diese haben dann einen Typ der Form `<Type> => ...`:
+Es können in Scala anonyme Funktionen als Werte (_Lambda-Ausdrücke_) definiert werden. Diese haben dann einen Typ der Form `Type => ...`:
 ```scala
-val succ : Int => Int = n => n+1
+val succ : (n: Int) => n+1
 ```
-Funktionen bzw. Lambda-Ausdrücke können dadurch Rückgabewert von Funktionen sein (_Higher Order_), wodurch auch _Currying_ möglich ist:
+Funktionen bzw. Lambda-Ausdrücke können dadurch der Rückgabewert von Funktionen sein (_Higher Order_), wodurch etwa _Currying_ möglich wird:
 ```scala
-def curryAdd(n: Int) : (Int => Int) = (x => x+n)
+def curryAdd(n: Int) : (Int => Int) = x => x+n
 assert(curryAdd(3)(4) == 7)
-val curried : Int => Int => Int => Int = a => b => c => a*b*c
-assert(curried(1)(2)(3) == 6)
 ```
 
 
 # Erster Interpreter (AE)
 ```scala
 sealed trait Exp
-case class Num(n: Int) extends Exp // inherits properties of Scala Int type!
+case class Num(n: Int) extends Exp
 case class Add(l: Exp, r: Exp) extends Exp
 case class Mul(l: Exp, r: Exp) extends Exp
 
@@ -228,7 +254,7 @@ def eval(e: Exp) : Int = e match {
   case Mul(l,r) => eval(l) * eval(r)
 }
 
-// examples:
+// example expressions
 var onePlusTwo = Add(Num(1), Num(2))
 assert(eval(onePlusTwo) == 3)
 var twoTimesFour = Mul(Num(2), Add(Num(1), Num(3)))
@@ -236,12 +262,13 @@ assert(eval(twoTimesFour) == 8)
 var threeTimesFourPlusFour = Add(Mul(Num(3),Num(4)), Num(4))
 assert(eval(threeTimesFourPlusFour) == 16)
 ```
-Bei der Implementation eines Interpreters ist ein umfassendes Verständnis der _Metasprache_ (hier Scala) notwendig, um die Eigenschaften der Implementation vollständig zu kennen. Der `Int`-Datentyp hat bspw. gewisse Einschränkungen, die nun auch in der implementierten Sprache existieren.
+Bei der Implementation eines Interpreters ist ein umfassendes Verständnis der _Metasprache_ (hier Scala) notwendig, um die Eigenschaften der (von uns definierten) _Objektsprache_ vollständig zu kennen. Bspw. betreffen die Eigenschaften und Einschränkungen des `Int`-Datentyps durch dessen Verwendung auch die Objektsprache.
 
 
 # Syntaktischer Zucker und Desugaring
-In vielen Programmiersprachen gibt es prägnantere Syntax, die gleichbedeutend mit einer ausführlicheren Syntax ist (_syntaktischer Zucker_). Das erspart Schreibaufwand beim Programmieren und verbessert die Lesbarkeit von Programmen, ist aber bei der Implementierung der Sprache lästig, da man gleichbedeutende Syntax mehrfach implementieren muss. 
-Der syntaktische Zucker erweitert den Funktionsumfang der Sprache nicht und jeder Ausdruck kann mit der gleichen Bedeutung ohne syntaktischen Zucker formuliert werden. Deshalb werden Sprachen typischerweise in die _Kernsprache_ und die _erweiterte Sprache_ aufgeteilt, so dass Ausdrücke vor dem Interpretieren zuerst in eine Form ohne die erweiterte Sprache gebracht werden können (_Desugaring_). So muss der Interpreter nur für die Kernsprache implementiert werden. 
+In vielen Programmiersprachen gibt es Syntaxerweiterungen, die Programme lesbarer machen oder verkürzen, aber gleichbedeutend mit einer ausführlicheren Schreibweise sind (_syntaktischer Zucker_). Dadurch wird das Programmieren angenehmer und die Lesbarkeit von Programmen besser, für die Implementierung der Sprache ist syntaktischer Zucker jedoch lästig, da man gleichbedeutende Syntax mehrfach implementieren muss. 
+
+Der syntaktische Zucker erweitert den Funktionsumfang der Sprache nicht und jeder Ausdruck kann mit der gleichen Bedeutung ohne syntaktischen Zucker formuliert werden. Deshalb werden Sprachen typischerweise in eine _Kernsprache_ und eine _erweiterte Sprache_ aufgeteilt. Dann können Ausdrücke vor dem Interpretieren vollständig in die Kernsprache übersetzt werden (_Desugaring_) und der Interpreter muss nur Ausdrücke in der Kernsprache auswerten können. 
 
 ## Interpreter mit Desugaring
 ```scala
@@ -256,13 +283,15 @@ sealed trait SExp
 case class SNum(n: Int) extends SExp
 case class SAdd(l: SExp, r: SExp) extends SExp
 case class SMul(l: SExp, r: SExp) extends SExp
+case class SNeg(e: SExp) extends SExp
 case class SSub(l: SExp, r: SExp) extends SExp
 
 def desugar(s: SExp) : CExp = s match { 
   case SNum(n) => CNum(n)
   case SAdd(l,r) => CAdd(desugar(l), desugar(r))
   case SMul(l,r) => CMul(desugar(l), desugar(r)) 
-  case SSub(l,r) => CAdd(desugar(l), CMul(CNum(-1), desugar(r)))
+  case SNeg(e)   => CMul(CNum(-1), desugar(e))
+  case SSub(l,r) => CAdd(desugar(l), desugar(SNeg(r)))
 }
 
 def eval(c: CExp) : Int = c match {
@@ -278,16 +307,51 @@ var fivePlusFour = SAdd(SNum(5), SNum(4))
 assert(eval(desugar(fivePlusFour)) == 9)
 ```
 
-Alternativ kann für unsere Zwecke syntaktischer Zucker in einer Funktion definiert werden, so dass kein Desugaring notwendig ist.
+Für unsere Zwecke reicht es aus, syntaktischen Zucker in einer Funktion zu definieren. Dadurch ist kein Desugaring notwendig, wir können aber trotzdem Testausdrücke einfacher notieren.
 ```scala
 def neg(e: Exp) = Mul(Num(-1), e)
 def sub(l: Exp, r: Exp) = Add(l, neg(r))
 ```
-Syntaktischer Zucker kann (wie in `sub`) auch auf anderem syntaktischen Zucker aufbauen.
+Syntaktischer Zucker kann (wie bei `SSub` und `sub`) auch auf anderem syntaktischen Zucker aufbauen.
+
+
+# Identifier mit Umgebung (AEId)
+Wir wollen unseren [ersten Interpreter](#Erster-Interpreter-AE) für arithmetische Ausdrücke um Konstantendefinitionen erweitern. Um Identifier in den Ausdrücken verwenden zu können, legen wir eine zusätzliche Datenstruktur an, nämlich eine Umgebung (_Environment_), in der Paare aus Bezeichnern und Werten hinterlegt werden.
+
+Wir verwenden für die Identifier den Datentyp `String`, für die Umgebung definieren wir das Typ-Alias `Env`, das eine Abbildung von `String` nach `Int` bezeichnet.
+```scala
+import scala.language.implicitConversions
+
+// ...
+case class Id(x: Symbol) extends Exp
+
+implicit def num2exp(n: Int) : Exp = Num(n)
+implicit def string2exp(s: String) : Exp = Id(s))
+
+type Env = Map[String, Int]
+
+def eval(e: Exp, env: Env) : Int = e match {
+  case Num(n) => n
+  case Add(l,r) => eval(l,env) + eval(r,env)
+  case Mul(l,r) => eval(l,env) * eval(r,env)
+  case Id(x) => env(x)
+}
+
+// example expressions
+val exEnv = Map("x" -> 2, "y" -> 4)
+val a = Add(Mul("x",5), Mul("y",7))
+assert( eval(a,exEnv) == 38 )
+val b = Mul(Mul("x", "x"), Add("x", "x"))
+assert( eval(b,exEnv) == 16 )
+```
+
+Bei der rekursiven Auswertung der Unterausdrücke im `Add`- und `Mul`-Fall reichen wir die Umgebung `env` unverändert weiter. Um einen Identifier auszuwerten, schlagen wir ihn in der Umgebung nach und geben die mit ihm assoziierte Zahl aus.
+
+Wir nutzen [implizite Konvertierung](#Implizite-Konvertierung), um Beispielausdrücke kompakter und lesbarer notieren zu können.
 
 
 # Abstraktion durch Visitor
-Eine alternative Möglichkeit, den ersten Interpreter zu definieren, ist durch einen sogenannten _Visitor_. Dabei handelt es sich um eine Instanz einer Klasse mit Typparameter `T`, die aus Funktionen mit den Typen `Int => T` und `(T,T) => T` besteht.
+Eine alternative Möglichkeit, den ersten Interpreter zu definieren, ist durch _Faltung_ in Form eines _Visitors_. Dabei handelt es sich um eine Instanz einer Klasse mit Typparameter `T`, die aus Funktionen mit den Typen `Int => T` und `(T,T) => T` besteht.
 
 ```scala
 case class Visitor[T](num: Int => T, add: (T,T) => T)
@@ -297,52 +361,43 @@ def foldExp[T](v: Visitor[T], e: Exp) : T = e match {
   case Add(l,r) => v.add(foldExp(v,l), foldExp(v,r))
 }
 
-val evalVisitor = new Visitor[Int](n => n, (l,r) => l + r)
-val countVisitor = Visitor[Int](n => 1, (l,r) => l + r + 1)
+val evalVisitor = new Visitor[Int](n => n, (l,r) => l+r)
+val countVisitor = Visitor[Int](n => 1, (l,r) => l+r+1)
+val printVisitor = Visitor[String](_.toString, "("+_+"+"+_+")")
 
-assert(foldExp(evalVisitor,  Add(2,4)) == 6)
-assert(foldExp(countVisitor, Add(2,4)) == 3)
+assert( foldExp(evalVisitor, Add(2,4)) == 6 )
+assert( foldExp(countVisitor, Add(2,4)) == 3 )
+assert( foldExp(printVisitor, Add(2,4)) == "(2+4)")
 ```
 
-Der wesentliche Unterschied zwischen einem Interpreter und einem Visitor ist, dass der Visitor selbst nicht rekursiv ist. Stattdessen wird das grundlegende Rekursionsmuster in einer Funktion abstrahiert (als Faltung, hier in `foldExp`). Dadurch können beliebige _kompositionale_ Definitionen auf der Datenstruktur (hier `Exp`) definiert werden, ohne dass weitere Funktionen notwendig sind. 
+Im Allgemeinen besteht ein interner Visitor für einen algebraischen Datentyp aus einer Funktion für jedes Konstrukt des Datentyps und einem Typparameter, der den Rückgabetyp der Faltung mit dem Visitor angibt. Der Typparameter wird an allen Stellen verwendet, an denen in der Definition des Datentyps der Datentyp selbst steht (im Beispiel die beiden Unterausdrücke von `Add`).
+
+Ein wesentlicher Unterschied zur Pattern-Matching-Implementation ist, dass die Visitors selbst nicht rekursiv sind, sondern stattdessen das grundlegende Rekursionsmuster in einer Funktion abstrahiert wird (als Faltung, hier in `foldExp`). Dadurch können beliebige _kompositionale_ Operationen auf der Datenstruktur (hier `Exp`) definiert werden, ohne dass weitere Funktionen notwendig sind.
+
+Durch die Abstraktion des Rekursionsmusters wird _Kompositionalität_ für alle Visitors erzwungen.
 
 :::info
 **Kompositionalität** heißt, dass sich die Bedeutung eines zusammengesetzten Ausdrucks aus der Bedeutung seiner Bestandteile ergibt. Bei einer rekursiven Struktur muss also die Bedeutungsfunktion strukturell rekursiv sein.
+
+Eine Funktion ist **strukturell rekursiv**, wenn rekursive Aufrufe immer nur auf Unterausdrücken bzw. dem Inhalt der Datenfelder des aktuellen Ausdrucks stattfinden.
 :::
 
-Auch in dieser Implementation ist es möglich, eine Core-Sprache und eine erweiterte Sprache zu definieren, in dem man etwa eine zweite Klasse definiert, die `Visitor` erweitert und um zusätzliche Funktionen (bspw. `mul: (T,T) => T`) ergänzt.
+Auch in dieser Implementation ist es möglich, eine Core-Sprache und eine erweiterte Sprache zu definieren, in dem man etwa eine zweite Klasse definiert, die `Visitor` erweitert und um zusätzliche Funktionen (bspw. `sub: (T,T) => T`) ergänzt.
 
-Es können auch wieder Identifier mithilfe einer _Environment_ der Sprache hinzugefügt werden, der `eval`-Visitor muss dazu mithilfe von Currying verfasst werden. Der Typ des Visitors ist dann `Env => Int`, es wird erst ein Ausdruck und anschließend eine Umgebung überreicht, bevor das Ergebnis ausgegeben wird, dadurch lässt sich die Funktion trotz des zusätzlichen Parameters mit der Visitor-Klasse verfassen.
-
-
-# Identifier mit Umgebung (AEId)
-Um Identifier in den Ausdrücken verwenden zu können, ist eine zusätzliche Datenstruktur notwendig, nämlich eine Umgebung (_Environment_), in der die Paare aus Identifiern und Werten gespeichert und ausgelesen werden.
-Wir verwenden für die Identifier den Datentyp `String`, für die Umgebung definieren wir das Typ-Alias `Env`, dass eine `Map` von `String` nach `Int` bezeichnet.
+Wir können auch wieder Identifier durch eine Umgebung hinzufügen, der `eval`-Visitor muss dazu mithilfe von Currying verfasst werden. Für den Typparameter `T` des Visitors muss dann `Env => Int` gewählt werden, es wird erst ein Ausdruck und anschließend eine Umgebung eingelesen, bevor das Ergebnis ausgegeben wird. Dadurch lässt sich die Funktion trotz des zusätzlichen Parameters mit der Visitor-Klasse verfassen (hier verkürzt ohne `Mul`):
 ```scala
-import scala.language.implicitConversions
+case class Visitor[T](num: Int => T, add: (T,T) => T, id: String => T)
 
-// ...
-case class Id(x: Symbol) extends Exp
-
-implicit def num2exp(n: Int) : Exp = Num(n)
-implicit def string2exp(s: String) : Exp = Id(Symbol(s))
-
-// type definition, 'Env' is alias for type on right hand side
-type Env = Map[String, Int]
-
-def eval(e: Exp, env: Env) : Int = e match {
-  case Num(n) => n
-  case Add(l,r) => eval(l,env) + eval(r,env) // pass environment recursively
-  case Mul(l,r) => eval(l,env) * eval(r,env)
-  case Id(x) => env(x) // return associated value from map
+def foldExp[T](v: Visitor[T], e: Exp) : T = e match {
+  case Num(n) => v.num(n)
+  case Add(l,r) => v.add(foldExp(v, l), foldExp(v, r))
+  case Id(x) => v.id(x)
 }
 
-// examples
-val env = Map("x" -> 2, "y" -> 4)
-val a = Add(Mul("x",5), Mul("y",7))
-assert(eval(a, env) == 38)
-val b = Mul(Mul("x", "x"), Add("x", "x"))
-assert(eval(b, env) == 16)
+val evalVisitor = Visitor[Env=>Int](
+  env => _ ,
+  (a, b) => env => a(env) + b(env),
+  x => env => env(x))
 ```
 
 
