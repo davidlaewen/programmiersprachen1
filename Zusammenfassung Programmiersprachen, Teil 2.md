@@ -1201,12 +1201,12 @@ def addAndMulNToList(n: Int, l: List[Int]) : List[Int] =
 
 
 # Typsysteme
-Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler (bspw. Addition von Funktionen oder Applikation einer Zahl) in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Ein Typsystem kann für die Fehler, die es erkennen soll, garantieren, dass diese bei keiner Ausführung eines Programms auftreten. Ein Test kann dagegen nur die fehlerfreie Ausführung eines Programms mit einer bestimmten Eingabe garantieren.
+Ziel von Typsystemen ist es, bestimmte Arten semantischer Fehler (bspw. Addition von Funktionen oder Applikation einer Zahl) in einem syntaktisch korrekten Programm bereits vor dessen Ausführung zu erkennen. Ein Typsystem kann für die Fehler, die es erkennen soll, garantieren, dass diese bei keiner Ausführung eines Programms auftreten. Im Gegensatz dazu kann ein Test nur die fehlerfreie Ausführung eines Programms für eine bestimmte Eingabe garantieren.
 
 Im Kontext von Typsystemen und Typecheckern spricht man von den Eigenschaften _Soundness_ und _Completeness_. 
 
 :::info
-Ein Typsystem ist _sound_, wenn es jeden bei der Ausführung auftretenden Typfehler vor der Ausführung meldet und _complete_, wenn es nur Fehler meldet, die tatsächlich bei der Ausführung auftreten. Anders ausgedrückt: Einen Typecheck, der sound ist, bestehen **nur echt typsichere** Programme und einen Typecheck, der complete ist, bestehen **alle typsicheren** Programme. 
+Ein Typsystem ist _sound_, wenn es jeden bei der Ausführung auftretenden Typfehler vor der Ausführung meldet, und _complete_, wenn es nur Fehler meldet, die tatsächlich bei der Ausführung auftreten. Anders ausgedrückt: Einen Typecheck, der sound ist, bestehen **nur echt typsichere** Programme und einen Typecheck, der complete ist, bestehen **alle typsicheren** Programme. 
 
 Im Fall von Soundness bestehen evtl. **echt typsichere** Programme den Typecheck nicht, im Fall von Completeness bestehen evtl. **nicht typsichere** Programme den Typecheck.
 :::
@@ -1418,9 +1418,9 @@ case class ProductType(left: Type, right: Type) extends Type
 case class SumType(left: Type, right: Type) extends Type
 ```
 
-`FunType()`, `ProductType()` und `SumType()` sind dabei rekursiv definiert und enthalten selbst jeweils zwei Typen. Im Fall von Funktionen ist das der Parametertyp und der Ausgabetyp. Die Ergänzung der Annotation für den Argumenttyp bei Funktionen sorgt dafür, dass wir den `from`-Typ von Funktionen nicht "erraten" müssen.
+`FunType()`, `ProductType()` und `SumType()` sind dabei rekursiv definiert und enthalten selbst jeweils zwei `Type`-Felder. Im Fall von Funktionen sind das der Parameter- und Ausgabetyp. Die Ergänzung der Annotation für den Argumenttyp bei Funktionen sorgt dafür, dass wir den `from`-Typ von Funktionen nicht "erraten" müssen. Der `to`-Typ kann unter Angabe des `from`-Typs problemlos durch Typechecking des Funktionsrumpfes bestimmt werden.
 
-Um mit Identifiern umzugehen, benötigt unser Typechecker ein zweites Argument, nämlich eine Typumgebung `gamma`, in der der Typ von Identifiern hinterlegt wird und Erreichen des Identifiers ausgelesen wird.
+Um mit Identifiern umzugehen, benötigt unser Typechecker ein zweites Argument, nämlich eine Typumgebung (die meist mit $\Gamma$ oder als _Symbol Table_ bezeichnet wird), in der der Typ von Identifiern hinterlegt wird, damit er im `Id`-Fall ausgelesen werden kann.
 
 ```scala
 def typeCheck(e: Exp, gamma: Map[String,Type]) : Type = e match {
@@ -1469,18 +1469,149 @@ def typeCheck(e: Exp, gamma: Map[String,Type]) : Type = e match {
 ```
 
 :::info
-**Soundness von STLC:**
-Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert nicht ++oder++ `typeCheck(eval(e),Map()) == t`, wobei `eval(e)` in beiden Fällen keinen Laufzeitfehler verursacht.
-
-**Terminierung von STLC:**
-Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert.
+**Soundness und Terminierung von STLC:**
+Für `e: Exp` mit `typeCheck(e) == t` gilt: `eval(e)` terminiert und `typeCheck(eval(e),Map()) == t`.
 :::
 
 STLC ist nicht Turing-vollständig und in STLC können nur terminierende Programme verfasst werden. Aus diesem Grund wird STLC bei der Implementation von Programmiersprachen häufig auf Typ-Level verwendet, da man bspw. Typfunktionen und deren Applikation formulieren will, aber nicht-terminierende Ausdrücke auf Typ-Level verhindern muss, da sonst der Typechecker nicht mehr zwingend terminiert.
 
 
 # Hindley-Milner-Typinferenz
-Algorithmus erfüllt Soundness (wenn Typannotation gefunden, dann ist Typecheck erfolgreich) und Completeness (wenn es Typannotation gibt, so das Typecheck erfolgreich, so wird diese gefunden).
+Zuletzt wollen wir noch ein Typsystem betrachten, das ohne jegliche Typannotationen auskommt und bei dem Typen _inferiert_ werden können. Dazu wird beim Typechecking eine Liste von _Constraints_ erzeugt und ähnlich wie bei einem linearen Gleichungssystem nach einer Belegung mit Typen gesucht, die alle Constraints erfüllt.
+
+Wir kehren dazu zum nicht-erweiterten STLC zurück, wobei wir den substitutionsbasierten Interpreter verwenden. Wir unterscheiden die Typen `FunType()` und `NumType()`, außerdem ergänzen wir Typvariablen.
+
+```scala
+sealed abstract class Type
+case class FunType(from: Type, to: Type) extends Type
+case class NumType() extends Type
+case class TypeVar(x: String) extends Type
+```
+Da der Typ von Identifiern (d.h. Funktionsparametern) erst bei deren Verwendung bestimmt werden kann, wird Identifiern bei ihrem ersten Auftreten eine Typvariable zugeordnet. Bei der Auswertung von Ausdrücken, in dem ein Identifier genutzt wird, können dann Constraints für die Typvariable erzeugt werden -- wird ein Identifier bspw. mit einer Zahl addiert, so muss er den Typ `NumType()` besitzen. 
+
+Bei den Constraints handelt es sich um Typgleichungen, bei denen der linke und rechte Typ übereinstimmen müssen. Diese werden als Tupel der Form `(Type,Type)` repräsentiert. Die Ausgabe von `typeCheck` ist eine Liste solcher Constraint-Tupel zusammen mit dem Typen des Ausdrucks `e`, bei dem es sich auch um eine Typvariable handeln kann. 
+
+Um Identifier mit ihrer jeweiligen Typvariable zu assoziieren, verwenden wir wieder eine Typumgebung `gamma`.
+```scala
+var typeVarCount: Int = 0
+def freshTypeVar() : Type = {
+  typeVarCount += 1
+  TypeVar("X"+typeVarCount.toString)
+}
+
+def typeCheck(e: Exp, g: Map[String,Type]) : (List[(Type,Type)],Type) = e match {
+  case Num(_) => (List(),NumType())
+  case Id(x) => g.get(x) match {
+    case Some(t) => (List(),t)
+    case _ => sys.error("Unbound identifier: "+x)
+  }
+  case Add(l,r) => (typeCheck(l,g),typeCheck(r,g)) match {
+    case ((lEqs,lt),(rEqs,rt)) => 
+      (lt->NumType() :: rt->NumType() :: lEqs ++ rEqs, NumType())
+  }
+  case Fun(p,b) =>
+    val xt = freshTypeVar()
+    val resBody = typeCheck(b,g+(p->xt))
+    (resBody._1, FunType(xt,resBody._2))
+  case App(f,a) =>
+    val toType = freshTypeVar()
+    (typeCheck(f,g),typeCheck(a,g)) match {
+      case ((fEqs, ft), (aEqs, at)) => 
+        ((ft, FunType(at, toType)) :: fEqs ++ aEqs, toType)
+    }
+}
+```
+
+Im `Num`-Fall wird eine leere Constraint-Liste und der Typ `NumType()` zurückgegeben. Im `Id`-Fall wird der Identifier `x` in der Typumgebung nachgeschlagen, wird ein Eintrag gefunden, so wird der entsprechende Typ und eine leere Constraint-Liste ausgegeben, ansonsten wird ein Fehler geworfen.
+
+Im `Add`-Fall werden erst Typechecking auf den Unterausdrücken durchgeführt, die Constraint-Liste wird um zwei Gleichungen erweitert: Der Typ beider Unterausdrücke muss mit `NumType()` übereinstimmen, da nur Zahlen addiert werden können. Es wird der Typ `NumType()` ausgegeben.
+
+Im `Fun`-Fall wird eine "frische" Typvariable für den `param`-Identifier erzeugt, `typeCheck` wird rekursiv auf dem Rumpf aufgerufen, wobei in der Typumgebung der Parameter an die neue Typvariable gebunden wird. Das Typechecking des Rumpfes ergibt die Constraint-Liste und den `to`-Typ der Funktion, für den `from`-Typ wird die neue Typvariable eingesetzt.
+
+Im `App`-Fall wird eine neue Typvariable `toType` für das Ergebnis der Funktionsapplikation erzeugt, anschließend wird rekursiv Typechecking auf beiden Unterausdrücken durchgeführt. Die Constraint-Liste wird erweitert um die Bedingung, dass der Typ der Funktion `FunType()` ist, wobei der `from`-Typ mit dem Typ des Arguments und der `to`-Typ mit `toType` übereinstimmt. Es wird `toType` ausgegeben.
+
+## Unifikationsalgorithmus von Robinson
+Die `typeCheck`-Funktion trifft im Gegensatz zu der im [STLC-Typsystem](#Simply-Typed-Lambda-Calculus-STLC) (bis auf das Erkennen ungebundener Identifier) noch gar keine Aussage darüber, ob ein Ausdruck typkorrekt ist. Dazu muss für die von `typeCheck` ausgegebene Liste von Typgleichungen geprüft werden, ob sich alle Gleichungen _unifizieren_ lassen. Dazu verwenden wir den Unifikationsalgorithmus nach [Robinson](https://de.wikipedia.org/wiki/John_Alan_Robinson):
+```scala
+def substitution(x: String, s: Type): Type => Type = new Function[Type,Type] {
+  def apply(t: Type) : Type = t match {
+    case FunType(from, to) => FunType(this(from), this(to))
+    case NumType() => NumType()
+    case TypeVar(y) => if (x==y) s else t
+  }
+}
+
+def freeTypeVars(t: Type) : Set[String] = t match {
+  case FunType(f,t) => freeTypeVars(f)++freeTypeVars(t)
+  case NumType() => Set()
+  case TypeVar(x) => Set(x)
+}
+
+def unify(eq: List[(Type,Type)]) : Type => Type = eq match {
+  case List() => identity
+  case (NumType(),NumType())::rest => unify(rest)
+  case (FunType(f1,t1),FunType(f2,t2))::rest => unify(f1->f2::t1->t2::rest)
+  case (TypeVar(x1),TypeVar(x2))::rest if x1==x2 => unify(rest)
+  case (TypeVar(x),t)::rest =>
+    if (freeTypeVars(t)(x)) sys.error(s"Occurs check: $x occurs in $t")
+    val s = substitution(x,t)
+    s.andThen(unify(rest.map(tup => (s(tup._1),s(tup._2)))))
+  case (t,TypeVar(x))::rest => unify((TypeVar(x),t)::rest)
+  case (t1,t2)::_ => sys.error(s"Cannot unify $t1 and $t2")
+}
+```
+
+`unify` bestimmt die einfachste Belegung der Typvariablen, die alle durch `typeCheck` generierten Gleichungen erfüllt, und gibt eine Funktion aus, die alle Typvariablen entsprechend dieser Belegung substituiert. 
+
+Stimmen im ersten Tupel der Liste von Gleichungen die linke und rechte Seite bereits überein, so wird `unify` einfach auf der Restliste aufgerufen. Steht links und rechts der Typ `FunType()`, so wird die Liste um zwei Bedingungen erweitert, dass der `from`- und `to`-Typ jeweils übereinstimmen (_generative Rekursion_).
+
+Steht im ersten Tupel links eine Typvariable und rechts ein anderer Typ, so wird mittels `freeTypeVars` geprüft, ob die Typvariable innerhalb des anderen Typs auftritt. Ist dies der Fall, so ist die Gleichung "selbstbezüglich" und kann unmöglich erfüllt werden (bspw. gibt es keinen Typ `X`, für den `X` und `FunType(X,X)` gleichbedeutend sind). In diesem Fall wird also ein Fehler geworfen.
+
+Andernfalls wird mit `substitution` eine Funktion angelegt, die alle Vorkommen der (linken) Typvariable durch den anderen (rechten) Typ ersetzt. Mit `andThen` wird eine Komposition der Substitution nach der Ergebnisfunktion des rekursiven Aufrufs von `unify` angelegt, wobei `unify` auf der Restliste aufgerufen wird, in der die Substitution mit `map` auf alle Tupel angewendet wurde.
+
+Steht die Typvariable rechts und ein anderer Typ links, so werden die Einträge im Tupel vertauscht, in allen anderen Fällen können die zwei Typen im Tupel nicht unifiziert werden und es wird ein Fehler geworfen.
+
+Erreicht `unify` das Ende der Liste, so wird die Identitätsfunktion ausgegeben, durch die Komposition der Substitutionsfunktionen gibt `unify` also eine Funktion aus, die die einen Typ akzeptiert darin der unifizierenden Belegung entsprechend alle Typvariablen substituiert. Es kann also der gesamte Typecheck mit der folgenden Funktion durchgeführt werden:
+```scala
+def doTypeCheck(e: Exp): Type = {
+  val (eqs,t) = typeCheck(e,Map())
+  unify(eqs)(t)
+}
+```
+
+:::info
+**Completeness der Typinferenz:**
+Gibt es für ein Programm Typannotationen, mit denen es vom STLC-Typechecker akzeptiert wird, so wird akzeptiert der Typecheck mit Typinferenz auch die nicht-typannotierte Variante des Programms.
+
+**Soundness:**
+Für alle `e: Exp` gilt:
+Falls `doTypeCheck(e) == t`, dann gilt `eval(e) == v` mit `doTypeCheck(v) == t` (unter $\alpha$-Konversion, d.h. Umbennenung der Typvariablen ohne Veränderung der Bedeutung).
+:::
+
+## Let-Polymorphismus
+Mit der bisherigen Definition der Sprache und des Typsystems ist es nicht möglich, _polymorphe_ Funktionen auszudrücken, die für mehrere Argumenttypen genutzt werden können. Bspw. müsste man die Identitätsfunktion oder die Kompositionsfunktion für jeden Eingabetyp getrennt anlegen.
+
+Wir ermöglichen polymorphe Funktionen durch lokale Bindungen mit `Let`:
+```scala
+case class Let(x: String, xDef: Exp, body: Exp) extends Exp
+```
+
+In `typeCheck` ergänzen wir den folgenden Fall für `Let`:
+```scala
+def typeCheck(e: Exp, g: Map[String,Type]) : (List[(Type,Type)],Type) = e match {
+  // ...
+  case Let(x,xDef,b) =>
+    val (eqs1,_) = typeCheck(xDef,g)
+    val (eqs2,t) = typeCheck(subst(b,x,xDef),g)
+    (eqs1++eqs2,t)
+}
+```
+
+Erst wird `typeCheck` rekursiv auf `xDef` aufgerufen, anschließend rufen wir `typeCheck` rekursiv auf dem Rumpf des `Let`-Ausdrucks auf. Dabei verwenden wir aber (innerhalb von `typeCheck`!) die `subst`-Funktion des Interpreters, um alle Vorkommen von `x` im Rumpf durch `xDef` zu ersetzen. Es werden die Constraints von `typeCheck` auf `xDef` und auf dem Rumpf konkateniert und mit dem Ergebnistyp von `typeCheck` auf dem Rumpf ausgegeben.
+
+Durch die Substitution vor der Durchführung des Typechecks wird jedes Vorkommen von `x` unabhängig von den anderen Vorkommen auf Typkorrektheit geprüft und die Typen der Vorkommen müssen nicht zwingend übereinstimmen. 
+
+Bspw. würde also beim Typechecking des Ausdrucks `Let("id",Fun("x","x"),...)` das Typechecking für jedes Vorkommen der Identitätsfunktion unabhängig voneinander durchgeführt werden. Dadurch kann die Funktion polymorph für jeden beliebigen Argumenttyp genutzt werden, da für alle Vorkommen jeweils der korrekte Typ (etwa `FunType(NumType(),NumType())`) inferiert wird.
 
 
 
@@ -1490,10 +1621,7 @@ Algorithmus erfüllt Soundness (wenn Typannotation gefunden, dann ist Typecheck 
 
 
 :::success
-- [ ] VL 22
 - [ ] Mark & Sweep fertig zusammenfassen (???)
-- [ ] Option-Monad
-- [ ] PPI
 - [ ] Alle Vorlesungen bis 16.10.
 - [ ] 2 Wochen für Lecture Notes, Wiederholungen, Lernen, Probeklausur, evtl. Altklausuren
 :::

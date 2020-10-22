@@ -89,12 +89,12 @@ def typeCheck(e: Exp, gamma: Map[String,Type]) : (List[(Type,Type)],Type) = e ma
 }
 
 
-/** Robinson Unification Algorithm (solves system of equation) */
+/** Robinson Unification Algorithm (solves system of equations) */
 def substitution(x: String, s: Type): Type => Type = new Function[Type,Type] {
   def apply(t: Type) : Type = t match {
-    case FunType(from, to) => FunType(this (from), this (to))
+    case FunType(from, to) => FunType(this(from), this(to))
     case NumType() => NumType()
-    case TypeVar(y) => if (x == y) s else t
+    case TypeVar(y) => if (x==y) s else t
   }
 }
 
