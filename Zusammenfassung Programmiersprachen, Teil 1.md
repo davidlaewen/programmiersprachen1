@@ -351,7 +351,7 @@ Wir nutzen [implizite Konvertierung](#Implizite-Konvertierung), um Beispielausdr
 
 
 # Abstraktion durch Visitor
-Eine alternative Möglichkeit, den ersten Interpreter zu definieren, ist durch _Faltung_ in Form eines _Visitors_. Dabei handelt es sich um eine Instanz einer Klasse mit Typparameter `T`, die aus Funktionen mit den Typen `Int => T` und `(T,T) => T` besteht.
+Eine alternative Möglichkeit, den ersten Interpreter zu definieren, ist durch _Faltung_ mit einem _internen Visitor_. Dabei handelt es sich um eine Instanz einer Klasse mit Typparameter `T`, die aus Funktionen mit den Typen `Int => T` und `(T,T) => T` besteht.
 
 ```scala
 case class Visitor[T](num: Int => T, add: (T,T) => T)
@@ -402,146 +402,148 @@ val evalVisitor = Visitor[Env=>Int](
 
 
 # Identifier mit Bindings (WAE)
-Bei der Implementation von Identifiern mit einer Environment müssen die Identifier außerhalb des Ausdrucks in der _Map_ definiert werden und Identifier können nicht umdefiniert werden. 
+Bei der Implementation von Identifiern mit einer Environment müssen die Identifier außerhalb der Programme in der _Map_ definiert werden und Identifier können nicht umdefiniert werden. 
 
-Besser wäre eine Implementation, bei der die Bindungen innerhalb des Ausdrucks selbst definiert und umdefiniert werden können. Dazu ist ein neues Sprachonstrukt, `With`, notwendig. Ein `With`-Ausdruck besteht aus einem Identifier, einem Ausdruck und einem Rumpf, in dem der Identifier an den Ausdruck gebunden ist.
+Besser wäre eine Implementation, bei der die Bindungen innerhalb von Programmen definiert und umdefiniert werden können. Dazu ist ein neues Sprachonstrukt, `With`, notwendig. Ein `With`-Ausdruck besteht aus einem Identifier, einem Ausdruck und einem Rumpf, in dem der Identifier an den Ausdruck gebunden ist.
 ```scala
-case class With(x: Symbol, xdef: Exp, body: Exp) extends Exp
+case class With(x: String, xDef: Exp, body: Exp) extends Exp
 ```
-
-Die Definition soll nur im Rumpf gelten, nicht außerhalb (_lexikalisches Scoping_).
 
 `Add(5, With(x, 7, Add(x, 3)))` soll also bspw. zu `15` auswerten.
 
-Dazu soll die Definition von `x` (hier `7`) ausgewertet und für alle Vorkommen von `x` im Rumpf eingesetzt werden (_Substitution_). Hierfür definieren wir eine neue Funktion `subst` mit dem Typ `(Exp, Symbol, Num) => Exp`. Es müssen zwei verschiedene Vorkommen von Identifiern unterschieden werden: _Bindende_ Vorkommen (Definitionen in `With`-Ausdrücken) und _gebundene_ Vorkommen (Verwendung an allen anderen Stellen). Tritt ein Identifier auf, ohne dass es "weiter außen" im Gesamtausdruck ein bindendes Vorkommen gibt, so handelt es sich um ein _freies_ Vorkommen. 
+Die Bindung soll nur im Rumpf gelten, nicht außerhalb (_lexikalisches Scoping_).
+
+Dazu soll die Definition von `x` (hier `7`) ausgewertet und für alle Vorkommen von `x` im Rumpf eingesetzt werden (_Substitution_). Hierfür definieren wir eine neue Funktion `subst` mit dem Typ `(Exp, String, Num) => Exp`. Es müssen zwei verschiedene Vorkommen von Identifiern unterschieden werden: _Bindende_ Vorkommen (Definitionen in `With`-Ausdrücken) und _gebundene_ Vorkommen (Verwendung an allen anderen Stellen). Tritt ein Identifier auf, ohne dass es "weiter außen" im Ausdruck ein bindendes Vorkommen gibt, so handelt es sich um ein _freies_ Vorkommen. 
 
 ```scala
 With x = 7: // binding occurence
-   x + y // x bound, y free
+  x + y // x bound, y free
 ```
 
 :::info
-Das **Scope** eines bindenden Vorkommens des Identifiers `x` ist die Region des Programmtextes in dem sich Vorkommen von `x` auf dieses bindende Vorkommen beziehen.
+Der **Scope** (Sichtbarkeitsbereich) eines bindenden Vorkommens des Identifiers `x` ist die Region des Programmtextes in dem sich Vorkommen von `x` auf das bindende Vorkommen beziehen.
 :::
 
-Bei der Implementation muss festgelegt werden, in welchem Teil eines Ausdrucks ein bindendes Vorkommen gelten soll.
+Beim Entwerfen der Sprache muss das erwünschte Scoping-Verhalten entschieden und implementiert werden.
 - Beispiel 1: Das gebundene Vorkommen von `x` soll sich auf die Definition in der ersten Zeile beziehen, die zweite Definition soll keine Wirkung "nach außen" haben.
 ```scala
 With x = 5:
-   x + (With x = 3: 10)
+  x + (With x = 3: 10)
 ```
 - Beispiel 2: Das erste Vorkommen soll hier (intuitiv, vgl. Scheme/Racket) den Wert 5 besitzen, dass zweite Vorkommen jedoch den Wert 3. Es soll also immer das nächste bzw. nächstinnerste bindende Vorkommen gelten.
 ```scala
 With x = 5:
    x + (With x = 3: x)
 ```
-Würde das Scope des ersten bindenden Vorkommens den gesamten Ausdruck umfassen, so wäre es nicht möglich, Identifier umzubinden, außerdem sind Ausdrücke so weniger verständlich, da der innere Ausdruck (oben in Klammern) sonst je nach Kontext zu einem anderen Ergebnis auswerten würde
+Würde das Scope des ersten bindenden Vorkommens den gesamten Ausdruck umfassen, so wäre es nicht möglich, Identifier umzubinden, außerdem sind Programme so weniger verständlich und deren Auswertung schlechter nachvollziehbar, da Unterausdrücke je nach Kontext zu einem anderen Ergebnis auswerten würden.
 
 Es ergibt sich die folgende Implementation für die Erweiterung um `With` und Substitution:
 ```scala
-case class With(x: Symbol, xdef: Exp, body: Exp) extends Exp
+case class With(x: String, xDef: Exp, body: Exp) extends Exp
 
-def subst(body: Exp, i: Symbol, v: Num) : Exp = body match {
-  case Num(n) => body
-  case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
-  case Mul(l,r) => Mul(subst(l,i,v), subst(r,i,v))
+def subst(body: Exp, i: String, v: Num) : Exp = body match {
+  case Num(_) => body
   case Id(x) => if (x == i) v else body
-  case With(x,xdef,body) =>  // do not substitute in body if x is redefined
-    With(x, subst(xdef,i,v), if (x == i) body else subst(body,i,v))
+  case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
+  case With(x,xDef,body) =>  // do not substitute in body if x is redefined
+    With(x, subst(xDef,i,v), if (x == i) body else subst(body,i,v))
 }
 
 def eval(e: Exp) : Int = e match {
   case Num(n) => n
   case Id(x) => sys.error("Unbound identifier: " + x.name)
   case Add(l,r) => eval(l) + eval(r)
-  case Mul(l,r) => eval(l) * eval(r)
-  case With(x,xdef,body) => eval(subst(body,x,Num(eval(xdef))))
+  case With(x,xDef,body) => eval(subst(body,x,Num(eval(xDef))))
 }
 
-val a = Add(5, With('x, 7, Add("x", 3)))
+val a = Add(5, With("x", 7, Add("x", 3)))
 assert(eval(a) == 15)
-val b = With('x, 1, With('x, 2, Mul("x","x")))
+val b = With("x", 1, With("x", 2, Add("x","x")))
 assert(eval(b) == 4)
-val c = With('x, 5, Add("x", With('x, 3, "x")))
+val c = With("x", 5, Add("x", With("x", 3, "x")))
 assert((eval(c) == 8))
-val d = With('x, 1, With('x, Add("x",1), "x"))
+val d = With("x", 1, With("x", Add("x",1), "x"))
 assert((eval(d) == 2))
 ```
 
-Stößt die `eval`-Funktion auf einen Identifier, so ist dieser offensichtlich bei den bisherigen Substitutionen nicht ersetzt worden und ist frei. In diesem Fall wird also ein Fehler geworfen.
+Stößt die `eval`-Funktion auf einen Identifier, so ist dieser offensichtlich bei den bisherigen Substitutionen nicht ersetzt worden und ist frei. In diesem Fall wird also ein Fehler geworfen. Im `With`-Fall wird `subst` aufgerufen, um im Rumpf (`body`) die Vorkommen von `x` durch `xDef` zu ersetzen. Dabei wird `xDef` zuerst ausgewertet, was einen Wert vom Typ `Int` ergibt, und anschließend wieder mit `Num()` "verpackt", damit der erwartete Typ erfüllt ist und die Zahl als Unterausdruck eingefügt werden kann.
 
-Bei der Substitution im `With`-Konstrukt darf die Substitution nur dann rekursiv im Rumpf angewendet werden, wenn der Identifier im `With` Konstrukt nicht gleich dem zu ersetzenden Identifier ist. Es muss aber immer im `xdef`-Ausdruck substituiert werden, denn auch hier sollen Identifier auftreten können, die Definition aus dem `With`-Ausdruck soll hier aber noch nicht gelten.
+Bei der Substitution im `With`-Konstrukt darf die Substitution nur dann rekursiv im Rumpf angewendet werden, wenn der Identifier im `With` Konstrukt nicht gleich dem zu ersetzenden Identifier ist. In diesem Fall beziehen sich Vorkommen des Identifiers im Rumpf nämlich auf die Bindung im `With`-Konstrukt und nicht auf die Bindung, für die die Substitution durchgeführt wird.
 
-Der Ausdruck, durch den bei der Substitution der Identifier ersetzt wird, hat den Typ `Num`, ist also bereits vollständig ausgewertet und nicht vom Typ `Exp`. Zudem wird im `With`-Fall der `eval`-Funktion der `xdef`-Ausdruck ausgewertet, bevor die Substitution stattfindet. Die Bindung mit `With` ist also _eager_ (_call by value_). Wäre dies nicht der Fall, so können Variablen ungewollt gebunden werden (_accidental capture_) und es ist eine komplexere Implementierung notwendig.
+Es muss aber immer im `xDef`-Ausdruck substituiert werden, denn auch hier können Identifier auftreten, die Definition aus dem `With`-Ausdruck soll aber nur im Rumpf und nicht in `xDef` gelten.
 
 
 # First-Order-Funktionen (F1-WAE)
-Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken (_Magic Literals_ :unamused:). Unterscheiden sich die Teilausdrucke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke `3*5+1`, `2*5+1` und `7*5+1` lassen sich etwa mit `f(x) = x*5+1` schreiben als `f(3)`, `f(2)` und `f(7)`.
+Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken (_"Magic Literals"_) -- bspw. kann damit eine Konstante gebunden werden, die in einer Berechnung häufig vorkommt. 
 
-First-Order-Funktionen werden über einen Bezeichner aufgerufen, können aber nicht als Parameter übergeben werden. 
+Unterscheiden sich die Teilausdrucke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke `5*3+1`, `5*2+1` und `5*7+1` lassen sich etwa mit `f(x) = 5*x+1` schreiben als `f(3)`, `f(2)` und `f(7)`. Weitere Beispiele dieser Abstraktion wären die Funktionen `square(n) = n*n` und `avg(x,y) = (x+y)/2`.
 
-Wir legen zwei Sprachkonstrukte für Funktionsaufrufe und Funktionsdefinitionen an, in einer globalen Map werden Funktionsbezeichnern Funktionsdefinitionen zugewiesen. 
+First-Order-Funktionen werden über einen Bezeichner aufgerufen, können aber nicht als Parameter übergeben werden und sind nicht Ausdrücke (Typ `Exp`).
 
+Wir legen zwei Sprachkonstrukte für Funktionsaufrufe und Funktionsdefinitionen an. Aufrufe sind Expressions und bestehen aus dem Bezeichner der Funktion sowie einer Liste von Argumenten, Definitionen bestehen aus einer Liste von Parametern und einem Rumpf. In einer globalen Map werden Funktionsbezeichnern Funktionsdefinitionen zugewiesen, die Funktionen werden also außerhalb des Programms definiert (im Gegensatz zu Bindugeen mit `With`). 
 ```scala
-case class Call(f: Symbol, args: List[Exp]) extends Exp
+case class Call(f: String, args: List[Exp]) extends Exp
 
-case class FunDef(args: List[Symbol], body: Exp)
-type Funs = Map[Symbol, FunDef]
+case class FunDef(params: List[String], body: Exp)
+type Funs = Map[String, FunDef]
 ```
 
 ## Substitutionsbasierter Interpreter
-Die bereits implementierten Konstanten-Identifier und die Funktions-Identifier verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergebung ist unabhängig voneinander. Es wird im `Call`-Fall nur in den Argumenten substituiert, nicht im Funktionsnamen (denn der Funktionsname kann nicht durch einen Wert ersetzt werden):
+Die bereits implementierten Bindungen mit `With` und die Funktionen verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergabe ist unabhängig voneinander. 
+
+Wir erweitern `subst` um den `Call`-Fall, dabei wird die Substitution mit `map` auf alle Funktionsargumente angewandt.
 
 ```scala
-def subst(body: Exp, i: Symbol, v: Num) : Exp = body match {
+def subst(body: Exp, i: String, v: Num) : Exp = body match {
   // ...
   case Call(f,args) => Call(f, args.map(subst(_,i,v)))
 }
 ```
 
-Der neue Match-Zweig in `eval` ist deutlich komplizierter:
-- Zuerst wird die Definition von `f` in `funs` nachgeschlagen. `args` ist die Liste der Argumente des Aufrufs mit Einträgen vom Typ `Exp`. 
-- Mit `map` werden alle Argumente in der Liste vollständig ausgewertet. `vArgs` ist die Liste der ausgewerteten Argumente mit Einträgen vom Typ `Int`. 
-- Als nächstes wird geprüft, dass die Argumentliste und die Parameterliste die selbe Länge besitzen, so dass bei Bedarf eine Fehlerbehandlung möglich ist.
-- Nun wird für jeden Parameter in der Parameterliste eine Substitution auf dem Rumpf `fDef.body` mit dem entsprechenden Argument aus `vArgs` ausgeführt. Dies ist durch `zip` und `foldLeft` implementiert. 
-- Zuletzt wird `eval` rekursiv auf dem Rumpf, in dem alle Substitutionen durchgeführt wurden, aufgerufen.
-
+In `eval` überreichen wir zusätzlich immer die Map, in der Funktionen definiert sind. Der neue Match-Zweig ist hier deutlich komplizierter:
 ```scala
-def eval(funs: Funs, e: Exp) : Int = e match {
-  // ...
+def eval(e: Exp, funs: Funs) : Int = e match {
+  case Num(n) => n
+  case Id(x) => sys.error("Unbound identifier "+x)
+  case Add(l,r) => eval(l,funs)+eval(r,funs)
+  case With(x,xDef,b) => eval(subst(b,x,Num(eval(xDef,funs))), funs)
   case Call(f,args) => {
     val fDef = funs(f)
-    val vArgs = args.map(eval(funs,_))
-    if (fDef.args.size != vArgs.size)
-      sys.error("Incorrect number of params in call to " + f.name)
-    val substBody = fDef.args.zip(vArgs).foldLeft(fDef.body)( 
-      (b,av) => subst(b, av._1, Num(av._2)) )
-    // Zip list of symbols and list of integers, fold resulting list of tuples.
-    // Begin with body, apply subst function for each tuple in zipped list.
-    // b is preliminary folding result (body still missing substitutions), 
-    // av is tuple of parameter name and corresponding value.
-    eval(funs, substBody)
+    val vArgs = args.map(eval(_,funs))
+    if (fDef.params.size != vArgs.size)
+      sys.error("Incorrect number of args in call to "+f)
+    val substBody = fDef.params.zip(vArgs).foldLeft(fDef.body)(
+      (b,pa) => subst(b, pa._1, Num(pa._2))
+    )
+    eval(substBody,funs)
   }
 }
 ```
+`f` ist ein Bezeichner vom Typ `String`, `args` ist die Liste der Argumente des Aufrufs vom Typ `List[Exp]`. 
 
-Es ist nun möglich, nicht-terminierende Programme zu verfassen. Wird in der Definition einer Funktion die Funktion selbst aufgerufen, so entsteht eine Endlosschleife. Uns steht momentan noch kein Sprachkonstrukt zu Verfügung, um mit Abbruchbedingung Schleifen zu beenden.
+Zuerst wird die Definition von `f` in `funs` nachgeschlagen und das Ergebnis an `fDef` gebunden. Mit `map` werden dann alle Argumente in der Liste vollständig ausgewertet. `vArgs` ist die Liste der ausgewerteten Argumente mit Einträgen vom Typ `Int`. Als nächstes wird geprüft, dass die Argumentliste `vArgs` und die Parameterliste `fDef.params` die selbe Länge besitzen, ist dies nicht der Fall, so wird ein Fehler geworfen.
+
+Nun wird für jeden Parameter in der Parameterliste die Substitution im Rumpf `fDef.body` mit dem entsprechenden Argument aus `vArgs` ausgeführt. Dies ist durch `zip` und `foldLeft` implementiert. `fDef.params.zip(vArgs)` erzeugt eine Liste vom Typ `List[(String,Int)]`, in der jeder Parameter mit dem korrespondierenden Argument in einem Tupel vorliegt. `foldLeft` erhält `body` als Startwert und wendet dann (vom Ende der Liste beginnend) nacheinander für jedes Tupel die entsprechende Substitution an. Es werden also Aufrufe von `subst` geschachtelt, wobei die innereste Substitution auf dem ursprünglichen Rumpf `body` ausgeführt wird.
+
+Zuletzt wird `eval` rekursiv auf dem Rumpf, in dem alle Substitutionen durchgeführt wurden, aufgerufen.
+
+Es ist nun möglich, nicht-terminierende Programme zu verfassen. Wird in der Definition einer Funktion die Funktion selbst aufgerufen, so entsteht eine Endlosschleife.
 
 ```scala
-val fm = Map('square -> FunDef(List('x), Mul("x","x")),
-             'succ -> FunDef(List('x), Add("x",1)),
-             'myAdd -> FunDef(List('x,'y), Add("x","y")),
-             'forever -> FunDef(List('x), Call('forever, List("x"))))
+val fm = Map("square" -> FunDef(List("x"), Mul("x","x")),
+             "succ" -> FunDef(List("x"), Add("x",1)),
+             "myAdd" -> FunDef(List("x","y"), Add("x","y")),
+             "forever" -> FunDef(List("x"), Call("forever", List("x"))))
 
-val a = Call('square, List(Add(1,3)))
+val a = Call("square", List(Add(1,3)))
 assert(eval(fm,a) == 16)
-val b = Mul(2, Call('succ, List(Num(20))))
+val b = Mul(2, Call("succ", List(Num(20))))
 assert(eval(fm,b) == 42)
-val c = Call('myAdd, List(Num(40), Num(2)))
+val c = Call("myAdd", List(Num(40), Num(2)))
 assert(eval(fm,c) == 42)
 
+val forever = Call("forever", List(Num(0)))
 // eval(fm,forever) does not terminate
-val forever = Call('forever, List(Num(0)))
 ```
 
 ## Umgebungsbasierter Interpreter
@@ -561,20 +563,21 @@ Dabei wird der Ausdruck `Add("x", Add("y", "z"))` insgesamt drei Mal traversiert
 
 Statt beim Auftreten eines `With`-Ausdrucks direkt zu substituieren, wollen wir uns in einer zusätzlichen Datenstruktur merken, welche Substitutionen wir im weiteren Ausdruck vornehmen müssen, so dass der zusätzliche Durchlauf wegfällt.
 
-Hierzu verwenden wir wieder (wie in `2a-Environments.scala`) eine _Environment_, aber anstatt diese getrennt definieren zu müssen, wird sie bei der Evaluation stetig angepasst. Tritt etwa ein `With`-Ausdruck auf, so wird der entsprechende Identifier mit dem Ergebnis der zugewiesenen Expression in die Map eingetragen (die zu Beginn der Auswertung leer ist).
+Hierzu verwenden wir wieder (wie in [AEId](#Identifier-mit-Umgebung-AEId)) eine _Umgebung_, diese wird aber nicht getrennt und global definiert, sondern bei der Evaluation stetig angepasst. Tritt etwa ein `With`-Ausdruck auf, so wird der entsprechende Identifier mit dem Auswertungsergebnis der zugewiesenen Expression in die Map eingetragen (die zu Beginn der Auswertung leer ist).
 
 ```scala
 type Env = Map[String, Int]
 
 def evalWithEnv(funs: FunDef, env: Env, e: Exp) : Int = e match {
   case Num(n) => n
-  case Add(l,r) => evalWithEnv(funs,env,l) + evalWithEnv(funs,env,r)
-  case Mul(l,r) => evalWithEnv(funs,env,l) * evalWithEnv(funs,env,r)
   case Id(x) => env(x)
-  case With(x,xdef,body) => 
-    evalWithEnv(funs, env+(x -> evalWithEnv(funs,env,xdef)), body)
+  case Add(l,r) => evalWithEnv(funs,env,l) + evalWithEnv(funs,env,r)
+  case With(x,xDef,body) => 
+    evalWithEnv(funs, env+(x -> evalWithEnv(funs,env,xDef)), body)
 }
 ```
+
+Da nun die notwendigen Substitutionen nicht direkt ausgeführt, sondern in der Umgebung hinterlegt und "aufgeschoben" werden, können wir auf nicht-substituierte Identifier stoßen. Diese schlagen wir dann in der Umgebung `env` nach, um sie durch den Wert zu ersetzen, an den sie gebunden sind.
 
 Das vorherige Beispiel wird nun folgendermaßen ausgewertet:
 ```scala
@@ -586,9 +589,9 @@ With("z", 3, Add("x", Add("y", "z"))), Map("x" -> 1, "y" -> 2)
 // ~~>
 Add("x", Add("y", "z")), Map("x" -> 1, "y" -> 2, "z" -> 3)
 ```
-Die Komplexität ist nun (unter der Annahme, dass die Map-Operationen in konstanter Zeit geschehen) linear zur Länge des Ausdrucks.
+Die Komplexität ist nun (unter der Annahme, dass die Map-Operationen in konstanter Komplexität haben) linear in Abhängigkeit von der Länge des Ausdrucks.
 
-Das Scoping ist auch in dieser Implementation lexikalisch, da die Umgebung rekursiv weitergereicht wird und nicht global ist. Somit wird eine Bindung gilt eine Bindung nur in Unterausdrücken des bindenden Ausdruckes und nicht an anderen Stellen im Programm. Die `+`-Operation auf Maps fügt nicht nur Bindungen für neue Elemente ein, sondern ersetzt auch den Abbildungswert bei bereits enthaltenen Elementen:
+Das Scoping ist auch in dieser Implementation lexikalisch, da die Umgebung rekursiv weitergereicht wird und nicht global ist. Somit gilt eine Bindung nur in Unterausdrücken des bindenden Ausdruckes und nicht an anderen Stellen im Programm. Die `+`-Operation auf Maps fügt nicht nur Bindungen für neue Elemente ein, sondern ersetzt auch den Abbildungswert bei bereits enthaltenen Elementen:
 ```scala
 var m = Map("a" -> 1)
 m = m+("b" -> 2)
@@ -597,7 +600,7 @@ m = m+("a" -> 3)
 m: Map[String,Int] = Map("a" -> 3, "b" -> 2)
 ```
 
-Nun fehlt noch der `Call`-Fall. Hier bleiben die ersten drei Zeilen nahezu identisch, aber anstelle der aufwändigen Schleife zur Substitution im Rumpf erweitern wir einfach die _leere_ Umgebung um die Parameternamen, gebunden an die ausgewerteten Argumente:
+Nun fehlt noch der `Call`-Fall. Hier bleiben die ersten drei Zeilen nahezu identisch, aber anstelle der Faltung zur Substitution im Rumpf erweitern wir einfach die leere Umgebung um die Parameternamen, gebunden an die ausgewerteten Argumente:
 ```scala
 def evalWithEnv(funs: FunDef, env: Env, e: Exp) : Int = e match {
 // ...
@@ -606,17 +609,18 @@ def evalWithEnv(funs: FunDef, env: Env, e: Exp) : Int = e match {
     val vArgs = args.map(evalWithEnv(funs,env,_))
     if (fDef.args.size != vArgs.size)
       sys.error("Incorrect number of params in call to " + f)
-    // ++ operator adds all tuples in a list to a map
     evalWithEnv(funs, Map()++fDef.args.zip(vArgs), fDef.body)
 }
 ```
 
-Wir erweitern die leere Umgebung `Map()` anstelle der bisherigen Umgebung `env`, da in unserer vorherigen Implementation auch nur für die Funktionsparameter im Funktionsrumpf substituiert wurde (und nicht für sonstige, aktuell geltende Bindungen). Die `subst`-Funktion verändert die Funktionsdefinitionen in keiner Weise und hat nicht einmal Zugriff auf diese.
+Dabei können mit dem Operator `++` die Tupel in der Liste der Map hinzugefügt werden.
+
+Wir erweitern die leere Umgebung `Map()` anstelle der bisherigen Umgebung `env`, da in unserer vorherigen Implementation auch nur für die Funktionsparameter im Funktionsrumpf substituiert wurde (und nicht für sonstige, aktuell geltende Bindungen). Die `subst`-Funktion verändert nämlich die Funktionsdefinitionen in keiner Weise und hat nicht einmal Zugriff auf diese.
 
 :::info
-**Theorem** (Äquivalenz substitutions- und umgebungsbasierter Interpretation):
+**Äquivalenz des substitutions- und umgebungsbasierten Interpreters:**
 
-Für alle `funs: Funs, e: Exp` gilt: `evalWithSubst(funs,e) = evalWithEnv(funs,Map(),e)` (wobei `evalWithSubst` die `eval`-Funktion den [substitutionsbasierten Interpreter](#Substitutionsbasierter-Interpreter) bezeichnet).
+Für alle `funs: Funs, e: Exp` gilt: `evalWithSubst(funs,e) = evalWithEnv(funs,Map(),e)`.
 :::
 
 Nun gäbe es aber auch die Möglichkeit, die bisherige Umgebung `env` zu erweitern und damit den Funktionsrumpf auszuwerten. In diesem Fall würden wir lokale Bindungen, die an der Stelle des `Call`-Ausdrucks gelten, in den Funktionsrumpf weitergeben. 
@@ -626,9 +630,9 @@ Die Variante mit einer neuen, leeren Umgebung wird _lexikalisches Scoping_ genan
 
 # Lexikalisches und dynamisches Scoping
 :::info
-**Lexikalisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des Syntaxbaums bestimmt wird.
+**Lexikalisches (oder statisches) Scoping** bedeutet, dass der Scope eines bindenden Vorkommens syntaktisch beschränkt ist, bspw. auf einen Funktionsrumpf. Im Fall unserer Sprache wird für ein Vorkommen eines Identifiers durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des abstrakten Syntaxbaums (AST) bestimmt.
 
-**Dynamisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das zuletzt ausgewertete bindende Vorkommen bestimmt wird.
+**Dynamisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das zuletzt ausgewertete bindende Vorkommen bestimmt wird. Eine Bindung gilt dadurch während der gesamten weiteren Programmausführung und ist nicht auf einen bestimmten Bereich im Programms beschränkt.
 
 Bei lexikalischem Scoping ist also der Ort für die Bedeutung entscheidend, bei dynamischem Scoping der Programmzustand.
 :::
