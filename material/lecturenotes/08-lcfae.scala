@@ -9,10 +9,11 @@ read "Why Functional Programming Matters" by John Hughes available at http://www
 What lazy evaluation means
 --------------------------
 The choice of evaluation strategy is a purely semantic change that requires no change to the syntax.
-For this reason we reuse the syntactic definitions of FAE, hence ``:load 07-fae.scala`` before executing this script.
+For this reason we reuse the syntactic definitions of FAE.
  */
 
 import scala.language.implicitConversions
+
 sealed abstract class Exp
 case class Num(n: Int) extends Exp
 case class Id(name: String) extends Exp
@@ -38,7 +39,6 @@ def freeVars(e: Exp) : Set[String] =  e match {
   case App(f,a) => freeVars(f) ++ freeVars(a)
   case Num(n) => Set.empty
 }
-assert(freeVars(Fun("x",Add("x","y"))) == Set("y"))
 
 def subst(e1 : Exp, x: String, e2: Exp) : Exp = e1 match {
   case Num(n) => e1
@@ -63,7 +63,7 @@ def eval(e: Exp) : Exp = e match {
     case Fun(x,body) => eval( subst(body,x, eval(a)))  // call-by-value
     case _ => sys.error("can only apply functions")
   }
-  case _ => e // numbers and functions evaluate to themselves
+  case _ => e
 }
 
 val test = App( Fun("x",Add("x",5)), 7)
