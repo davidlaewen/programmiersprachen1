@@ -491,7 +491,7 @@ type Funs = Map[String, FunDef]
 ## Substitutionsbasierter Interpreter
 Die bereits implementierten Bindungen mit `With` und die Funktionen verwenden getrennte _Namespaces_, es kann also der gleiche Bezeichner für eine Konstante und für eine Funktion verwendet werden, die Namensvergabe ist unabhängig voneinander. 
 
-Wir erweitern `subst` um den `Call`-Fall, dabei wird die Substitution mit `map` auf alle Funktionsargumente angewandt.
+Wir erweitern `subst` um den `Call`-Fall, dabei wird die Substitution mit der `map`-Funktion auf alle Funktionsargumente angewandt.
 
 ```scala
 def subst(body: Exp, i: String, v: Num) : Exp = body match {
@@ -513,7 +513,7 @@ def eval(e: Exp, funs: Funs) : Int = e match {
     if (fDef.params.size != vArgs.size)
       sys.error("Incorrect number of args in call to "+f)
     val substBody = fDef.params.zip(vArgs).foldLeft(fDef.body)(
-      (b,pa) => subst(b, pa._1, Num(pa._2))
+      (b,pv) => subst(b, pv._1, Num(pv._2))
     )
     eval(substBody,funs)
   }
@@ -646,15 +646,15 @@ evalWithEnv(exFunMap, Map(), exExpr)
 ```
 Der Identifier `y` wird an den Wert `1` gebunden, bevor die Funktion `f` aufgerufen wird, in deren Rumpf `y` auftritt. `y` hat an diesem _Ort_ im Programm keine Bedeutung, es kann aber ein _Programmzustand_ vorliegen, in dem eine Bindung für `y` existiert.
 
-Bei lexikalischem Scoping müssen Werte immer "weitergereicht" werden, während bei dynamischen Scoping alle Bindungen bei einem Funktionsaufruf automatisch im Funktionsrumpf gelten. Das automatische "Weiterreichen" kann in manchen Fällen die explizite Übergabe ersparen, führt aber in den meisten Fällen eher zu unerwarteten und unerwünschten Nebenwirkungen.
+Bei lexikalischem Scoping müssen Werte immer "weitergereicht" werden, während bei dynamischen Scoping alle Bindungen zum Zeitpunkt eines Funktionsaufrufs auch im Funktionsrumpf gelten. Diese automatische Weitergabe kann in manchen Fällen ein explizites Überreichen ersparen, führt aber in den meisten Fällen eher zu unerwarteten und unerwünschten Nebenwirkungen.
 
-Ein Beispiel für eine Verwendung von dynamischen Scoping wäre _Exception Handling_ in Java. Wird in einem _try-catch_-Block eine Funktion `f` aufgerufen, die eine bestimmte Exception wirft, so wird beim Werfen dieser Exception über eine Art von dynamischem Scoping ermittelt, welcher ExceptionHandler zuständig ist (in dem die Ausführungshistorie durchsucht wird).
+Ein Beispiel für eine Verwendung von dynamischem Scoping wäre _Exception Handling_ in Java. Wird in einem _try-catch_-Block eine Funktion `f` aufgerufen, die eine bestimmte Exception wirft, so wird beim Werfen dieser Exception über eine Art von dynamischem Scoping ermittelt, welcher ExceptionHandler zuständig ist (in dem die Ausführungshistorie durchsucht wird).
 
 
 # Higher-Order-Funktionen (FAE)
-Funktionen erster Ordnung erlauben die Abstraktion über sich wiederholende Muster, die an bestimmten Ausdruckspositionen variieren (z.B. eine `square`- oder eine `avg`-Funktion). Liegt aber ein Muster vor, bei dem eine Funktion variiert (z.B. bei der Komposition zweier Funktionen), so ist keine Abstraktion möglich.
+Funktionen erster Ordnung erlauben die Abstraktion über sich wiederholende Muster, die an bestimmten Ausdruckspositionen variieren (z.B. eine `square`- oder `avg`-Funktion). Liegt aber ein Muster vor, bei dem eine Funktion variiert (z.B. bei der Komposition zweier Funktionen), so ist keine Abstraktion möglich.
 
-Hierfür sind Higher-Order-Funktionen notwendig, es braucht eine Möglichkeit, Funktionen als Parameter zu übergeben und als Werte zu behandeln. Wir müssen also unsere Implementation anpassen, so dass Funktionen nicht als Strings, sondern als Expressions vorliegen.
+Hierfür sind Higher-Order-Funktionen notwendig, es braucht eine Möglichkeit, Funktionen als Parameter zu übergeben, als Ergebnis zurückzugeben und als Werte zu behandeln. Wir müssen also unsere Implementation anpassen, so dass Funktionen nicht als ein vom Programm getrenntes Konstrukt, sondern als Expressions vorliegen.
 
 Wir entfernen also das Sprachkonstrukt `Call` und ergänzen stattdessen die zwei folgenden Konstrukte:
 ```scala
@@ -662,7 +662,7 @@ case class Fun(param: String, body: Exp) extends Exp
 case class App(funExpr: Exp, argExpr: Exp) extends Exp
 ```
 
-Nun können wir Funktionen als Ausdrücke repräsentieren und benötigen somit auch keine getrennte `Funs`-Map mehr, da Funktionen nun einfach Werte sind. Solche "namenslosen" Funktionen werden typischerweise _anonyme Funktionen_ genannt, im Kontext funktionaler Sprachen auch _Lambda-Ausdrücke_.
+Nun können wir Funktionen direkt im Programm definieren und binden, wodurch wir keine getrennte `Funs`-Map mehr benötigen. Funktion sind eine Form von Werten, solche "namenslosen" Funktionen werden typischerweise _anonyme Funktionen_ genannt, im Kontext funktionaler Sprachen auch _Lambda-Ausdrücke_.
 
 `With` ist jetzt sogar nur noch syntaktischer Zucker, wir können bspw. `With("x", 5, Add("x",7))` ausdrücken mit `App(Fun("x", Add("x",7)), 5)`.
 
@@ -673,14 +673,15 @@ def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x, body), xdef)
 Ein `Fun`-Ausdruck hat nur einen Parameter und ein `App`-Ausdruck nur ein Argument (im Gegensatz zu unserer Implementation von [First-Order-Funktionen](#First-Order-Funktionen-F1-WAE)), wir können jedoch Funktionen mit mehreren Parametern durch Currying darstellen: $f(x,y)= x+y$ entspricht $\lambda x.\lambda y.x+y$.
 
 ## Accidental Captures
-Zuerst implementieren wir wieder die Version des Interpreters mit Substitutionsfunktion:
+Zuerst implementieren wir den Interpreter wieder durch Substitution:
 ```scala
 def subst(e: Exp, i: String, v: Exp) : Exp = e match {
-  // ...
+  case Num(_) => e
   case Id(x) => if (x == i) v else e
-  case Fun(param,body) =>
-    if (param == i) e else Fun(param, subst(body,i,v))
-  case App(f: Exp, a: Exp) => App(subst(f,i,v), subst(a,i,v))
+  case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
+  case Fun(p,b) =>
+    if (param == i) e else Fun(p, subst(b,i,v))
+  case App(f,a) => App(subst(f,i,v), subst(a,i,v))
 }
 ```
 
@@ -688,7 +689,7 @@ Hierbei entsteht ein neues Problem: Der zu substituierende Ausdruck `v` muss nun
 ```scala
 val ac = subst(Fun("x", Add("x","y")), "y", Add("x",5))
 ```
-In diesem Beispiel ist das `x` in `Add(x, 5)` nach der Substitution an den Parameter `x` der Funktion gebunden, obwohl dies vorher nicht der Fall war. Die dabei entstehende Bindung ist unerwartet, das unerwünschte "Einfangen" des Identifiers wird als _Accidental Capture_ bezeichnet und allgemein als Verletzung von lexikalischem Scoping angesehen.
+In diesem Beispiel ist das `x` in `Add(x, 5)` nach der Substitution an den Parameter `x` der Funktion gebunden, obwohl dies vorher nicht der Fall war. Die dabei entstehende Bindung ist unerwartet, dieses unerwünschte "Einfangen" eines Identifiers wird als _Accidental Capture_ bezeichnet und allgemein als Verletzung von lexikalischem Scoping angesehen.
 
 ## Capture-Avoiding Substitution
 :::info
@@ -696,7 +697,7 @@ Zwei Funktionen sind **alpha-äquivalent**, wenn sie bis auf den Namen des Param
 `Fun("x", Add("x",1))` und `Fun("y", Add("y",1))` sind bspw. _alpha-äquivalent_.
 :::
 
-Wir nutzen Alpha-Äquivalenz, um Accidental Captures zu verhindern. Dazu brauchen wir einen "Generator", um bisher ungenutzte Namen zu erzeugen, die wir dann zur Umbenennung verwenden können.
+Wir nutzen Alpha-Äquivalenz, um Namenskonflikte und damit Accidental Captures zu verhindern. Dabei wählen wir für den Parameter einer Funktion einen neuen Namen, der weder im zu substituierenden Ausdruck noch im aktuellen Ausdruck ungebunden auftritt. Wir brauchen also einen "Generator", um bisher ungenutzte Namen zu erzeugen, die wir dann zur Umbenennung verwenden können.
 ```scala
 def freshName(names: Set[String], default: String) : String = {
   var last : Int = 0
@@ -708,15 +709,15 @@ def freshName(names: Set[String], default: String) : String = {
   freshName
 }
 ```
-Die Funktion gibt einen Namen zurück, der nicht in der Menge `names` enthalten ist. Dazu wird eine Zahl an die Eingabe `default` angehängt und schrittweise inkrementiert, bis der entstehende String nicht Element der Menge ist.
 
-Wir benötigen außerdem eine Funktion, die alle freien Variablen in einem Ausdruck ausgibt, hier machen wir auch wieder vom Datentyp `Set` Gebrauch:
+Die Funktion gibt einen Namen zurück, der nicht in der Menge `names` enthalten ist. Ist `default` nicht in der Menge enthalten, so wird `default` ausgegeben, ansonsten wird eine Zahl an die Eingabe `default` angehängt und schrittweise inkrementiert, bis der entstehende String nicht Element der Menge ist.
+
+Wir benötigen außerdem eine Funktion, die die Menge aller freien Variablen in einem Ausdruck ausgibt, dazu verwenden wir den Datentyp `Set`:
 ```scala
 def freeVars(e: Exp) : Set[String] = e match {
   case Num(_) => Set.empty
   case Id(x) => Set(x)
   case Add(l,r) => freeVars(l) ++ freeVars(r)
-  case Mul(l,r) => freeVars(l) ++ freeVars(r)
   case App(f,a) => freeVars(f) ++ freeVars(a)
   case Fun(x,body) => freeVars(body) - x
 }
@@ -729,24 +730,25 @@ Mithilfe dieser Funktionen können wir nun beim Substituieren Accidental Capture
 def subst(e: Exp, i: String, v: Exp) : Exp = e match {
   case Num(_) => e
   case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
-  case Mul(l,r) => Mul(subst(l,i,v), subst(r,i,v))
-  case Id(x) => if (x == i) v else Id(x)
-  case Fun(param,body) =>
-    if (param == i) e else {
+  case Id(x) => if (x == i) v else e
+  case Fun(p,b) =>
+    if (p == i) e else {
       val fvs = freeVars(e) ++ freeVars(v) + i
-      val newVar = freshName(fvs,param)
-      Fun(newVar, subst(subst(body,param,Id(newVar)), i, v))
+      val nn = freshName(fvs,p)
+      Fun(nn, subst(subst(b,p,Id(nn)), i, v))
     }
   case App(f: Exp, a: Exp) => App(subst(f,i,v), subst(a,i,v))
 }
 ```
 
-Im `Fun`-Fall prüfen wir zuerst, ob der Parameter und der zu ersetzende Identifier übereinstimmen. Ist dies der Fall, so lassen wir den `Fun`-Ausdruck unverändert. Ansonsten bestimmen wir mit `freeVars` die Menge der freien Variablen im aktuellen Ausdruck `e` sowie im einzusetzenden Ausdruck `v`. Ausgehend von dieser Menge erzeugen wir mit `freshName` einen neuen Bezeichner, mit dem wir dann den Parameternamen und alle Vorkommen des Parameternamens im Rumpf ersetzen, bevor wir die Substitution im Rumpf rekursiv fortsetzen. So ist garantiert, dass keine freien Variablen durch den Parameternamen "eingefangen" werden.
+Im `Fun`-Fall prüfen wir zuerst, ob der Parameter und der zu ersetzende Identifier übereinstimmen. Ist dies der Fall, so lassen wir den `Fun`-Ausdruck unverändert, da der Rumpf nicht im Scope des bindenden Vorkommens liegt, für das substituiert wird. 
+
+Ansonsten bestimmen wir mit `freeVars` die Menge der freien Variablen im aktuellen Ausdruck `e` sowie im einzusetzenden Ausdruck `v` und vereinigen diese zusammen mit `i` (damit nicht `i` als neuer Name gewählt und fälschlicherweise substituiert wird, falls `i` nicht in `e` frei vorkommt). Ausgehend von dieser Menge erzeugen wir mit `freshName` einen neuen Bezeichner, mit dem wir dann den Parameternamen und alle Vorkommen des Parameternamens im Rumpf ersetzen, bevor wir die Substitution im Rumpf rekursiv fortsetzen. So ist garantiert, dass keine freien Variablen durch die Funktion "eingefangen" werden.
 
 ## Substitutionsbasierter Interpreter
-Da Funktionen nun Werte bzw. Ausdrücke sind, muss der Interpreter auch Funktionen als Ergebnis einer Auswertung ausgeben können. Der Rückgabewert von `eval` kann also nicht mehr Int sein, stattdessen müssen wir `Exp` wählen.
+Da Funktionen nun Werte bzw. Ausdrücke sind, muss der Interpreter auch Funktionen als Ergebnis einer Auswertung ausgeben können. Der Rückgabewert von `eval` kann also nicht mehr `Int` sein, stattdessen müssen wir `Exp` wählen.
 
-Durch diesen Rückgabetyp gibt es aber auch eine neue Klasse von Fehlern, die auftreten können: Es kann passieren, dass ein `Num`-Ausdruck erwartet wird, aber ein `Fun`-Ausdruck vorliegt, etwa wenn der linke Teil eines `Add`-Ausdrucks zu einer Funktion auswertet. Auch der umgekehrte Fall kann eintreten: In einem `App`-Ausdruck wertet der linke Teil zu einem `Num`-Ausdruck anstelle einer Funktion aus.
+Durch diesen Rückgabetyp gibt es aber auch eine neue Klasse von Fehlern, die auftreten können: Es kann passieren, dass eine Zahl erwartet wird, aber eine Funktion vorliegt, etwa wenn der linke Teil eines `Add`-Ausdrucks zu einer Funktion auswertet. Auch der umgekehrte Fall kann eintreten: In einem `App`-Ausdruck wertet der linke Teil zu einer Zahl anstelle einer Funktion aus.
 
 ```scala
 def eval(e: Exp) : Exp = e match {
@@ -755,20 +757,18 @@ def eval(e: Exp) : Exp = e match {
     case (Num(a),Num(b)) => Num(a+b)
     case _ => sys.error("Can only add numbers")
   }
-  case Mul(l,r) => (eval(l),eval(r)) match {
-    case (Num(a),Num(b)) => Num(a*b)
-    case _ => sys.error("Can only multiply numbers")
-  }
   case App(f,a) => eval(f) match {
     case Fun(param,body) => eval(subst(body,param,eval(a))) // call-by-value
     // case Fun(param,body) => eval(subst(body,param,a))    // call-by-name
     case _ => sys.error("Can only apply functions")
   }
-  case _ => _
+  case _ => e
 }
 ```
 
-Wir könnten den Rückgabetyp auch präzisieren, in dem wir den Typ `Either[Num,Fun]` verwenden, denn es wird immer eine Zahl oder eine Funktion ausgegeben (siehe dazu `07-fae.scala`).
+Aus diesem Grund müssen wir im `Add`- und `App`-Fall erst beide Unterausdrücke auswerten und dann via Pattern-Matching prüfen, ob jeweils der korrekte Typ vorliegt. Ist dies nicht der Fall, so werfen wir einen Fehler. `Num`- und `Fun`-Ausdrücke werten zu sich selbst aus, die Ausgabe des Interpreters ist immer vom Typ `Num` oder `Fun`.
+
+Wir könnten den Rückgabetyp also mit `Either[Num,Fun]` präzisieren ([mögliche Implementation](https://github.com/DavidLaewen/programmiersprachen1/blob/master/material/additional-material/FAEWithEitherType.scala)).
 
 ## Umgebungsbasierter Interpreter
 Der Typ `Map[String,Int]` für die Umgebung ist nicht mehr ausreichend, da auch `Fun`-Ausdrücke gebunden werden müssen. Wir wählen also stattdessen:
@@ -784,14 +784,10 @@ def eval(e: Exp, env: Env) : Exp = e match {
     case (Num(a),Num(b)) => Num(a+b)
     case _ => sys.error("Can only add numbers")
   }
-  case Mul(l,r) => (eval(l,env),eval(r,env)) match {
-    case (Num(a),Num(b)) => Num(a*b)
-    case _ => sys.error("Can only multiply numbers")
-  }
   case Id(x) => env(x)
   case App(f,a) => eval(f,env) match {
-    case Fun(param, body) =>
-      eval(body, Map(param -> eval(a,env)))
+    case Fun(p,b) =>
+      eval(b, Map(p -> eval(a,env)))
     case _ => sys.error("Can only apply functions")
   }
   case _ => e
@@ -817,12 +813,12 @@ $\leadsto (\lambda y.x+y \;\;\; 2), \; \texttt{Map(x -> 3)}$
 $\leadsto x+y, \;\; \texttt{Map(y -> 2)}$
 $\leadsto \;\; \texttt{key not found: x}$
 
-Um dieses Problem zu umgehen, können wir nicht einfach die Umgebung im `App`-Fall erweitern, weil das wieder zu dynamischem Scoping führt. Stattdessen müssen wir uns bei der Auswertung einer Funktion sowohl die Funktion selbst, als auch die Umgebung zum Zeitpunkt der Instanziierung merken.
+Um dieses Problem zu umgehen, können wir nicht einfach die Umgebung im `App`-Fall erweitern, weil das (wie bereits gezeigt) zu dynamischem Scoping führen würde. Stattdessen müssen wir uns bei der Auswertung einer Funktion sowohl die Funktion selbst, als auch die Umgebung zum Zeitpunkt der Instanziierung merken.
 
-So ein Paar aus Funktionsdefinition und Umgebung wird _Closure_ genannt.
+So ein Paar aus Funktion und Umgebung wird _Closure_ genannt.
 
 ## Closures
-Wir definieren einen neuen Typ `Value` neben `Exp`, so dass wir Ausdrücke und deren Ergebnis wieder unterscheiden können:
+Wir definieren einen neuen Typ `Value` neben `Exp`, so dass wir Ausdrücke und die Ergebnisse deren Auswertung wieder unterscheiden können:
 ```scala
 sealed abstract class Value
 type Env = Map[String,Value]
@@ -830,7 +826,7 @@ case class NumV(n: Int) extends Value
 case class ClosureV(f: Fun, env: Env) extends Value
 ```
 
-`Fun`-Ausdrücke liegen nun nach ihrer Auswertung als Closures vor, der neue Interpreter hat den Rückgabetyp `Value` und gibt Zahlen und Closures anstelle von Zahlen und Funktionen aus.
+`Fun`-Ausdrücke liegen nun nach ihrer Auswertung als Closures vor, der neue Interpreter hat den Rückgabetyp `Value` und gibt Zahlen (`NumV`) und Closures (`ClosureV`) anstelle von Zahlen (`Num`) und Funktionen (`Fun`) aus.
 
 ```scala
 def eval(e: Exp, env: Env) : Value = e match {
@@ -840,20 +836,18 @@ def eval(e: Exp, env: Env) : Value = e match {
     case (NumV(a),NumV(b)) => NumV(a+b)
     case _ => sys.error("Can only add numbers")
   }
-  case Mul(l,r) => (eval(l,env),eval(r,env)) match {
-    case (NumV(a),NumV(b)) => NumV(a*b)
-    case _ => sys.error("Can only multiply numbers")
-  }
+  case f@Fun(_,_) => ClosureV(f,env)
   case App(f,a) => eval(f,env) match {
     case ClosureV(Fun(p,b),cEnv) =>
       eval(b, cEnv+(p -> eval(a,env)))
     case _ => sys.error("Can only apply functions")
   }
-  case f@Fun(_,_) => ClosureV(f,env)
 }
 ```
 
-Bei der Auswertung eines `Fun`-Ausdrucks wird nun ein Closure aus dem Ausdruck und der aktuellen Umgebung erzeugt. Im `App`-Zweig verwenden wir nach der Auswertung der Funktion die Umgebung aus dem entstehenden Closure, und verwenden diese -- erweitert um die Bindung des Parameters an das ausgewertete Argument -- um den Rumpf auszuwerten.
+Bei der Auswertung eines `Fun`-Ausdrucks wird nun ein Closure aus dem Ausdruck und der aktuellen Umgebung erzeugt. Im `App`-Zweig verwenden wir nach der Auswertung der Funktion die Umgebung aus dem entstehenden Closure -- erweitert um die Bindung des Parameters an das ausgewertete Argument -- um den Rumpf auszuwerten.
+
+Durch das "Aufschieben" der notwendigen Substitutionen in der Umgebung ist es also im Fall von Funktionen notwendig geworden, die aufgeschobenen Substitutionen für die spätere Auswertung zu hinterlegen.
 
 :::info
 Für alle `e: Exp` gilt: 
@@ -865,7 +859,7 @@ Für alle `e: Exp` gilt:
 Closures sind ein fundamental wichtiges Konzept und tauchen in der Implementation fast aller Programmiersprachen auf.
 
 :::info
-Ein **Closure** ist ein Paar, bestehend aus einer Funktionsdefinition und der Umgebung vom Zeitpunkt, als die Funktionsdefinition ausgewertet wurde.
+Ein **Closure** ist ein Paar, bestehend aus einer Funktionsdefinition und der Umgebung, die bei der Auswertung der Funktionsdefinition aktiv bzw. gültig war.
 :::
 
 Im [substitiutionsbasiertem Interpreter](#Substitutionsbasierter-Interpreter1) wird beim Auswerten der Funktionsdefinition sofort im Rumpf substituiert. Beim [umgebungsbasiertem Interpreter](#Umgebungsbasierter-Interpreter1) muss hingegen die Umgebung zum Zeitpunkt der Auswertung gespeichert werden, so dass der Interpreter beim Erreichen der Identifier die richtigen Werte einsetzen kann.
@@ -882,9 +876,9 @@ assert(subst(App("x","x"), "x", Fun("x", App("x","x"))) ==
 App(Fun("x", App("x","x")), Fun("x", App("x","x"))))
 ```
 
-`omega` kann im _Lambda-Kalkül_ notiert werden als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
+`omega` wird im _Lambda-Kalkül_ notiert als $(\lambda x.(x \; x) \;\; \lambda x.(x \; x))$, der gesamte vordere Ausdruck wird auf den hinteren Ausdruck angewendet, der hintere Ausdruck wird in den Rumpf des vorderen Ausdrucks für $x$ eingesetzt, wodurch wieder der ursprüngliche Ausdruck entsteht.
 
-FAE ist Turing-mächtig, es können also alle Turing-berechenbaren Funktionen repräsentiert werden. Die Sprache besitzt nämlich das Turing-mächtige [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), das [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) entwickelte, als Teilmenge.
+FAE ist Turing-mächtig, es können also alle Turing-berechenbaren Funktionen repräsentiert werden. Die Sprache entspricht nämlich dem von [Alonzo Church](https://en.wikipedia.org/wiki/Alonzo_Church) eingeführten Turing-mächtigen [Lambda-Kalkül](https://en.wikipedia.org/wiki/Lambda_calculus), erweitert um Zahlen und Addition.
 
 ## Lambda-Kalkül
 Entfernen wir aus [FAE](#Higher-Order-Funktionen-FAE) den `Num`- und den `Add`-Fall, so erhalten wir eine Sprache, die dem _Lambda-Kalkül_ entspricht:
@@ -895,19 +889,19 @@ case class Fun(param: String, body: Exp) extends Exp
 case class App(fun: Exp, arg: Exp) extends Exp
 ```
 
-Das Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist das Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
+Der Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist das Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
 
-In dieser Sprache gibt es keine Zahlenwerte mehr, dadurch können keine Typfehler mehr auftreten (da kein unerwarteter Werte-Typ auftreten kann):
+In dieser Sprache ist jeder Wert eine Funktion (bzw. ein Closure), wodurch keine Typfehler auftreten können.
 ```scala
 abstract class Value
 type Env = Map[String, Value]
-case class ClosureV(f: Fun, env: Env)
+case class ClosureV(f: Fun, env: Env) extends Value
 ```
 
-Um mit dieser minimalistischen Sprache sinnvoll arbeiten zu können, sind Kodierungen für verschiedene Datentypen notwendig. Dazu verwendet man typischerweise die _Church Encodings_.
+Um mit dieser minimalistischen Sprache sinnvoll arbeiten zu können, sind Kodierungen für verschiedene Datentypen notwendig, dazu kann man bspw. die sogenannten _Church Encodings_ verwenden.
 
 ## Church-Kodierungen
-**Booleans** werden als ihre "eigene" If-Then-Else-Funktion definiert. Darauf basierend lassen sich diverse Bool'sche Operationen definieren:
+**Booleans** werden als ihre "eigene If-Then-Else-Funktion"1 definiert. Darauf basierend lassen sich diverse Bool'sche Operationen definieren:
 ```scala
 val t = Fun("t", Fun("f","t")) // true
 val f = Fun("t", Fun("f","f")) // false
@@ -918,7 +912,7 @@ val and = Fun("a", Fun("b", App(App("a", "b"), f))) // if a then b else False
 val or = Fun("a", Fun("b", App(App("a", t), "b")))  // if a then True else b
 ```
 
-Wir können auch durch eine Nullfunktion und eine Nachfolgerfunktion die **natürlichen Zahlen** kodieren. Dabei wird die Zahl $n$ dargestellt durch die $n$-fache Anwendung einer Funktion $s$ auf einen Startwert $z$.
+**Natürliche Zahlen** können wir als [Peano-Zahlen](https://de.wikipedia.org/wiki/Peano-Axiome) durch eine Nullfunktion und eine Nachfolgerfunktion kodieren. Dabei wird die Zahl $n$ dargestellt durch die $n$-fache Anwendung einer Funktion $s$ auf einen Startwert $z$.
 ```scala
 val zero = Fun("s", Fun("z","z"))
 val succ = Fun("n", Fun("s", Fun("z", App("s", App(App("n", "s"), "z")))))
@@ -948,9 +942,9 @@ Wir können auch mit einer Funktion prüfen, ob eine Zahl 0 ist. Da `zero` als `
 val isZero = Fun("n", App(App("a", Fun("x",f)),t))
 ```
 
-Es können auch eine Vorgängerfunktion `pred` und negative Zahlen kodiert werden.
+Es können auch eine Vorgängerfunktion `pred` und negative Zahlen mithilfe des sogenannten _Pairing Trick_ kodiert werden, was jedoch deutlich aufwändiger ist.
 
-Auch **Listen** können im Lambda-Kalkül kodiert werden. Die Grundidee ist es, zur Repräsentation die leere Liste und wiederholte Anwendungen von `cons` zu nutzen. Die Liste $x_1,x_2,...,x_n$ wird also durch $\lambda c. \lambda e. c(x_1, (... (c(x_{n-1}, c(x_n,e)))...))$ kodiert. 
+Auch **Listen** können im Lambda-Kalkül kodiert werden. Die Grundidee ist es, zur Repräsentation die leere Liste $e$ und wiederholte Anwendungen von $c$ (`cons`) zu nutzen. Die Liste $x_1,x_2,...,x_n$ wird also durch $\lambda c. \lambda e. c(x_1, c(... c(x_{n-1}, c(x_n,e))...))$ kodiert. 
 ```scala
 val empty = Fun("c", Fun("e","e"))
 val cons =
@@ -967,20 +961,18 @@ val listSum = Fun("l", App(App("l",add), zero))
 
 Durch Applikationen von `cons` mit jeweils einem Kopfelement und einer Restliste sowie der leeren Liste `empty` lassen sich Listen kodieren, wie es bei `list123` zu sehen ist. Die Applikation einer Liste mit einem `c` und einem `e` entspricht der Listenfaltung, wie sie etwa in Scala oder Racket bzw. Scheme möglich ist:
 ```scala
-def listSum(ls: List[Int]) : Int = ls.fold(0)(_+_)
+List(1,2,3).fold(0)(_+_)
 ```
 ```scheme
-(define list-sum 
-    (lambda (ls) 
-        (foldr + 0 ls)))
+(foldr + 0 (list 1 2 3))
 ```
 
 Listen werden also sozusagen durch ihre Fold-Funktion (also durch ihre Faltung mit den Argumenten `c` und `e`) repräsentiert.
 
-Durch die Kodierung von Listen können auch Listen von Listen kodiert werden, womit es eine Repräsentation von Bäumen im Lambda-Kalkül gibt. Wie wir an unserer eigenen Implementierung sehen können, lassen sich Programme im Lambda-Kalkül sehr gut durch Baumstrukturen darstellen. Dadurch lassen sich auch Lambda-Kalkül-Ausdrücke im Lambda-Kalkül geschickt repräsentieren und es ist möglich, ein Programm im Lambda-Kalkül für das Lambda-Kalkül zu schreiben (vgl. universelle Turing-Maschine).
+Es können auch Listen von Listen kodiert werden, womit es eine Repräsentation von Bäumen im Lambda-Kalkül gibt. Wie wir an unserer eigenen Implementierung sehen können, lassen sich Programme im Lambda-Kalkül sehr gut durch Baumstrukturen darstellen. Dadurch lassen sich auch Lambda-Kalkül-Ausdrücke im Lambda-Kalkül selbst geschickt repräsentieren und es ist möglich, ein Programm im Lambda-Kalkül zu schreiben, das Ausdrücke im Lambda-Kalkül auswertet (vgl. universelle Turing-Maschine).
 
 ## Rekursion
-Es ist auch möglich, Rekursion in FAE zu implementieren. Aus dem Programm `omega = (x => x x) (x => x x)` lässt sich das Programm `Y f = (x => f (x x)) (x => f (x x))` konstruieren, mit dem Schleifen kodiert werden können. Das Programm `Y` ist ein _Fixpunkt-Kombinator_. 
+Es ist auch möglich, Rekursion im Lambda-Kalkül zu implementieren. Aus dem Programm `omega = (x => x x) (x => x x)` lässt sich das Programm `Y f = (x => f (x x)) (x => f (x x))` konstruieren, mit dem Schleifen kodiert werden können. Das Programm `Y` ist ein sogenannter _Fixpunkt-Kombinator_.
 
 :::info
 Ein **Fixpunkt-Kombinator** ist ein Programm, mit dem der Fixpunkt von Funktionen gebildet werden kann. 
@@ -1005,18 +997,18 @@ Ist `evalCBV(e) == e1` und `evalCBN(e) == e2`, dann sind `e1` und `e2` äquivale
 Mit "gleichbedeutend" ist gemeint, dass sich die Funktionen gleich verhalten, aber nicht zwingend identisch sind. Für den Ausdruck $(\lambda x.(\lambda y.x+y) \;\;\; 1+1)$ würde Call-By-Value-Auswertung das Ergebnis $\lambda y.2+y$ liefern, während Call-By-Name-Auswertung das Ergebnis $\lambda y.(1+1)+y$ liefern würde. Unterscheiden sich die ausgegebenen Funktionen, so ist die Funktion im Ergebnis von `evalCBV` stets "weiter ausgewertet".
 
 ## Nutzen von Lazy Evaluation
-Die Auswertungsstrategie eines Interpreters bzw. einer Programmiersprache ist nicht nur eine Frage der Effizienz, sondern hat auch Auswirkungen darauf, welche Programmstrukturen möglich sind. Unendliche Datencontainer wie Streams können bspw. erst durch _Lazy Evaluation_ implementiert werden. 
+Die Auswertungsstrategie eines Interpreters bzw. einer Programmiersprache ist nicht nur eine Frage der Effizienz, sondern hat auch Auswirkungen darauf, welche Programmstrukturen möglich sind. Unendliche Datencontainer wie Streams sind bspw. nur durch _Lazy Evaluation_ überhaupt implementierbar.
 
 In der Sprache Haskell kann man etwa eine rekursive Funktion ohne Abbruchkriterium schreiben, die die Quadratwurzel einer Zahl annähert.
 
-Da Haskell _lazy_ ist, kann die Funktion `rpt` ohne Abbruchbedingung definiert und mit verschiedenen Abbruchbedingungen aufgerufen werden, eine Programmstruktur die durch die Auswertungsstrategie der Sprache ermöglicht wird.
+Da Haskell _lazy_ ist, kann eine Funktion ohne Abbruchbedingung definiert und mit verschiedenen Abbruchbedingungen aufgerufen werden, eine Programmstruktur die durch die Auswertungsstrategie der Sprache ermöglicht wird.
 
-Der `evalCBN`-Interpreter erlaubt uns die Kodierung von Listen in LCFAE durch Church-Encodings (Zusatzmaterial in `08-lcfae.scala`).
+Der `evalCBN`-Interpreter erlaubt uns die Kodierung unendlicher Listen in LCFAE durch Church-Encodings (Zusatzmaterial in `08-lcfae.scala`).
 
 ## Thunks
-Im substitutionsbasierten Interpreter muss nur ein Funktionsaufruf entfernt werden, um die Auswertungsstrategie zu wechseln. Im umgebungsbasierten Interpreter müssen wir dagegen einige Änderunge vornehmen.
+Im substitutionsbasierten Interpreter muss nur ein Funktionsaufruf entfernt werden, um die Auswertungsstrategie zu wechseln. Im umgebungsbasierten Interpreter müssen wir dagegen einige Änderungen vornehmen.
 
-Wir müssen bei Funktionsapplikation den Parameter in der Umgebung an das Argument ohne vorherige Auswertung binden. Dabei stoßen wir auf das gleiche Problem, das uns bei Funktionen begegnet ist: Im Argument-Ausdruck, den wir an den Parameternamen binden, müssen noch Bezeichner substituiert werden, wozu die aktuelle Umgebung benötigt wird. Diese liegt aber zum Zeitpunkt der Auswertung nicht mehr vor.
+Wir müssen bei Funktionsapplikation den Parameter in der Umgebung an das Argument ohne vorherige Auswertung binden. Dabei stoßen wir auf das gleiche Problem, das uns bei Funktionen begegnet ist: Im Argument-Ausdruck, den wir an den Parameternamen binden, müssen noch Bezeichner substituiert werden, wozu die aktuelle Umgebung benötigt wird. Auf diese kann aber zum Zeitpunkt, zu dem das Argument ausgewertet wird, nicht mehr zugegriffen werden.
 
 Analog zu den Closures für Funktionen brauchen wir also eine Datenstruktur, in der wir sowohl den Ausdruck, als auch die aktuelle Umgebung ablegen. Solch ein Paar aus `Exp` und `Env` nennen wir `Thunk`.
 
@@ -1029,7 +1021,6 @@ ist in Scala durch die gegenseitige Bezüglichkeit nicht möglich. Stattdessen d
 ```scala
 trait CBN {
   type Thunk
-
   case class Env(map: Map[String, Thunk]) {
     def apply(key: String): Thunk = map.apply(key)
     def +(other: (String, Thunk)) : Env = Env(map+other)
@@ -1041,6 +1032,7 @@ trait CBN {
   sealed abstract class Value
   case class NumV(n: Int) extends Value
   case class ClosureV(f: Fun, env: Env) extends Value
+  
   def eval(e: Exp, env: Env) : Value = e match {
     case Id(x) => force(env(x))
     case Add(l,r) =>
@@ -1063,18 +1055,56 @@ Die `delay`-Funktion dient dazu, die Auswertung eines Ausdrucks zu verzögern (a
 Hier die konkrete Call-By-Name-Implementierung des `CBN`-Traits:
 ```scala
 object CallByName extends CBN {
-  type Thunk = (Exp,Env)
-  def delay(e: Exp, env: Env): (Exp, CallByName.Env) = (e,env)
+  case class Thunk(exp: Exp, env: Env)
+  def delay(e: Exp, env: Env): Thunk = Thunk(e,env)
   def force(t: Thunk): CallByName.Value = {
-    println("Forcing evaluation of expression: "+t._1)
-    eval(t._1,t._2)
+    println("Forcing evaluation of expression "+t.exp)
+    eval(t.exp,t.env)
   }
 }
 ```
 
+Der Typ `Thunk` wird dabei mit den Feldern `exp` und `env` definiert, diese werden durch `delay` mit dem entsprechenden Ausdruck und der aktuellen Umgebung belegt. In `force` werden die Felder ausgelesen und der Ausdruck mit der hinterlegten Umgebung ausgewertet.
+
+## Call-By-Need
+Während das Argument unter Call-By-Value immer genau ein Mal ausgewertet wird, findet die Auswertung unter Call-By-Name für jede Verwendung statt. Wird das Argument einer Funktion mehrmals mehrfach weitergereicht, so kann die Anzahl der Aufrufe exponentiell wachsen. Die Auswertungsstrategie kann also in vielen Fällen sehr ineffizient sein. 
+
+Eine bessere Alternative ist die Strategie _Call-By-Name_. Dabei wird nach der ersten Auswertung des Arguments das Ergebnis durch _Caching_ gespeichert, so dass bei mehrfacher Auswertung das abgespeicherte Ergebnis verwendet werden kann und Argumente höchstens ein Mal ausgewertet werden.
+```scala
+object CallByNeed extends CBN {
+  case class MemoThunk(e: Exp, env: Env) {
+    var cache: Value = _
+  }
+  type Thunk = MemoThunk
+  def delay(e: Exp, env: Env): MemoThunk = MemoThunk(e,env)
+  def force(t: Thunk): CallByNeed.Value = {
+    if (t.cache != null)
+      println ("Reusing cached value "+t.cache+" for expression "+t.e)
+    else {
+      println("Forcing evaluation of expression: "+t.e)
+      t.cache = eval(t.e, t.env)
+    }
+    t.cache
+  }
+}
+```
+
+Wir implementieren den Typ `Thunk` wieder als mit den Feldern `exp` und `env`, diesmal aber mit einer zusätzlichen Variablenmitglied `cache`, in dem das Ergebnis der Auswertung hinterlegt werden kann. Bei der Auswertung mit `force` wird überprüft, ob das `cache`-Feld instanziiert wurde. Falls ja, kann das Ergebnis direkt von dort übernommen werden, falls nein, wird der Ausdruck mit der gespeicherten Umgebung ausgewertet und das Ergebnis in `cache` hinterlegt, bevor es ausgegeben wird.
+
+Anhand der `print`-Ausgaben lässt sich erkennen, dass etwa beim folgenden Aufruf drei Mal auf den Cache zugegriffen wird:
+```scala
+CallByNeed.eval(App(Fun("x", Add(Add("x","x"),Add("x","x"))), Add(2,2,)))
+```
+
 
 # Rekursive Bindings (RCFAE)
-Es ist nicht möglich, Rekursion folgendermaßen zu implementieren:
+In FAE kann Rekursion zwar kodiert werden, im Gegensatz zu [F1-WAE](#First-Order-Funktionen-F1-WAE) ist es aber nicht möglich, dass eine Funktion sich selbst in ihrem Rumpf aufruft:
+```scala
+val forever = wth("forever", Fun("x", App("forever","x")), App("forever",42))
+```
+Die Auswertung dieses Ausdrucks würde einen Fehler liefern, da der Bezeichner `"forever"` im Rumpf der Funktion nicht gebunden ist, sondern nur im dritten Ausdruck von `wth`.
+
+Aus diesem Grund ist es auch nicht möglich, mit einem Sprachkonstrukt `If0` rekursive Funktionen mit Abbruchbedingung zu definieren:
 ```scala
 val facAttempt = wth("fac", 
                      Fun("n", If0("n", 1, Mul("n", App("fac", Add("n",-1))))), 
@@ -1083,9 +1113,8 @@ val facAttempt = wth("fac",
 // With fac = (n => If (n==0) 1 Else n*fac(n-1)): 
 //   fac(4)
 ```
-Die Auswertung dieses Ausdrucks würde einen Fehler liefern, da der Bezeichner `"fac"` im Rumpf der Funktion nicht gebunden ist (also im `xDef`-Teil des With-Ausdrucks).
 
-Um Rekursion in dieser Form zu definieren, brauchen wir ein Konstrukt, mit dem rekursive Bindungen möglich sind. Dazu führen wir das (analog zur Scheme-Funktion benannte) `Letrec`-Konstrukt ein, das die gleiche Form wie `With` bzw. `wth` hat, aber rekursive Bindings ermöglichen soll. Zudem erweitern wir die Sprache um ein `If0`-Konstrukt, um Abbruchbedingungen für rekursive Funktionen geschickt formulieren zu können:
+Um Rekursion in dieser Form erzeugen zu können, brauchen wir ein Konstrukt, mit dem rekursive Bindungen möglich sind. Dazu führen wir das (analog zur Scheme-Funktion benannte) `Letrec`-Konstrukt ein, das die gleiche Form wie `With` bzw. `wth` hat, aber rekursive Bindings ermöglichen soll. Zudem erweitern wir die Sprache um ein `If0`-Konstrukt, um Abbruchbedingungen für rekursive Funktionen geschickt formulieren zu können:
 ```scala
 case class If0(cond: Exp, tBranch: Exp, eBranch: Exp) extends Exp
 case class Letrec(x: String, xDef: Exp, body: Exp) extends Exp
@@ -1101,13 +1130,13 @@ def eval(e: Exp, env: Env) : Value = e match {
 }
 ```
 
-Es stellt sich aber die Frage, wie wir im `Letrec`-Fall vorgehen sollen. Zuerst müssen wir `xDef` auswerten, handelt es sich dabei um eine Funktion so ist das Ergebnis der Auswertung natürlich ein Closure. Die Umgebung im Closure enthält aber keine Bindung für den Funktionsnamen, der ja im Rumpf der Funktion auftritt. 
+Es stellt sich aber die Frage, wie wir im `Letrec`-Fall vorgehen sollen. Zuerst müssen wir `xDef` auswerten, handelt es sich dabei um eine Funktion, so ist das Ergebnis der Auswertung natürlich ein Closure. Die Umgebung im Closure enthält aber keine Bindung für den Funktionsnamen, der ja im Rumpf der Funktion auftritt. 
 
-Selbst wenn man die Umgebung im Closure um eine Bindung für den Funktionsnamen erweitert, würde das nur einen rekursiven Aufruf ermöglichen, dann wäre der Funktionsname im Rumpf bereits wieder nicht gebunden. Für eine unbegrenzte Rekursionstiefe müsste für die Umgebung gelten: `env = Map("fac" -> ClosureV(...), env)`, sie müsste sich also zirkulär selbst referenzieren.
+Selbst wenn man die Umgebung im Closure um eine Bindung für den Funktionsnamen erweitert, würde das nur einen rekursiven Aufruf ermöglichen, dann wäre der Funktionsname im Rumpf bereits wieder nicht gebunden. Für eine unbegrenzte Rekursionstiefe müsste für die Umgebung gelten: `env = Map("fac" -> ClosureV(Fun("n",...), env))`, sie müsste sich also zirkulär selbst referenzieren.
 
-Eine Möglichkeit, in imperativen Sprachen zirkuläre Strukturen zu definieren, ist durch Objektreferenzen (bspw. durch zwei Instanzen, die gegenseitig auf sich verweisen). Hierzu ist Mutation notwendig, es wird die erste Objektinstanz mit Null-Pointer erzeugt, dann die zweite Objektinstanz mit Pointer auf die erste, zuletzt wird der Pointer im ersten Objekt mutiert und auf das zweite gesetzt. 
+Eine Möglichkeit, in imperativen Sprachen zirkuläre Strukturen zu definieren, ist durch Objektreferenzen (bspw. durch zwei Instanzen, die gegenseitig auf sich verweisen). Hierzu ist Mutation notwendig, es wird die erste Objektinstanz mit Null-Pointer erzeugt, dann die zweite Objektinstanz mit Pointer auf die erste, zuletzt wird der Pointer im ersten Objekt mutiert und auf das zweite gesetzt.
 
-Wir legen eine entsprechende Datenstruktur in einem Objekt `Values` an. Diese besteht aus einem Trait `ValueHolder`, das durch die Klassen `Value` und `ValuePointer` implementiert wird. Instanzen von `Value` sind dabei selbst Werte, Instanzen von `ValuePointer` verweisen auf `Value`-Instanzen. Die `Value`-Subklassen `NumV` und `ClosureV` kennen wir bereits, der Umgebungstyp `Env` ist nun nicht mehr eine Map von `String` nach `Value` sondern von `String` nach `ValueHolder`. Damit diese zirkuläre Definition möglich ist (`ValueHolder -> Value -> ClosureV -> Env -> ValueHolder`), müssen die Definitionen in ein Objekt gepackt werden.
+Wir legen eine entsprechende Datenstruktur in einem Objekt `Values` an. Diese besteht aus einem Trait `ValueHolder`, das durch die Klassen `Value` und `ValuePointer` implementiert wird. Instanzen von `Value` sind dabei selbst Werte, Instanzen von `ValuePointer` verweisen auf `Value`-Instanzen. Die `Value`-Subklassen `NumV` und `ClosureV` kennen wir bereits, der Umgebungstyp `Env` ist nun nicht mehr eine Map von `String` nach `Value` sondern von `String` nach `ValueHolder`. Damit diese zirkuläre Definition möglich ist (`ValueHolder -> Value -> ClosureV -> Env -> ValueHolder`), müssen die Definitionen innerhalb eines Objekts liegen.
 
 ```scala
 object Values {
@@ -1146,24 +1175,35 @@ def eval(e: Exp, env: Env) : Value = e match {
 
 Im `Letrec`-Fall definieren wir erst den `ValuePointer` `vp`, den wir mit einem Verweis auf `null` initialisieren. Wir erweitern die aktuelle Umgebung mit der Bindung des Identifiers `i` auf `vp`. Dann mutieren wir den `ValuePointer` so, dass er das Auswertungsergebnis des zu bindenden Wertes in der neuen Umgebung referenziert (Kreisschluss!). Nach dieser Mutation ist mit der neuen Umgebung die Auswertung möglich.
 
-Im `Id`-Fall findet die Dereferenzierung statt, wir schlagen `x` in der Environment nach und rufen auf dem Ergebnis die `value`-Methode auf, um den referenzierten `Value` zu erhalten. 
+Am Beispiel der `forever`-Funktion geschieht folgendes:
+```scala
+eval( Letrec("forever", Fun("x",App("forever","x")), App("forever",42)), Map() )
+// ~~>
+eval( App("forever",42), Map("forever" -> vp) )
+// vp.v = ClosureV( Fun("x",App("forever","x")), Map("forever" -> vp) )
+```
+
+Bei der Auswertung von `App("forever",42)` wird im `Id`-Fall der Identifier `"forever"` in der Umgebung nachgeschlagen und auf das `value`-Feld des Ergebnisses zugegriffen. Dabei handelt es sich um den oben auskommentierten Closure. Bei der Auswertung des Funktionsrumpfes wird die Umgebung aus dem Closure erweitert, in dieser ist `"forever"` wieder an `vp` gebunden. Bei einem rekursiven Aufruf wird also wieder `vp.value` ausgelesen, etc. 
+
+Damit ist eine unbegrenzte Rekursionstiefe möglich.
 
 
 # Mutation (BCFAE)
-Die Sprache FAE (auch inkl. Letrec) ist eine _rein funktionale_ Sprache, also eine Sprache ohne Mutation und Seiteneffekte. In dieser Art von Sprache lassen sich Programme besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor.
+Die Sprache FAE (auch inkl. `Letrec`) ist eine _rein funktionale_ Sprache, also eine Sprache ohne Mutation und Seiteneffekte. In dieser Art von Sprache lassen sich Programme und deren Auswertung besonders leicht nachvollziehen und es liegt _Referential Transparency_ vor.
 
 :::info
 **Referential Transparency** bedeutet, dass alle Aufrufe einer Funktion mit dem gleichen Argument überall durch das (identische) Ergebnis des Aufrufs ersetzt werden können, ohne die Bedeutung des Programms zu verändern.
 :::
 
-Besitzen Funktionen Seiteneffekte (etwa Print-Befehle oder Mutationen), so ist dies nicht der Fall, denn durch das Ersetzen des Funktionsaufrufs durch das Ergebnis gehen jegliche Seiteneffekte verloren. 
+Besitzen Funktionen Seiteneffekte (etwa Print-Befehle oder Mutationen), so ist dies nicht der Fall, denn durch das Ersetzen des Funktionsaufrufs mit dem Ergebnis gehen jegliche Seiteneffekte verloren.
 
-Die erste Form von Mutation ist das Mutieren von Variablen, also das Überschreiben des Wertes einer Variable:
+Eine Form von Mutation ist das Mutieren von Variablen, also das Überschreiben des Wertes einer Variable:
 ```scala
 var x = 1
 x = 2
 ```
-Die andere Form ist die mutierbarer Datenstrukturen, bspw. Arrays, in denen einzelne Werte überschrieben werden können. Wir wollen die einfachste denkbare Form einer mutierbaren Datenstruktur unserer Sprache hinzufügen, nämlich _Boxes_. 
+
+Eine andere Form ist die mutierbarer Datenstrukturen, bspw. Arrays, in denen einzelne Werte überschrieben werden können. Wir wollen die einfachste denkbare Form einer solchen mutierbaren Datenstruktur unserer Sprache hinzufügen, nämlich eine Datenstruktur mit genau einem Wert, die wir als _Box_ bezeichnen.
 
 ## Box-Container
 Eine Box entspricht einem Array der Länge 1, ist also ein Datencontainer für genau einen Wert. Um Boxes zu implementieren, führen wir die folgenden Sprachkonstrukte ein:
@@ -1174,41 +1214,41 @@ case class OpenBox(b: Exp) extends Exp
 case class Seq(e1: Exp, e2: Exp) extends Exp
 ```
 
-Wir müssen Boxen instanziieren, beschreiben und auslesen bzw. dereferenzieren können, zudem brauchen wir eine Möglichkeit, um zu Sequenzieren, also die Auswertungsreihenfolge verschiedener Programmteile anzugeben. Da der Wert einer Box global mutiert werden kann, spielt die Auswertungsreihenfolge von Unterausdrücken nun eine entscheidende Rolle. 
+Wir müssen Boxen instanziieren, beschreiben und auslesen bzw. dereferenzieren können, zudem brauchen wir eine Möglichkeit, um zu Sequenzieren, also zwei Ausdrücke nacheinander auszuwerten (damit ein Ausdruck neben einer Mutation auch eine Berechnung durchführen kann). Da der Wert einer Box mutiert werden kann, spielt die Auswertungsreihenfolge von Unterausdrücken nun eine entscheidende Rolle.
 
-Wir implementieren den `Box`-Container aus pädagogischen Gründen nicht durch Mutation in der Meta-Sprache, unser Interpreter soll funktional bleiben. 
+Wir implementieren den `Box`-Container aus pädagogischen Gründen nicht durch Mutation in der Meta-Sprache, sondern bleiben weiterhin bei einem funktionalen Interpreter.
 
 ```scala
 val ex1 = wth("b", NewBox(0), Seq( SetBox("b", Add(1,OpenBox("b"))), OpenBox("b")))
-/** Should evaluate to 1.
- * With b = NewBox(0):
- *    SetBox(b <- 1+OpenBox(b));
- *    OpenBox(b);
+/* Should evaluate to 1.
+With b = NewBox(0):
+  SetBox(b <- 1+OpenBox(b));
+    OpenBox(b)
  */
 
 ```
 
-Die Implementierung von `Seq` stellt uns vor eine Herausforderung, die Reihenfolge der rekursiven `eval`-Aufrufe in unserem Interpreter spielt nämlich keine Rolle, da diese Funktionsaufrufe keine Effekte haben (und auch nicht haben sollen). Wir müssen also unseren Interpreter abändern, so dass nach der Auswertung sowohl das Ergebnis, als auch durchgeführte Mutationen zurückgegeben werden, so dass wir beim Auswerten des zweiten Programmabschnitts die Effekte des ersten Programmabschnitts berücksichtigen können.
+Die Implementierung von `Seq` stellt uns vor eine Herausforderung, die Reihenfolge der rekursiven `eval`-Aufrufe in unserem Interpreter spielt nämlich keine Rolle, da diese Funktionsaufrufe keine Effekte haben (und auch nicht haben sollen). Wir müssen also unseren Interpreter abändern, so dass nach der Auswertung sowohl das Ergebnis, als auch durchgeführte Mutationen zurückgegeben werden, damit wir beim Auswerten des zweiten Programmabschnitts die Effekte des ersten Programmabschnitts berücksichtigen können.
 
 Hierzu ist es aber nicht ausreichend, `(Value,Env)` als Rückgabetyp zu wählen, wie das folgenden Beispiel zeigt:
 ```scala
-val ex2 = wth("b", NewBox(1), 
+val ex2 = wth("a", NewBox(1), 
             wth("f", Fun("x", Add("x", OpenBox("a"))),
-              Seq(SetBox("a",2), App("f",5))))       
-/** Should evaluate to 7.
- * With b = NewBox(1):
- *    With f = (x => x+OpenBox(b):
- *       SetBox(a, 2);
- *       f(5);
+              Seq(SetBox("a",2), App("f",5))))
+/* Should evaluate to 7.
+With b = NewBox(1):
+  With f = (x => x+OpenBox(b):
+    SetBox(a, 2);
+    f(5)
  */
 ```
 
 Bei der Auswertung von `f` wird die Umgebung aus dem zu `f` gehörigen Closure verwendet. In dieser Umgebung steht in der an `"a"` gebundenen Box der Wert `1`, nicht `2`. Environments dienen zur Umsetzung von lexikalischem Scoping, sie werden entsprechend der Programmstruktur rekursiv in Unterausdrücke weitergereicht. Für Mutation ist aber die Auswertungsreihenfolge und nicht die syntaktische Struktur des Programms entscheidend, insofern sind Environments für die Implementation dieses neuen Features ungeeignet. 
 
-Stattdessen benötigen wir eine zweite Datenstruktur, die wir als zusätzliches Argument bei der Auswertung übergeben und in evtl. modifizierter Form nach der Auswertungs ausgeben. Die neue Datenstruktur besitzt einen ganz anderen Datenfluss als die Umgebung, sie wird zwischen den Auswertungen der Unterausdrücke überreicht und nicht rekursiv in der Baumstruktur weitergegeben.
+Stattdessen benötigen wir eine zweite Datenstruktur, die wir als zusätzliches Argument bei der Auswertung übergeben und in evtl. modifizierter Form nach der Auswertungs ausgeben. Die neue Datenstruktur besitzt einen ganz anderen Datenfluss als die Umgebung, sie wird von Auswertungsposition zu Auswertungsposition gereicht und nicht wie die Umgebung im AST immer nur nach unten weitergegeben.
 
 ## Store und Adressen
-Wir verwenden wieder unsere alten Definitionen von `Value` und `Env` und führen den Typ `Address` und `Store` ein. Zusätzlich erweitern wir `Value` um den Fall `AddressV`:
+Wir verwenden wieder unsere alten Definitionen von `Value` und `Env` und führen die Typen `Address` und `Store` ein. Zusätzlich erweitern wir `Value` um den Fall `AddressV`:
 ```scala
 sealed abstract class Value
 type Env = Map[String,Value]
@@ -1220,9 +1260,9 @@ case class AddressV(a: Address) extends Value
 type Store = Map[Address,Value]
 ```
 
-Adressen sind Integers und dienen als Referenz ("Pointer") für Box-Instanzen. In der `Store`-Map werden die aktuellen Werte der Box-Instanzen hinterlegt. Um Bezeichner an Boxen binden zu können, müssen wir Boxen als `Value` repräsentieren können, wodurch `AddressV` notwendig wird.
+Adressen sind Integers und dienen als Referenzen ("Pointer") für Box-Instanzen. In der `Store`-Map werden die aktuellen Werte der Box-Instanzen hinterlegt. Um Identifier an Boxen binden zu können, müssen wir Boxen als `Value` repräsentieren können, zu diesem Zweck dient `AddressV`.
 
-Um neue Adressen zu erhalten, inkrementieren wir einfach die bisher höchste Adresse um 1. Um das Entfernen alter Referenzen und die Limitierungen dieses Adressen-Systems kümmern wir uns zu diesem Zeitpunkt nicht.
+Um neue Adressen zu erhalten, inkrementieren wir einfach die bisher höchste Adresse um 1. Um das Entfernen alter Referenzen und die Limitierungen dieses Adressen-Systems kümmern wir uns zum jetzigen Zeitpunkt nicht.
 ```scala
 var address = 0
 def nextAddress : Address = {
@@ -1233,7 +1273,7 @@ def nextAddress : Address = {
 Hier verwendet unsere Implementation doch Mutation in der Meta-Sprache, aber nur um diese Hilfsfunktion zu vereinfachen. Alternativ wäre eine Funktion `freshAddress` denkbar, die eine neue ungenutzte Adresse erzeugt (vgl. `freshName` [hier](#Capture-Avoiding-Substitution))
 
 ## Interpreter
-Im Interpreter hat sich in allen Fällen was geändert, die Implementation ist generall komplexer geworden:
+Im Interpreter ändert sich in allen Fällen deutlich, die Implementation wird im Allgemeinen aufwändiger:
 ```scala
 def eval(e: Exp, env: Env, s: Store) : (Value,Store) = e match {
   case Num(n) => (NumV(n),s)
@@ -1246,23 +1286,11 @@ def eval(e: Exp, env: Env, s: Store) : (Value,Store) = e match {
     }
     case _ => sys.error("Can only add numbers")
   }
-  case Mul(l,r) => eval(l,env,s) match {
-    case (NumV(a),s1) => eval(r,env,s1) match {
-      case (NumV(b),s2) => (NumV(a*b),s2)
-      case _ => sys.error("Can only multiply numbers")
-    }
-    case _ => sys.error("Can only multiply numbers")
-  }
   case App(f,a) => eval(f,env,s) match {
     case (ClosureV(Fun(p,b),cEnv),s1) => eval(a,env,s1) match {
       case (v,s2) => eval(b, cEnv+(p -> v), s2)
     }
     case _ => sys.error("Can only apply functions")
-  }
-  case If0(c,t,f) => eval(c,env,s) match {
-    case (NumV(0),s1) => eval(t,env,s1)
-    case (NumV(_),s1) => eval(f,env,s1)
-    case _ => sys.error("Can only check if number is zero")
   }
   case Seq(e1,e2) =>
     eval(e2,env,eval(e1,env,s)._2)
@@ -1286,13 +1314,13 @@ def eval(e: Exp, env: Env, s: Store) : (Value,Store) = e match {
 
 Der `Num`-, `Id`- und `Fun`-Fall entsprechen der [umgebungsbasierten FAE-Implementierung](#Umgebungsbasierter-Interpreter1) bis auf den neuen Store, der zusätzlich (mit dem Ergebnis zusammen in einem Tupel) ausgegeben wird. Im `Add`- und `Mul`-Fall müssen wir aber bereits entscheiden, in welcher Reihenfolge wir den linken und rechten Unterausdruck auswerten wollen. Wir werten (wie die meisten Sprachen) erst links und dann rechts aus. 
 
-Durch die Auswertung des linken Teilausdrucks (mit aktueller Umgebung und aktuellem Store) erhalten wir ein Tupel aus `NumV` und `Store`, diesen neuen `Store` verwenden wir dann bei der Auswertung des rechten Teilausdrucks, so dass potentielle Mutierungen im linken Teilausdruck nun im rechten Teilausdruck berücksichtigt werden. Die Auswertung des rechten Teilausdrucks liefert wieder einen Zahlenwert und einen Store, wir geben die Summe der Zahlen und den neuesten Store als Ergebnis aus. Der `Mul`-Fall ist analog.
+Durch die Auswertung des linken Teilausdrucks (mit aktueller Umgebung und aktuellem Store) erhalten wir ein Tupel aus `Value` und `Store`, diesen neuen `Store` verwenden wir dann bei der Auswertung des rechten Teilausdrucks, so dass potentielle Mutierungen im linken Teilausdruck bei der Auswertung des rechten Teilausdrucks berücksichtigt werden. Die Auswertung des rechten Teilausdrucks liefert wieder einen Wert und einen Store, wir geben die Summe der Zahlen und den neuesten Store als Ergebnis aus.
 
-Auch im `App`- und `If0`-Fall müssen wir den Store von links nach rechts immer zum nächsten Unterausdruck weiterreichen, sodass bspw. Mutierungen in der Bedingung eines `If0`-Ausdrucks im Then- bzw. Else-Zweig berücksichtigt werden. 
+Auch im `App`-Fall müssen wir den Store erst in den linken Unterausdruck und dann (potentiell modifiziert) in den rechten Ausdruck reichen, der Store, der bei der Auswertung des Arguments ausgegeben wird, verwenden wir bei der Auswertung des Funktionsrumpfs.
 
-Im `Seq`-Fall werten wir zuerst den linken Ausdruck aus und greifen mit `._2` auf den Store aus dem Ergebnis zu. Diesen nutzen wir dann bei der Auswertung des rechten Ausdrucks. Ein etwaiges Ergebnis aus dem linken Ausdruck wird also ignoriert, lediglich der rechte Ausdruck liefert ein Ergebnis. 
+Im `Seq`-Fall werten wir zuerst den linken Ausdruck aus und greifen mit `._2` auf den Store aus dem Ergebnis zu. Diesen nutzen wir dann bei der Auswertung des rechten Ausdrucks. Das Ergebnis des linken Teilausdrucks wird also ignoriert, es wird das Ergebnis des rechten Teilausdrucks ausgegeben.
 
-Um eine neue Box-Instanz zu erzeugen, werten wir zuerst den Ausdruck aus, der in der Box stehen soll. Wir erhalten einen Wert `v` und einen `Store`, erzeugen mit `nextAddress` eine neue Adresse und geben ein Tupel aus der neuen Adresse und dem Store, erweitert um die neue Adresse gebunden an den Wert `v`, aus. Im `SetBox`-Fall muss zusätzlich der Ausdruck an der ersten Stelle ausgewertet werden, um die Adresse der Box-Instanz zu erhalten und den Store mit dem neuen Wert zu aktualisieren. Im `OpenBox`-Fall wird auch erst die Adresse bestimmt, anschließend wird einfach der zugehörige Wert und der aktuelle Store ausgegeben.
+Um eine neue Box-Instanz zu erzeugen, werten wir zuerst den Ausdruck aus, der in der Box stehen soll. Wir erhalten einen Wert `v` und einen Store `s1`, erzeugen mit `nextAddress` eine neue Adresse und geben ein Tupel aus der neuen Adresse und `s1`, erweitert um eine Bindung der neuen Adresse an `v`, aus. Im `SetBox`-Fall muss zusätzlich der Ausdruck an der ersten Stelle ausgewertet werden, um die Adresse der Box-Instanz zu erhalten und den Store mit dem neuen Wert zu aktualisieren. Im `OpenBox`-Fall wird auch erst die Adresse bestimmt, anschließend wird der an die Adresse gebundene Wert und der aktuelle Store ausgegeben.
 
 Beim Auslesen einer Box-Instanz wird also erst in der Umgebung der Bezeichner nachgeschlagen, was einen `AddressV`-Wert liefern sollte, anschließend wird im Store nachgeschlagen, auf welchen Wert diese Adresse verweist. 
 
@@ -1300,30 +1328,30 @@ Beim Auslesen einer Box-Instanz wird also erst in der Umgebung der Bezeichner na
 # Speichermanagement
 Die Funktion `nextAddress`, mit der wir ungenutzte Adressen für neue Boxen erzeugen, inkrementiert einfach die Variable `address` immer weiter. Der Wert von `address` wird nach der Auswertung nicht zurückgesetzt. Während der Auswertung wird auch nicht geprüft, welche Einträge im Store noch benötigt werden und ob Adressen und die an sie gebundenen Werte entfernt werden können.
 
-Eine Möglichkeit, nicht mehr benötigte Einträge zu entfernen, wäre ein neues Sprachkonstrukt, etwa `RemoveBox`. Damit könnte der "Programmierer" Box-Instanzen verwerfen, die nicht mehr im Programm vorkommen. Wird aber ein Identifier an eine Box-Instanz gebunden und diese Box-Instanz gelöscht, so verweist der Identifier weiterhin auf eine Adresse, für die es im Store aber keinen Eintrag mehr gibt.
+Eine Möglichkeit, nicht mehr benötigte Einträge zu entfernen, wäre ein neues Sprachkonstrukt, etwa `RemoveBox`. Damit könnte der Programmierer Box-Instanzen verwerfen, die nicht mehr benötigt werden. Wird aber ein Identifier an eine Box-Instanz gebunden und diese Box-Instanz gelöscht, so verweist der Identifier weiterhin auf eine Adresse, für die es im Store aber keinen Eintrag mehr gibt. 
 
-Programmieren mit manuellem Speichermanagement ermöglicht performantere Programme, ist aber sehr fehleranfällig. Aus diesem Grund verwenden viele Programmiersprachen automatisches Speichermanagement in Form von _Garbage Collection_.
+Unter anderem durch solche _Dangling Pointers_ ist Programmieren mit manuellem Speichermanagement fehleranfällig, auch wenn dadurch performantere Programme möglich sind.Aus diesem Grund verwenden viele Programmiersprachen automatisches Speichermanagement in Form von _Garbage Collection_.
 
 ## Garbage Collection
-Garbage Collection beruht darauf, dass algorithmisch bestimmt bzw. approximiert werden kann, welche Speicherinhalte nicht mehr oder noch benötigt werden. 
+Garbage Collection beruht darauf, dass algorithmisch bestimmt bzw. approximiert werden kann, welche Speicherinhalte noch benötigt werden.
 
 Ideal wäre ein Garbage-Collection-Algorithmus, der folgendes erfüllt:
 
 :::info
-**"Perfekte" Garbage Collection:** Wenn die Adresse $a$ im Store $s$ in der weiteren Berechnung nicht mehr benötigt wird, so wird $a$ aus $s$ entfernt. 
+**"Perfekte" Garbage Collection:** Wenn die Adresse $a$ im Store $s$ in der weiteren Berechnung nicht mehr benötigt wird, so wird der Eintrag für $a$ aus $s$ entfernt.
 :::
 
 Die Fragestellung, ob eine Adresse in der weiteren Berechnung noch benötigt wird, ist jedoch unentscheidbar, was aus der Unentscheidbarkeit des Halteproblems und dem Satz von Rice folgt. Wird bspw. eine Funktion $f$ aufgerufen und danach auf eine Adresse zugegriffen, so wird die Adresse nur benötigt, wenn $f$ terminiert. Für perfekte Garbage Collection müsste also das Halteproblem entscheidbar sein.
 
-Auch wenn kein Algorithmus für perfekte Garbage Collection existiert, kann die Menge der noch benötigten Adressen dennoch approximiert werden. Approximinieren bedeutet dabei, das es Adressen gibt, für die keine Entscheidung möglich ist oder die falsch eingeordnet werden. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Adressen unnötig/fälschlicherweise im Speicher gehalten werden (aber nie fälschlicherweise verworfen werden).
+Es kann jedoch die Menge der noch benötigten Adressen approximiert werden. Approximinieren bedeutet dabei, das es Adressen gibt, für die keine Entscheidung möglich ist oder die falsch eingeordnet werden. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Daten unnötig/fälschlicherweise im Speicher gehalten werden (aber nie fälschlicherweise verworfen werden).
 
 :::info
 **Erreichbarkeit/Reachability:** Eine Adresse ist _erreichbar_, wenn sie sich in der aktuellen Umgebung (inkl. Unterumgebungen in Closures, usw.) befindet, oder wenn es einen Pfad von Verweisen aus der aktuellen Umgebung zu der Adresse gibt. 
 :::
 
-Bei Garbage Collection handelt es sich also um das Erreichbarkeitsproblem in einem gerichteten Graphen. Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das ist nicht der Fall, wenn durch Pointer-Arithmetik auf beliebige Adressen zugegriffen werden kann.
+Garbage Collection entspricht also dem Erreichbarkeitsproblem in einem gerichteten Graphen. Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das wäre nicht der Fall, wenn durch Pointer-Arithmetik auf beliebige Adressen zugegriffen werden kann.
 
-Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörigen Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder andere Umgebungen gelten. 
+Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörigen Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder die auf dem Stack abgelegten Umgebungen gelten. 
 
 ## Mark and Sweep
 Die meisten einfachen Garbage-Collection-Algorithmen bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
@@ -1348,7 +1376,7 @@ def gc(env: Env, store: Store) : Store = {
 
   val marked = mark(allAddrInEnv(env)) // mark
   
-  store.filter{case (a,_) => marked(a)} // sweep
+  store.filter{ case (a,_) => marked(a) } // sweep
 
 }
 ```
