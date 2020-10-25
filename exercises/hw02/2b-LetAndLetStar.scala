@@ -21,7 +21,6 @@ object Hw02b {
   case class Add(lhs: Exp, rhs: Exp) extends Exp
   case class Mul(lhs: Exp, rhs: Exp) extends Exp
   case class Id(x: String) extends Exp
-  case class With(x: String, xdef: Exp, body: Exp) extends Exp
 
   /**
    * We use implicits again to make example programs less verbose.
@@ -34,8 +33,7 @@ object Hw02b {
    */
 
   case class Let(defs: List[(String, Exp)], body: Exp) extends Exp
-  case class LetStar(defs: List[(String, Exp)], body: Exp) extends Exp
-
+  
   /**
    * The purpose of the Let construct is to bind a list of identifiers in such a way
    * that the scope of the bound variables is only in the body, but not any of the
@@ -44,7 +42,7 @@ object Hw02b {
    */
 
   val test1 =
-    With("x", 1,
+    wth("x", 1,
       Let(List("x" -> 5, "y" -> Add("x", 1)), Add("x", "y")))
 
   /**
@@ -64,23 +62,15 @@ object Hw02b {
    *
    * 3) Third exercise: See below.
    */
-
-  def desugar(e: Exp): Exp = e match {
-    case Num(n) => e
-    case Id(x) => e
-    case Add(l, r) => Add(desugar(l), desugar(r))
-    case Mul(l, r) => Mul(desugar(l), desugar(r))
-    case With(x, xdef, body) => Let(List(x -> desugar(xdef)), desugar(body))
-    case Let(defs, body) => Let(defs.map{ case (s, e) => (s, desugar(e)) }, desugar(body))
-    case LetStar(defs, body) => LetStar(defs.map{ case (s, e) => (s, desugar(e)) }, desugar(body))
-  }
+   
+  // 'With' as syntactic sugar
+  def wth(x: String, xDef: Exp, body: Exp) : Exp = Let(List(x->xDef),body)
 
   def subst(e: Exp, i: String, v: Num): Exp = e match {
     case Num(n) => e
     case Id(x) => if (x == i) v else e
     case Add(l, r) => Add(subst(l, i, v), subst(r, i, v))
     case Mul(l, r) => Mul(subst(l, i, v), subst(r, i, v))
-    case With(x, xdefs, body) => sys.error("'With' was not desugared!")
     case Let(defs, body) => Let(defs.map{ case (s, e) => (s, subst(e, i, v)) },
       if (!defs.exists{ case (s, e) => s == i }) subst(body, i, v)
       else body) // only substitute in body if there is no new def for i
@@ -101,7 +91,6 @@ object Hw02b {
     case Id(x) => sys.error("Unbound variable: " + x)
     case Add(l, r) => eval(l) + eval(r)
     case Mul(l, r) => eval(l) * eval(r)
-    case With(x, xdef, body) => sys.error("'With' was not desugared!")
     case Let(defs, body) =>
       if (defs.isEmpty) eval(body) // only substitute in body
       else eval(Let(defs.drop(1), subst(body, defs.head._1, Num(eval(defs.head._2)))))
@@ -114,11 +103,16 @@ object Hw02b {
    * Third exercise (3)
    * The LetStar construct is similar to let, but the scope of a definition contains all
    * right hand sides of definitions that follow the current one.
+   */
+   
+   case class LetStar(defs: List[(String, Exp)], body: Exp) extends Exp
+   
+  /**
    * The following test case should hence evaluate to 11.
    */
 
   val test2 =
-    With("x", 1,
+    wth("x", 1,
       LetStar(List("x" -> 5, "y" -> Add("x", 1)), Add("x", "y")))
 
   /**
@@ -129,33 +123,33 @@ object Hw02b {
 
   // additional test cases
   val test3 =
-  With("a", 2,
+  wth("a", 2,
     Let(List("b" -> Mul("a", 20)), Add("a", "b")))
 
   val test4 =
     Let(List("a" -> 5), Let(List("a" -> 7), Let(List("a" -> 21), Mul("a", 2))))
 
   val test5 =
-    With("x", 13,
+    wth("x", 13,
       LetStar(List("x" -> 20, "y" -> Add("x", 1)), Mul("y", 2)))
 
   val test6 =
     LetStar(List("x" -> 2, "y" -> Mul("x", "x"), "z" -> Add("x", "y")), Add(10, "z"))
 
   val test7 =
-    Let(List("x" -> 25), With("x", "x",
+    Let(List("x" -> 25), wth("x", "x",
       LetStar(List("x" -> "x", "x" -> "x", "x" -> "x"), "x")))
 
 
   // eval() call on test cases
   def evalTest(): Unit = {
-    println("test1  (7): " + eval(desugar(test1)))
-    println("test2 (11): " + eval(desugar(test2)))
-    println("test3 (42): " + eval(desugar(test3)))
-    println("test4 (42): " + eval(desugar(test4)))
-    println("test5 (42): " + eval(desugar(test5)))
-    println("test6 (16): " + eval(desugar(test6)))
-    println("test7 (25): " + eval(desugar(test7)))
+    println("test1  (7): " + eval(test1))
+    println("test2 (11): " + eval(test2))
+    println("test3 (42): " + eval(test3))
+    println("test4 (42): " + eval(test4))
+    println("test5 (42): " + eval(test5))
+    println("test6 (16): " + eval(test6))
+    println("test7 (25): " + eval(test7))
   }
 
 }
