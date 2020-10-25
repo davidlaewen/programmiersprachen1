@@ -5,8 +5,6 @@ From now on, the tasks will not explicitly require tests any more,
 but I advise you to nevertheless use tests for all programming tasks.
  */
 
-import scala.language.implicitConversions
-
 /**
 Part 2: Binding constructs (2 sub-tasks, plus 1 optional subtask)
 ------
@@ -15,6 +13,8 @@ as illustrated by the following abstract syntax:
  */
 
 object Hw02b {
+
+  import scala.language.implicitConversions
 
   sealed abstract class Exp
   case class Num(n: Int) extends Exp
@@ -66,17 +66,18 @@ object Hw02b {
   // 'With' as syntactic sugar
   def wth(x: String, xDef: Exp, body: Exp) : Exp = Let(List(x->xDef),body)
 
+
   def subst(e: Exp, i: String, v: Num): Exp = e match {
     case Num(n) => e
     case Id(x) => if (x == i) v else e
-    case Add(l, r) => Add(subst(l, i, v), subst(r, i, v))
-    case Mul(l, r) => Mul(subst(l, i, v), subst(r, i, v))
-    case Let(defs, body) => Let(defs.map{ case (s, e) => (s, subst(e, i, v)) },
-      if (!defs.exists{ case (s, e) => s == i }) subst(body, i, v)
-      else body) // only substitute in body if there is no new def for i
+    case Add(l,r) => Add(subst(l,i,v), subst(r,i,v))
+    case Mul(l,r) => Mul(subst(l,i,v), subst(r,i,v))
+    case Let(defs, body) => Let(defs.map{ case (s,e) => (s, subst(e,i,v)) },
+      if (defs.map(ie => ie._1).contains(i)) body else subst(body, i, v)) 
+      // only substitute in body if there is no new def for i
     case LetStar(defs, body) => LetStar(substDefs(defs, i, v),
-      if (!defs.exists{ case (s, e) => s == i }) subst(body, i, v)
-      else body) // only substitute in body if there is no new def for i
+      if (defs.map(ie => ie._1).contains(i)) body else subst(body, i, v))
+      // only substitute in body if there is no new def for i
   }
 
   def substDefs(defs: List[(String, Exp)], i: String, v: Num): List[(String, Exp)] = defs match {
@@ -91,12 +92,14 @@ object Hw02b {
     case Id(x) => sys.error("Unbound variable: " + x)
     case Add(l, r) => eval(l) + eval(r)
     case Mul(l, r) => eval(l) * eval(r)
-    case Let(defs, body) =>
-      if (defs.isEmpty) eval(body) // only substitute in body
-      else eval(Let(defs.drop(1), subst(body, defs.head._1, Num(eval(defs.head._2)))))
-    case LetStar(defs, body) =>
-      if (defs.isEmpty) eval(body) // substitute in whole expression (defs & body)
-      else eval(subst(LetStar(defs.drop(1), body), defs.head._1, Num(eval(defs.head._2))))
+    case Let(defs, body) => 
+      eval( defs.foldLeft(body)( (b,ie) => subst(b,ie._1,Num(eval(ie._2)))) )
+    case LetStar(defs, body) => defs match {
+      case List() => eval(body)
+      case (i,e)::rest => 
+        eval(LetStar(rest.map{ case (i1,e1) => (i1,subst(e1,i,Num(eval(e)))) }, 
+                     subst(body,i,Num(eval(e)))) )
+    }
   }
 
   /**
@@ -105,7 +108,7 @@ object Hw02b {
    * right hand sides of definitions that follow the current one.
    */
    
-   case class LetStar(defs: List[(String, Exp)], body: Exp) extends Exp
+  case class LetStar(defs: List[(String, Exp)], body: Exp) extends Exp
    
   /**
    * The following test case should hence evaluate to 11.
