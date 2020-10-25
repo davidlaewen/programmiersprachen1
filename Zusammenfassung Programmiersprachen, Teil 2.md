@@ -10,6 +10,74 @@ langs: de
 [TOC]
 
 
+# Meta- und syntaktische Interpretation
+Jede Sprachsemantik einer Programmiersprache lässt sich in einer Meta-Sprache auf verschiedene Arten implementieren, dabei ist die Unterscheidung zwischen _Metainterpretation_ und _syntaktischer Interpretation_ von besonderer Wichtigkeit.
+
+_Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch das entsprechende Feature in der Hostsprache, _syntaktische Interpretation_ hingegen die Implementierung eines Features durch Reduktion auf primitivere Sprachkonstrukte der Hostsprache. Metainterpretation ist (falls überhaupt möglich) leichter zu implementieren, erlaubt aber keine Anpassung eines Sprachkonstrukts gegenüber der Implementation in der Hostsprache. Syntaktische Interpretation erlaubt eine andere, selbst festgelegte Implementation und die Kontrolle darüber, wobei aber ein umfangreiches Verständnis des Sprachkonstrukts notwendig ist, um dieses mit einfacheren Mitteln selbst zu implementieren.
+
+In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme oder das Speichermanagement wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unseren Interpreter nutzen und implizit das Speichermanagement von Scala übernehmen.
+
+Andere Sprachfeatures werden hingegen nicht durch das entsprechende Feature in der Hostsprache umgesetzt, z.B. Identifier (inkl. Scoping) oder Closures. Hier liegt syntaktische Interpretation vor. Bei der Entwerfen des Interpreters muss man sich also bewusst sein, welche Verhaltensweisen und Einschränkungen mit den Features der Hostsprache einhergehen und entscheiden, welche Features man selbst implementieren und welche man "weiterreichen" möchte. 
+
+Wir könnten in [FAE](#Higher-Order-Funktionen-FAE) aber auch mehr Metainterpretation verwenden, indem wir etwa die Funktionen durch Funktionen der Metasprache umsetzen:
+```scala
+sealed trait Exp
+case class Num(n: Int) extends Exp
+case class Id(x: String) extends Exp
+case class Add(lhs: Exp, rhs: Exp) extends Exp
+case class Fun(f: Exp => Exp) extends Exp 
+case class App(fun: Exp, arg: Exp) extends Exp
+```
+
+Eine solche Repräsentation von Funktionen der Objektsprache durch Funktionen der Metasprache nennt man _Higher-Order Abstract Syntax (HOAS)_.
+
+Der Interpreter wird nun extrem einfach, aber die Kontrolle über das Verhalten von Identifiern und Bindungen (also bspw. Scoping) geht verloren.
+```scala
+def eval(e: Exp) : Exp = e match {
+  case Id(x) => sys.error("Unbound identifier: "+x)
+  case Add(l,r) => (eval(l),eval(r)) match {
+    case (Num(a),Num(b)) => Num(a+b)
+    case _ => sys.error("Can only add numbers")
+  }
+  case App(f,a) => f match {
+    case Fun(f) => eval(f(eval(a)))
+    case _ => sys.error("Can only apply functions")
+  }
+  case _ => e
+}
+```
+
+Es ist auch möglich, Closures durch Metainterpretation umzusetzen:
+```scala
+sealed abstract class Value
+type Env = Map[String, Value]
+case class NumV(n: Int) extends Value
+case class FunV(f: Value => Value) extends Value
+
+def eval(e: Exp) : Env => Value = e match {
+  case Num(n: Int) => (env) => NumV(n)
+  case Id(x) => env => env(x)
+  case Add(l,r) => { (env) =>
+    (eval(l)(env),  eval(r)(env)) match {
+      case (NumV(v1),NumV(v2)) => NumV(v1+v2)
+      case _ => sys.error("can only add numbers")
+    }
+  }
+  case Fun(param,body) => (env) => FunV( (v) => eval(body)(env + (param -> v)))
+  case App(f,a) => (env) => (eval(f)(env), eval(a)(env)) match {
+    case (FunV(g),arg) => g(arg)
+    case _ => sys.error("can only apply functions")
+  }
+}
+```
+
+Anstelle von Closures bestehend aus einer Funktion und der zugehörigen Umgebung liefert die Auswertung von Funktionen eine `FunV`-Instanz mit einer Scala-Funktion, die die Auswertung des Rumpfes mit der korrekten Umgebung (vom Zeitpunkt, zu dem der `Fun`-Ausdruck ausgewertet wird, entsprechend der Closure-Umgebung) durchführt. Die Closures der Objektsprache sind also durch die Closures der Metasprache implementiert.
+
+Durch das zusätzliche Auslagern des Umgebungsparameters aus `eval` durch Currying ist dieser Interpreter kompositional, d.h. alle rekursiven Aufrufe von `eval` sind auf Unterausdrücken des aktuellen Ausdrucks. Dadurch lässt sich Programmäquivalenz in der Objektsprache leicht durch Äquivalenz in der Metasprache beweisen. Außerdem lässt sich der Interpreter auch im [Visitor-Stil](#Abstraktion-durch-Visitor) implementieren (s. [Übung 6b](https://github.com/DavidLaewen/programmiersprachen1/blob/master/exercises/hw06/6b-CompositionalInterpreter.scala))
+
+Es könnten auch mehr Sprachkonstrukte von FAE durch syntaktische Interpretation umgesetzt werden, bspw. könnte man Zahlen als Sequenz von Ziffern anstelle von Scala-`Int`s repräsentieren. Wir werden noch Implementation kennenlernen, die nicht mehr von Scalas Speichermanagement und Higher-Order-Funktionen abhängen.
+
+
 # Objekt-Algebren
 _Objekt-Algebren_ (_Object Algebras_) sind eine Abstraktion, die eng mit [algebraischen Datentypen](https://en.wikipedia.org/wiki/Algebraic_data_type) und [Church-Kodierungen](#Church-Kodierungen) verwandt ist. Zudem haben sie einige Gemeinsamkeiten mit dem [Visitor Pattern](https://pad.its-amazing.de/programmiersprachen1teil1#Abstraktion-durch-Visitor).
 
@@ -1321,9 +1389,9 @@ Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder
 :::
 
 ## Simply-Typed Lambda Calculus (STLC)
-Wir beginnen mit substitutionsbasierten Interpreter für das ungetypte Lambda-Kalkül (FAE), da ohne getrennte Werte (`Value`) und Closures die Implementation eines Typsystem deutlich einfacher möglich ist. Wir ergänzen Funktionen um eine Annotation des Parametertyps, die vom Interpreter ignoriert wird. Diese Sprache ist die einfachste Form des _Simply-Typed Lambda Calculus_ (_STLC_).
+Wir beginnen mit substitutionsbasierten Interpreter für den ungetypten Lambda-Kalkül (FAE), da ohne getrennte Werte (`Value`) und Closures die Implementation eines Typsystem deutlich einfacher möglich ist. Wir ergänzen Funktionen um eine Annotation des Parametertyps, die vom Interpreter ignoriert wird. Diese Sprache ist die einfachste Form des _Simply-Typed Lambda Calculus_ (_STLC_).
 
-Zusätzlich fügen wir einige gängige Erweiterungen für des STLC hinzu, nämlich ein Sprachkonstrukt `JUnit`, Bindungen mit `Let` (ohne Typannotationen), Typ-Annotationen für beliebige Ausdrücke, Produkttypen (Tupel) und Summentypen (mit zwei Alternativen):
+Zusätzlich fügen wir einige gängige Erweiterungen für den STLC hinzu, nämlich ein Sprachkonstrukt `JUnit`, Bindungen mit `Let` (ohne Typannotationen), Typ-Annotationen für beliebige Ausdrücke, Produkttypen (Tupel) und Summentypen (mit zwei Alternativen):
 ```scala
 sealed abstract class Type
 

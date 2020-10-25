@@ -1328,12 +1328,12 @@ Beim Auslesen einer Box-Instanz wird also erst in der Umgebung der Bezeichner na
 # Speichermanagement
 Die Funktion `nextAddress`, mit der wir ungenutzte Adressen für neue Boxen erzeugen, inkrementiert einfach die Variable `address` immer weiter. Der Wert von `address` wird nach der Auswertung nicht zurückgesetzt. Während der Auswertung wird auch nicht geprüft, welche Einträge im Store noch benötigt werden und ob Adressen und die an sie gebundenen Werte entfernt werden können.
 
-Eine Möglichkeit, nicht mehr benötigte Einträge zu entfernen, wäre ein neues Sprachkonstrukt, etwa `RemoveBox`. Damit könnte der Programmierer Box-Instanzen verwerfen, die nicht mehr benötigt werden. Wird aber ein Identifier an eine Box-Instanz gebunden und diese Box-Instanz gelöscht, so verweist der Identifier weiterhin auf eine Adresse, für die es im Store aber keinen Eintrag mehr gibt. 
+Eine Möglichkeit, nicht mehr benötigte Einträge zu entfernen, wäre ein neues Sprachkonstrukt, etwa `RemoveBox`. Damit könnte der Programmierer Box-Instanzen verwerfen, die nicht mehr benötigt werden. Wird aber ein Identifier an eine Box-Instanz gebunden und diese Box-Instanz gelöscht, so verweist der Identifier weiterhin auf eine Adresse, für die es im Store aber keinen Eintrag mehr oder sogar einen anderen, neuen Eintrag gibt.
 
-Unter anderem durch solche _Dangling Pointers_ ist Programmieren mit manuellem Speichermanagement fehleranfällig, auch wenn dadurch performantere Programme möglich sind.Aus diesem Grund verwenden viele Programmiersprachen automatisches Speichermanagement in Form von _Garbage Collection_.
+Unter anderem durch solche _Dangling Pointers_ ist Programmieren mit manuellem Speichermanagement fehleranfällig, auch wenn dadurch performantere Programme möglich sind. Aus diesem Grund verwenden viele Programmiersprachen automatisches Speichermanagement in Form von _Garbage Collection_.
 
 ## Garbage Collection
-Garbage Collection beruht darauf, dass algorithmisch bestimmt bzw. approximiert werden kann, welche Speicherinhalte noch benötigt werden.
+Garbage Collection beruht auf der Tatsache, dass algorithmisch bestimmt bzw. approximiert werden kann, welche Speicherinhalte in der weiteren Auswertung noch benötigt werden.
 
 Ideal wäre ein Garbage-Collection-Algorithmus, der folgendes erfüllt:
 
@@ -1341,20 +1341,22 @@ Ideal wäre ein Garbage-Collection-Algorithmus, der folgendes erfüllt:
 **"Perfekte" Garbage Collection:** Wenn die Adresse $a$ im Store $s$ in der weiteren Berechnung nicht mehr benötigt wird, so wird der Eintrag für $a$ aus $s$ entfernt.
 :::
 
-Die Fragestellung, ob eine Adresse in der weiteren Berechnung noch benötigt wird, ist jedoch unentscheidbar, was aus der Unentscheidbarkeit des Halteproblems und dem Satz von Rice folgt. Wird bspw. eine Funktion $f$ aufgerufen und danach auf eine Adresse zugegriffen, so wird die Adresse nur benötigt, wenn $f$ terminiert. Für perfekte Garbage Collection müsste also das Halteproblem entscheidbar sein.
+Die Fragestellung, ob ein Store-Eintrag in der weiteren Berechnung noch benötigt wird, ist jedoch unentscheidbar, was aus der Unentscheidbarkeit des Halteproblems und dem Satz von Rice folgt. Wird bspw. eine Funktion $f$ aufgerufen und danach auf eine Adresse zugegriffen, so wird die Adresse nur benötigt, wenn $f$ terminiert. Für perfekte Garbage Collection müsste also das Halteproblem entscheidbar sein.
 
-Es kann jedoch die Menge der noch benötigten Adressen approximiert werden. Approximinieren bedeutet dabei, das es Adressen gibt, für die keine Entscheidung möglich ist oder die falsch eingeordnet werden. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Daten unnötig/fälschlicherweise im Speicher gehalten werden (aber nie fälschlicherweise verworfen werden).
+Es kann jedoch die Menge der noch benötigten Adressen approximiert werden. Approximinieren bedeutet dabei, das es Adressen gibt, für die keine Entscheidung möglich ist oder die falsch eingeordnet werden. Garbage Collection wird dabei so gestaltet, dass nur eine Art von Fehler geschieht, nämlich dass Daten unnötig/fälschlicherweise im Speicher gehalten werden aber nie fälschlicherweise verworfen werden (_Soundness_). 
+
+_Reachability_ von Speichereinträgen hat sich als eine geeignete Approximation für die Zwecke von Garbage Collection herausgestellt und wird in vielen Algorithmen benutzt, um nicht mehr benötigte Einträge zu bestimmen.
 
 :::info
 **Erreichbarkeit/Reachability:** Eine Adresse ist _erreichbar_, wenn sie sich in der aktuellen Umgebung (inkl. Unterumgebungen in Closures, usw.) befindet, oder wenn es einen Pfad von Verweisen aus der aktuellen Umgebung zu der Adresse gibt. 
 :::
 
-Garbage Collection entspricht also dem Erreichbarkeitsproblem in einem gerichteten Graphen. Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das wäre nicht der Fall, wenn durch Pointer-Arithmetik auf beliebige Adressen zugegriffen werden kann.
+Garbage Collection entspricht also dem Erreichbarkeitsproblem in einem gerichteten Graphen. Voraussetzung ist dabei, dass alle nicht erreichbaren Adressen im Rest der Berechnung nicht benötigt werden. Das wäre bspw. nicht der Fall, wenn durch Pointer-Arithmetik auf beliebige Adressen zugegriffen werden kann.
 
-Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, eine Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörigen Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder die auf dem Stack abgelegten Umgebungen gelten. 
+Da unsere Auswertungsfunktion rekursiv ist, reicht es nicht, nur die aktuelle Umgebung zu betrachten. Es muss für jede Instanz der `eval`-Funktion auf dem Call-Stack die zugehörige Umgebung berücksichtigt werden, da beim Aufstieg aus den rekursiven Aufrufen wieder die auf dem Stack abgelegten Umgebungen verwendet werden. 
 
 ## Mark and Sweep
-Die meisten einfachen Garbage-Collection-Algorithmen bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
+Die meisten einfachen Garbage-Collection-Algorithmen auf Basis von Reachability bestehen aus den zwei Phasen _Mark_ und _Sweep_. Im ersten Schritt werden alle Adressen markiert, die noch benötigt werden, im zweiten Schritt werden dann alle nicht markierten Adressen entfernt.
 
 Die folgende Funktion führt Mark-And-Sweep Garbage-Collection in [BCFAE](#Mutation-BCFAE) für eine Umgebung `env` auf dem Store durch:
 ```scala
@@ -1381,9 +1383,9 @@ def gc(env: Env, store: Store) : Store = {
 }
 ```
 
-Die Funktion `allAddrInEnv` sammelt alle erreichbaren Adressen in einer Umgebung, indem `allAddrInVal` auf alle Werte in der Umgebung aufgerufen wird und die entstehenden Mengen alle vereinigt werden. Die Funktion `mark` erhält eine Adressmenge `seed` und liefert die Menge aller Adressen, die von den Adressen in `seed` aus erreicht werden können. Werden dabei keine neuen Adressen gefunden, so wird die Menge `seed` ausgegeben. Ansonsten wird `mark` rekursiv aufgerufen, dabei wird die Menge um die erreichbaren Adressen erweitert. Sie wird also schrittweise erweitert, bis keine neuen Adressen mehr gefunden werden. `gc` bestimmt erst die Menge der markierten Adressen und filtert dann den Store, so dass unmarkierte Adressen entfernt werden.
+Die Funktion `allAddrInEnv` sammelt alle erreichbaren Adressen in einer Umgebung, indem `allAddrInVal` auf alle Werte in der Umgebung aufgerufen wird und die entstehenden Mengen alle vereinigt werden. Die Funktion `mark` erhält eine Adressmenge `seed` und liefert die Menge aller Adressen, die von den Adressen in `seed` aus erreicht werden können. Werden dabei keine neuen Adressen gefunden, so wird die Menge `seed` ausgegeben. Ansonsten wird `mark` rekursiv aufgerufen, dabei wird die Menge um die neu gefundenen Adressen erweitert. Sie wird also schrittweise erweitert, bis keine neuen Adressen mehr gefunden werden. `gc` bestimmt erst die Menge der markierten Adressen und filtert dann den Store, so dass unmarkierte Adressen entfernt werden.
 
-Das folgende Beispiel zeigt die Funktionsweise des Algorithmus, `gc` wird mit einer Umgebung aufgerufen, in der auf der rechten Seite die Adresse `5` vorkommt. An der Adresse `5` steht im Store eine Closure, in dem wiederum die Adresse `3` auftritt, an der Adresse `3` wird auf die Adresse `1` verwiesen. Die Adressen `2` und `5` sind nicht erreichbar und sind dementsprechend im Ergebnis aus dem Store entfernt worden.
+Das folgende Beispiel zeigt die Funktionsweise des Algorithmus, `gc` wird mit einer Umgebung aufgerufen, in der auf der rechten Seite die Adresse `5` vorkommt. An der Adresse `5` steht im Store eine Closure, in dem wiederum die Adresse `3` auftritt, an der Adresse `3` wird auf die Adresse `1` verwiesen. Die Adressen `2` und `5` sind nicht erreichbar und sind dementsprechend im Ergebnis-Store nicht mehr vorhanden.
 ```scala
 val testEnv = Map("a" -> AddressV(5))
 val testStore = Map(
@@ -1401,24 +1403,23 @@ assert(gc(testEnv,testStore) ==
 ```
 
 ## Moving und Non-Moving GC
-Bei automatischen Speichermanagement und Garbage Collection kann es zu einer starken Fragmentierung des Speichers kommen, denn nach wiederholter Belegung von Speicher und Garbage-Collection-Zyklen sind die belegten Speicherzellen stark verteilt und der Speicher ist "lückenhaft" befüllt.
+Durch wiederholtes Anlegen und Entfernen von Speichereinträgen kann es zu einer starken Fragmentierung des Speichers kommen, die belegten Speicherzellen sind dann evtl. stark verteilt und der Speicher ist "lückenhaft" befüllt.
 
-Diese Fragmentierung erschwert zum einen die Speicherzuweisung, da größere "Datenblöcke" evtl. nicht am Stück gespeichert werden können und zerlegt werden müssen, zum anderen verschlechtert sich die Performanz, da die Speichernutzung weniger effizient wird (freier Speicher kann nicht genutzt werden, es müssen mehr Adressen im Speicher gehalten werden, zusammengehörige Daten werden nicht automatisch gemeinsam in den Cache geladen).
+Diese Fragmentierung erschwert zum einen die Speicherzuweisung, da größere "Datenblöcke" evtl. nicht am Stück gespeichert werden können und zerlegt werden müssen, zum anderen verschlechtert sich die Performanz, da die Speichernutzung weniger effizient wird (freier Speicher ist verteilt und kann dadurch evtl. nicht genutzt werden, es müssen mehr Adressen im Speicher gehalten werden, zusammengehörige Daten werden nicht automatisch gemeinsam in den Cache geladen).
 
-Um Fragmentierung zu verhindern oder zu reduzieren, müssen bei der Garbage Collection Daten verschoben ("zusammengerückt") werden, sodass die Speicherbelegung möglichst dicht bzw. kompakt bleibt. Hierbei spricht man von _Moving_ Garbage Collection.
+Um Fragmentierung zu reduzieren, müssen bei der Garbage Collection Speichereinträge verschoben ("zusammengerückt") werden, sodass die Speicherbelegung möglichst dicht bzw. kompakt bleibt. Hierbei spricht man von _Moving_ Garbage Collection. Dabei werden nicht nur die Daten verschoben, sondern es müssen auch alle Referenzen mit der neuen Speicheradresse aktualisiert werden.
 
 Bei [Mark and Sweep](#Mark-and-Sweep) werden die Daten nicht verschoben, der Algorithmus ist eine Form von _Non-Moving_ Garbage Collection. Er führt allgemein über die Laufzeit hinweg zu zunehmender Fragmentierung.
 
-Bei Moving Garbage Collection werden nicht nur die Daten im Speicher verschoben, es müssen auch alle Referenzen mit der neuen Speicheradresse aktualisiert werden. 
+Ein Beispiel für Moving Garbage Collection ist _Semi-Space Garbage Collection_. Dabei wird der Speicher in zwei Hälften geteilt, wobei während der Allokation nur eine Hälfte des Speichers verwendet wird. Ist diese voll, so wird Garbage Collection durchgeführt: Die noch benötigten Einträge werden markiert, anschließend werden alle markierten Einträge in die freie Speicherhälfte kopiert, wodurch der Speicher wieder dicht belegt wird. Zuletzt werden alle Einträge in der vollen Speicherhälfte gelöscht. Beim nächsten GC-Zyklus wird das Verfahren mit umgekehrten Rollen wiederholt. 
 
-Ein Beispiel für Moving Garbage Collection ist die _Semi-Space Garbage Collection_. Dabei wird der Speicher in zwei Hälften geteilt, wobei während der Allokation nur eine Hälfte des Speichers verwendet wird. Ist diese voll, so wird die Garbage Collection durchgeführt: Die noch benötigten Einträge werden markiert, anschließend werden alle markierten Einträge in die freie Speicherhälfte kopiert, wo wieder am Stück allokiert wird. Zuletzt werden alle Einträge in der vollen Speicherhälfte gelöscht, das Verfahren mit umgekehrten Rollen wiederholt werden. 
-
-**Vorteil** ist, dass bei jedem GC-Zyklus der gesamte Speicher defragmentiert wird, das Problem der steigenden Fragmentierung über Zeit ist also behoben. **Nachteile** sind die hinzukommenden Kopieroperationen und größere Anzahl an Löschoperationen, die Aktualisierung der Referenzen und der dazu notwendigen Suchoperationen, sowie die (im Worst Case) Halbierung des verfügbaren Speicherplatzes.
+**Vorteil** ist, dass bei jedem GC-Zyklus der gesamte Speicher defragmentiert wird, das Problem der steigenden Fragmentierung über Zeit ist also behoben. 
+**Nachteile** sind die hinzukommenden Kopieroperationen und größere Anzahl an Löschoperationen, die Aktualisierung der Referenzen und die dazu notwendigen Suchoperationen, sowie die (im Worst Case) Halbierung des verfügbaren Speicherplatzes.
 
 ## Weitere Begriffe
 - **Generational GC:** Es kann empirisch belegt werden, dass in den meisten Anwendungen die Objekte, die bei einem GC-Zyklus dereferenziert werden können, tendenziell sehr "jung" sind, also erst vor kurzer Zeit angelegt wurden. Bei Objekten, die sich schon sehr lange im Speicher befinden, werden viel wahrscheinlicher noch benötigt als Objekte, die erst kürzlich angelegt wurden.
 &nbsp;
-Bei _Generational Garbage Collection_ macht man sich diese Eigenschaft zunutze, indem die Objekte nach ihrem Alter aufgeteilt werden und im Speicherbereich der jungen Objekte öfter Garbage Collection durchgeführt wird als im Speicherbereich für alte Objekte. Somit kann Speicherplatz effizienter freigegeben werden, da gezielt die Objekte betrachtet werden, die eher dereferenziert werden können. 
+Bei _Generational Garbage Collection_ macht man sich diese Tatsache zunutze, indem die Objekte nach ihrem Alter aufgeteilt werden und im Speicherbereich für jungen Objekte öfter Garbage Collection durchgeführt wird als im Speicherbereich für alte Objekte. Somit kann Speicherplatz effizienter freigegeben werden, da gezielt die Objekte betrachtet werden, die am ehesten dereferenziert werden können. 
 
 - **"Stop the World"-Phänomen:** Während Garbage Collection durchgeführt wird, kann eine Anwendung i.A. nicht weiterlaufen, denn der GC-Algorithmus wäre nicht mehr sicher, wenn während der Ausführung des GC-Algorithmus weiter Adressen angelegt und Referenzen geändert werden. Stattdessen muss der Anwendungsprozess aufgeschoben werden, bis der GC-Zyklus vollendet ist. 
 &nbsp;
@@ -1426,7 +1427,7 @@ In den meisten Fällen kann dies unbemerkt geschehen, aber bei interaktiven Prog
 
 - **Reference Counting:** Eine andere Form des automatischen Speichermanagements, die nicht auf Erreichbarkeit von Objektinstanzen beruht, ist _Reference Counting_. Dabei wird zusammen mit jeder Objektinstanz ein Feld angelegt, in dem die Anzahl der Referenzen auf das Objekt gehalten wird. Ist diese Anzahl 0, so kann das Objekt dereferenziert werden. Bei jeder Änderung der Referenzen müssen die Felder in den betroffenen Objekten aktualisiert werden. Im Gegensatz zu Garbage Collection muss die Anwendung nicht mehr unterbrochen werden, Objekte können gelöscht werden, sobald ihr Counter 0 beträgt.
 &nbsp;
-Gibt es jedoch Referenzzyklen, so werden Objekte, die evtl. nicht mehr erreichbar sind, dennoch im Speicher gehalten. Deshalb wird das Verfahren typischerweise mit Zyklendetektion kombiniert, damit solche Strukturen erkannt und die Objekte korrekterweise dereferenziert werden können.
+Gibt es jedoch Referenzzyklen, so werden Objekte, die evtl. nicht mehr erreichbar sind, dennoch im Speicher gehalten. Deshalb wird das Verfahren typischerweise mit Zyklendetektion kombiniert, damit solche Strukturen erkannt und die entsprechenden Objekte dereferenziert werden.
 
 
 # Interpreter mit Speichermanagement
@@ -1484,7 +1485,7 @@ def eval(e: Exp, stack: List[Env], store: Store) : Value = e match {
 }
 ```
 
-Statt einer Umgebung erhält der Interpreter nun eine Liste aller im Call-Stack auftretenden Umgebungen. Der Kopf der Liste ist also die aktive Umgebung des aktuellen Funktionsaufrufs, die weiteren Elemente sind die Umgebungen der "darüberliegenden" Aufrufe in der Rekursionsstruktur. Im `App`-Fall wird die Umgebungsliste erweitert, indem vorne an die Liste eine neue Umgebung angehängt wird, die zusätzlich die Bindung des Parameters enthält. Im `Id`-Fall wird der Bezeichner in der obersten/ersten Umgebung im Stack nachgeschlagen.
+Statt einer Umgebung verwendet der Interpreter nun eine Liste aller im Call-Stack auftretenden Umgebungen als Parameter. Der Kopf der Liste ist die aktive Umgebung des aktuellen Funktionsaufrufs, die weiteren Elemente sind die Umgebungen der "darüberliegenden" Aufrufe in der Rekursionsstruktur, als die auf dem Call-Stack abgelegten Umgebungen. Im `App`-Fall wird die Umgebungsliste erweitert, indem vorne an die Liste eine neue Umgebung angehängt wird, die zusätzlich die Bindung des Parameters enthält. Im `Id`-Fall wird der Bezeichner in der obersten/ersten Umgebung im Stack nachgeschlagen.
 
 Im `NewBox`-, `SetBox`- und `OpenBox`-Fall werden jeweils die Store-Funktionen `malloc`, `update` und `apply` benutzt. Es muss der Stack anstelle der Umgebung als Parameter von `eval` verwendet werden, damit dieser im `NewBox`-Fall an die `malloc`-Funktion überreicht werden kann -- für GC und die Suche nach ungenutzten Adressen werden nämlich alle Umgebungen im Stack benötigt.
 
@@ -1504,9 +1505,9 @@ class StoreNoGC(size: Int) extends Store {
 }
 ```
 
-Der Store ist hierbei durch ein Array implementiert, zur Adressenzuweisung wird die mutierbare Variable `nextFreeAddr` verwendet und nach jeder neuen Zuweisung inkrementiert. Die Größe `size` wird bei der Instanziierung gewählt und legt fest, wie groß das Array ist, also wie viele Adressen es gibt. Sind alle Indices des Array belegt worden, so wird eine Fehlermeldung ausgegeben. Es wird nicht durch Garbage Collection versucht, Ressourcen freizugeben. 
+Der Store ist hierbei durch ein Array implementiert, um eine freie Adresse zu finden wird die mutierbare Variable `nextFreeAddr` verwendet und nach jeder neuen Zuweisung inkrementiert. Die Größe `size` wird bei der Instanziierung gewählt und legt fest, wie groß das Array ist, also wie viele Adressen es gibt. Sind alle Indices des Array belegt worden, so ist der Speicher voll und es wird eine Fehlermeldung ausgegeben. Es wird keinerlei Garbage Collection betrieben, um Ressourcen freizugeben. 
 
-Die folgenden Auswertungen verursacht also eine Fehlermeldung, wenn bei der Evaluation von `ex1` mindestens eine Adresse belegt wird:
+Die `eval`-Aufrufe im folgenden Programm verursachen also eine Fehlermeldung, wenn bei der Evaluation von `ex1` mindestens eine Box angelegt wird:
 ```scala
 val store = new StoreNoGC(2)
 val stack = List[Env]()
@@ -1516,7 +1517,7 @@ eval(ex1,stack,store); eval(ex1,stack,store); eval(ex1,stack,store)
 Auch ein Testprogramm, in dem mehr als zwei Boxen instanziiert werden, würde einen Fehler liefern.
 
 ## Mit GC
-Wir implementieren nun die abstrakte `Store`-Klasse mit "Mark & Sweep"-Garbage-Collection. Der Store wird dabei wieder mit einer Größe `size` instanziiert, die die Anzahl der Adressen bestimmt. Wir ergänzen eine Variable `free`, in der die Anzahl freier Felder gehalten wird. Gibt es bei der Speicherallokation keine freien Adressen mehr, so wird Garbage Collection betrieben. Ist auch danach keine Adresse frei, so wird eine Fehlermeldung ausgegeben. Der verwendete "Mark & Sweep"-Algorithmus ähnelt dem [hier](#Mark-and-Sweep) aufgeführten stark:
+Wir implementieren nun die abstrakte `Store`-Klasse mit "Mark & Sweep"-Garbage-Collection. Der Store wird dabei wieder mit einer Größe `size` instanziiert, die die Anzahl der Adressen bestimmt. Wir ergänzen eine Variable `free`, in der die Anzahl ungenutzter Adressen gehalten wird. Gibt es bei der Speicherallokation keine freien Adressen mehr, so wird Garbage Collection betrieben. Ist auch danach keine Adresse frei, so wird eine Fehlermeldung ausgegeben. Der verwendete "Mark & Sweep"-Algorithmus ähnelt dem im [vorherigen Kapitel](#Mark-and-Sweep) aufgeführten stark:
 
 ```scala
 class MarkAndSweepStore(size: Int) extends Store {
@@ -1542,7 +1543,7 @@ class MarkAndSweepStore(size: Int) extends Store {
     case ClosureV(_,env) => allAddrInEnv(env)
   }
   def allAddrInEnv(env: Env) : Set[Int] = {
-    env.values.map{allAddrInVal}.fold(Set())(_++_)
+    env.values.map(allAddrInVal).fold(Set())(_++_)
   }
   def mark(seed: Set[Int]) : Unit = {
     seed.foreach(memory(_).marked = true)
@@ -1571,72 +1572,7 @@ Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adresse
 Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
 
 
-# Meta- und syntaktische Interpretation
-Jede Sprachsemantik einer Programmiersprache lässt sich in einer Meta-Sprache auf verschiedene Arten implementieren, dabei ist die Unterscheidung zwischen _Metainterpretation_ und _syntaktischer Interpretation_ von besonderer Wichtigkeit.
 
-_Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch das entsprechende Feature in der Hostsprache, _syntaktische Interpretation_ hingegen die Implementierung eines Features durch Reduktion auf primitivere Sprachkonstrukte der Hostsprache. Metainterpretation ist (falls überhaupt möglich) leichter zu implementieren, erlaubt aber keine Anpassung eines Sprachkonstrukts gegenüber der Implementation in der Hostsprache. Syntaktische Interpretation erlaubt eine andere, selbst festgelegte Implementation und die Kontrolle darüber, wobei aber ein umfangreiches Verständnis des Sprachkonstrukts notwendig ist, um dieses mit einfacheren Mitteln selbst zu implementieren.
-
-In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme oder das Speichermanagement wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unseren Interpreter nutzen und implizit das Speichermanagement von Scala übernehmen.
-
-Andere Sprachfeatures werden hingegen nicht durch das entsprechende Feature in der Hostsprache umgesetzt, z.B. Identifier (inkl. Scoping) oder Closures. Hier liegt syntaktische Interpretation vor. Bei der Entwerfen des Interpreters muss man sich also bewusst sein, welche Verhaltensweisen und Einschränkungen mit den Features der Hostsprache einhergehen und entscheiden, welche Features man selbst implementieren und welche man "weiterreichen" möchte. 
-
-Wir könnten in [FAE](#Higher-Order-Funktionen-FAE) aber auch mehr Metainterpretation verwenden, indem wir etwa die Funktionen durch Funktionen der Metasprache umsetzen:
-```scala
-sealed trait Exp
-case class Num(n: Int) extends Exp
-case class Id(x: String) extends Exp
-case class Add(lhs: Exp, rhs: Exp) extends Exp
-case class Fun(f: Exp => Exp) extends Exp 
-case class App(fun: Exp, arg: Exp) extends Exp
-```
-
-Eine solche Repräsentation von Funktionen der Objektsprache durch Funktionen der Metasprache nennt man _Higher-Order Abstract Syntax (HOAS)_.
-
-Der Interpreter wird nun extrem einfach, aber die Kontrolle über das Verhalten von Identifiern und Bindungen (also bspw. Scoping) geht verloren.
-```scala
-def eval(e: Exp) : Exp = e match {
-  case Id(x) => sys.error("Unbound identifier: "+x)
-  case Add(l,r) => (eval(l),eval(r)) match {
-    case (Num(a),Num(b)) => Num(a+b)
-    case _ => sys.error("Can only add numbers")
-  }
-  case App(f,a) => f match {
-    case Fun(f) => eval(f(eval(a)))
-    case _ => sys.error("Can only apply functions")
-  }
-  case _ => e
-}
-```
-
-Es ist auch möglich, Closures durch Metainterpretation umzusetzen:
-```scala
-sealed abstract class Value
-type Env = Map[String, Value]
-case class NumV(n: Int) extends Value
-case class FunV(f: Value => Value) extends Value
-
-def eval(e: Exp) : Env => Value = e match {
-  case Num(n: Int) => (env) => NumV(n)
-  case Id(x) => env => env(x)
-  case Add(l,r) => { (env) =>
-    (eval(l)(env),  eval(r)(env)) match {
-      case (NumV(v1),NumV(v2)) => NumV(v1+v2)
-      case _ => sys.error("can only add numbers")
-    }
-  }
-  case Fun(param,body) => (env) => FunV( (v) => eval(body)(env + (param -> v)))
-  case App(f,a) => (env) => (eval(f)(env), eval(a)(env)) match {
-    case (FunV(g),arg) => g(arg)
-    case _ => sys.error("can only apply functions")
-  }
-}
-```
-
-Anstelle von Closures bestehend aus einer Funktion und der zugehörigen Umgebung liefert die Auswertung von Funktionen eine `FunV`-Instanz mit einer Scala-Funktion, die die Auswertung des Rumpfes mit der korrekten Umgebung (vom Zeitpunkt, zu dem der `Fun`-Ausdruck ausgewertet wird, entsprechend der Closure-Umgebung) durchführt. Die Closures der Objektsprache sind also durch die Closures der Metasprache implementiert.
-
-Durch das zusätzliche Auslagern des Umgebungsparameters aus `eval` durch Currying ist dieser Interpreter kompositional, d.h. alle rekursiven Aufrufe von `eval` sind auf Unterausdrücken des aktuellen Ausdrucks. Dadurch lässt sich Programmäquivalenz in der Objektsprache leicht durch Äquivalenz in der Metasprache beweisen. Außerdem lässt sich der Interpreter auch im [Visitor-Stil](#Abstraktion-durch-Visitor) implementieren (s. [Übung 6b](https://github.com/DavidLaewen/programmiersprachen1/blob/master/exercises/hw06/6b-CompositionalInterpreter.scala))
-
-Es könnten auch mehr Sprachkonstrukte von FAE durch syntaktische Interpretation umgesetzt werden, bspw. könnte man Zahlen als Sequenz von Ziffern anstelle von Scala-`Int`s repräsentieren. Wir werden noch Implementation kennenlernen, die nicht mehr von Scalas Speichermanagement und Higher-Order-Funktionen abhängen.
 
 
 
