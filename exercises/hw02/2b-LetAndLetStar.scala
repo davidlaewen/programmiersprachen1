@@ -84,17 +84,16 @@ object Hw02b {
     case Let(defs, body) => Let(defs.map{ case (s, e) => (s, subst(e, i, v)) },
       if (!defs.exists{ case (s, e) => s == i }) subst(body, i, v)
       else body) // only substitute in body if there is no new def for i
-    case LetStar(defs, body) => LetStar(substLetStar(defs, i, v),
+    case LetStar(defs, body) => LetStar(substDefs(defs, i, v),
       if (!defs.exists{ case (s, e) => s == i }) subst(body, i, v)
       else body) // only substitute in body if there is no new def for i
   }
 
-  def substLetStar(defs: List[(String, Exp)], i: String, v: Num): List[(String, Exp)] = {
-    if (defs.isEmpty)
-      List()
-    else // substitute in head, concatenate with rest of list (after substitution)
-      List(defs.head._1 -> subst(defs.head._2,i,v)).concat(
-        if (defs.head._1 == i) defs.drop(1) else substLetStar(defs.drop(1),i,v))
+  def substDefs(defs: List[(String, Exp)], i: String, v: Num): List[(String, Exp)] = defs match {
+    case List() => List()
+    case (i1,v1)::rest => 
+      (i1,subst(v1,i,v))::(if (i1==i) rest else substDefs(rest,i,v))
+    // stop substituting if new binding for i occurs in list
   }
 
   def eval(e: Exp): Int = e match {
