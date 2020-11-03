@@ -1,6 +1,6 @@
 ---
 title: Zusammenfassung Programmiersprachen, Teil 2
-description: Programmiersprachen 1, SoSe 2020, Klauso3
+description: Programmiersprachen 1, SoSe 2020, Prof. Ostermann
 langs: de
 
 ---
@@ -17,7 +17,7 @@ _Metainterpretation_ bezeichnet die Implementierung eines Sprachfeatures durch d
 
 In unserer Sprache [FAE](#Higher-Order-Funktionen-FAE) ist bspw. Addition durch Metainterpretation implementiert, wir verwenden im Interpreter die Additionsfunktion von Scala und delegieren damit dieses Feature einfach an die Hostsprache. Dementsprechend besitzt Addition in unserer Sprache die gleichen Einschränkungen und Eigenschaften wie Addition in der Scala. Auch die maximale Tiefe rekursiver Programme oder das Speichermanagement wird nicht durch unsere Implementierung festgelegt, sondern durch Scala, da wir Rekursion in Scala für unseren Interpreter nutzen und implizit das Speichermanagement von Scala übernehmen.
 
-Andere Sprachfeatures werden hingegen nicht durch das entsprechende Feature in der Hostsprache umgesetzt, z.B. Identifier (inkl. Scoping) oder Closures. Hier liegt syntaktische Interpretation vor. Bei der Entwerfen des Interpreters muss man sich also bewusst sein, welche Verhaltensweisen und Einschränkungen mit den Features der Hostsprache einhergehen und entscheiden, welche Features man selbst implementieren und welche man "weiterreichen" möchte. 
+Andere Sprachfeatures werden hingegen nicht durch das entsprechende Feature in der Hostsprache umgesetzt, z.B. Identifier (inkl. Scoping) oder Closures. Hier liegt syntaktische Interpretation vor. Beim Entwerfen des Interpreters muss man sich also bewusst sein, welche Verhaltensweisen und Einschränkungen mit den Features der Hostsprache einhergehen und entscheiden, welche Features man selbst implementieren und welche man "weiterreichen" (d.h. an die Hostsprache delegieren) möchte.
 
 Wir könnten in [FAE](#Higher-Order-Funktionen-FAE) aber auch mehr Metainterpretation verwenden, indem wir etwa die Funktionen durch Funktionen der Metasprache umsetzen:
 ```scala
@@ -60,13 +60,13 @@ def eval(e: Exp) : Env => Value = e match {
   case Add(l,r) => { (env) =>
     (eval(l)(env),  eval(r)(env)) match {
       case (NumV(v1),NumV(v2)) => NumV(v1+v2)
-      case _ => sys.error("can only add numbers")
+      case _ => sys.error("Can only add numbers")
     }
   }
   case Fun(param,body) => (env) => FunV( (v) => eval(body)(env + (param -> v)))
   case App(f,a) => (env) => (eval(f)(env), eval(a)(env)) match {
     case (FunV(g),arg) => g(arg)
-    case _ => sys.error("can only apply functions")
+    case _ => sys.error("Can only apply functions")
   }
 }
 ```
@@ -122,12 +122,12 @@ object TreeSum extends BTreeInt[Int] {
 assert(ex1(TreeSum) == 3)
 ```
 
-Dadurch muss zur Durchführung einer Faltung nur eine Instanziierung von `BTreeInt` (hier etwa `TreeSum`) an einen Wert des Datentyps (hier etwa `ex1`) überreicht werden, in der die Faltungsoperation für beide Fälle konkretisiert sind.e
+Dadurch muss zur Durchführung einer Faltung nur eine Instanz von `BTreeInt` (hier etwa `TreeSum`) an einen Wert des Datentyps (hier etwa `ex1`) überreicht werden, in der die Faltungsoperation für beide Fälle konkret definiert sind.
 
 **Eigenschaften des Objekt-Algebra-Stils:**
 - Jeder Konstruktor des Datentyps (hier `Node` und `Leaf`) wird zu einer Funktion in der abstrakten "Signaturklasse" mit Typparameter `T` (hier `BTreeInt[T]`), wobei rekursive Vorkommen des Datentyps durch `T` ersetzt werden.
 
-- Konkrete Werte des Datentyps sind als Funktion mit Typparameter `T` definiert, wobei die Eingabe eine Instanz der Signaturklasse und die Ausgabe vom Typ `T` ist.
+- Konkrete Werte des Datentyps sind als Funktionen mit Typparameter `T` definiert, deren Eingabe eine Instanz der Signaturklasse und deren Ausgabe vom Typ `T` ist.
 
 - Konkrete Faltungen werden zu Instanziierungen der Signaturklasse (hier `TreeSum`), in der die Faltungsfunktionen für die verschiedenen Fälle definiert werden.
 
@@ -212,7 +212,7 @@ Wir können bspw. das Objekt `NumAlg` überreichen, um die Church-kodierten Zahl
 In diesem Fall bietet der Objekt-Algebra-Stil keine speziellen Vorteile, anders ist es aber bei unserem Interpreter.
 
 ## Interpreter im Objekt-Algebra-Stil
-Der Objekt-Algebra-Stil erzwingt Kompositionalität, deshalb wandeln wir unsere kompositionale Implementation von FAE, in der Closures durch Metainterpretation umgesetzt sind, zur Umwandlung.
+Der Objekt-Algebra-Stil erzwingt Kompositionalität, deshalb wählen wir zur Umwandlung unsere kompositionale Implementation von FAE, in der Closures durch Metainterpretation umgesetzt sind.
 ```scala
 trait Exp[T] {
   implicit def num(n: Int) : T
@@ -278,7 +278,7 @@ assert(test2(evalWithMul)(Map()) == NumV(15))
 
 ## Expression Problem
 Bei unserem Interpreter gibt es zwei Arten von Erweiterung: Zum einen gibt es die Erweiterung um zusätzliche Funktionen neben `eval` (bspw. `print` oder `countNodes`), zum anderen gibt es die Erweiterung um zusätzliche Sprachkonstrukte. 
-- Unsere bisherige (funktionale) Implementation mit Pattern Matching erlaubt die modulare Erweiterung um neue Funktionen -- es können neben `eval` weitere Funktion angelegt werden, die auf Expressions operieren. Die Erweiterung um neue Sprachkonstrukte ist aber nicht modular möglich, denn die Funktionen können nach ihrer Definition nicht mehr um zusätzliche Fälle erweitert werden.
+- Unsere bisherige (funktionale) Implementation mit Pattern Matching erlaubt die modulare Erweiterung um neue Funktionen -- es können neben `eval` weitere strukturell rekursive Funktionen angelegt werden, die auf Expressions operieren. Die Erweiterung um neue Sprachkonstrukte ist aber nicht modular möglich, denn die Funktionen können nach ihrer Definition nicht mehr um zusätzliche Fälle erweitert werden.
 ```scala
 sealed trait Exp
 case class Num(n: Int) extends Exp
@@ -309,10 +309,10 @@ case class Add(l: Exp, r: Exp) extends Exp {
 // ...
 ```
 
-Der große Vorteil des Objekt-Algebra-Stils ist die modulare Erweiterbarkeit in beiden Dimensionen. Es können sowohl neue Sprachkonstrukte modular ergänzt, als auch neue Funktionen neben `eval` hinzugefügt werden. Sie stellen im Allgemeinen eine Lösung für das sogenannte _Expression Problem_ dar.
+Der große Vorteil des Objekt-Algebra-Stils ist die modulare Erweiterbarkeit in beiden Dimensionen. Es können sowohl neue Sprachkonstrukte modular ergänzt, als auch neue Funktionen neben `eval` hinzugefügt werden. Es handelt sich dabei um eine Lösung für das sogenannte _Expression Problem_.
 
 :::info
-Das **Expression Problem** beschreibt die Suche nach einer Datenabstraktion, bei der sowohl neue Datenvarianten (Cases), als auch neue Funktionen, die auf dem Datentyp operieren, ergänzt werden können, ohne dass bisheriger Code modifiziert werden muss und wobei Typsicherheit gewährt ist ([Wikipedia-Artikel](https://en.wikipedia.org/wiki/Expression_problem)).
+Das **Expression Problem** beschreibt die Suche nach einer Datenabstraktion, bei der sowohl neue Datenvarianten (Cases), als auch neue Funktionen, die auf dem Datentyp operieren, ergänzt werden können, ohne dass bisheriger Code modifiziert werden muss und wobei Typsicherheit gewährt bleibt ([Wikipedia-Artikel](https://en.wikipedia.org/wiki/Expression_problem)).
 
 Bei einem funktionalen Ansatz ist typischerweise die Erweiterung mit Operationen gut unterstützt, bei einem objektorientierten Ansatz hingegen die Erweiterung mit neuen Datenvarianten.
 :::
@@ -360,7 +360,7 @@ def progB(n: Int) = webRead("First number was "+n+"\nSecond number:", "progC")
 def progC(n1: Int, n2: Int) = webDisplay("Sum of "+n1+" and "+n2+" is "+(n1+n2))
 ```
 
-Hier wird die Weitergabe der Daten von einem Teilprogramm zum nächsten nur durch die Ausgaben und Eingaben in der Konsole (also händisch durch den Nutzer) modelliert, d.h. es wird bspw. erst `progA` mit `2` aufgerufen, dann `progB` mit `3` und zuletzt `progC` mit `2` und `3`. Dadurch ist der Nutzen der durchgeführten Programmtransformation noch nicht sonderlich klar erkennbar. Wie könnten ausdrücken wenn wir die noch bevorstehenden Schritte zum Zeitpunkt des letzten Programmabbruchs zur Verfügung hätten.
+Hier wird die Weitergabe der Daten von einem Teilprogramm zum nächsten nur durch die Ausgaben und Eingaben in der Konsole (also händisch durch den Nutzer) modelliert, d.h. es wird bspw. erst `progA` mit `2` aufgerufen, dann `progB` mit `3` und zuletzt `progC` mit `2` und `3`. Dadurch ist der Nutzen der durchgeführten Programmtransformation noch nicht sonderlich klar erkennbar.
 
 ## Implementierung mit Continuations
 Es können aber auch die jeweils noch notwendigen Schritte als _Continuation_ repräsentiert werden, im Fall von `progA` muss etwa noch die zweite Zahl eingelesen werden, dann müssen beide Zahlen addiert und das Ergebnis ausgegeben werden. In der ursprünglichen Variante des Programms
@@ -396,7 +396,7 @@ def webRead_k(prompt: String, k: Int => Nothing) : Nothing = {
   sys.error("Program terminated")
 }
 
-def continue(kId: String, result: Int): Nothing = continuations(kId)(result)
+def continue(kId: String, input: Int): Nothing = continuations(kId)(input)
 
 def webProg =
   webRead_k("First number:", (n: Int) =>
@@ -408,7 +408,7 @@ Nun kann zuerst `webProg` aufgerufen werden, es wird die ID für die nächste Co
 
 In Bezug auf Webprogrammierung entsprechen die Continuations Zwischenzuständen der Auswertung, die serverseitig hinterlegt werden. Dabei erhält der Client (im Hintergrund) einen Bezeichner, um diesen Zustand mit der nächsten Eingabe aufzurufen. Somit könnte auch beim Klonen des Tabs oder bei Verwendung des "Zurück"-Buttons das Programm in allen Instanzen korrekt fortgesetzt werden. Das steht im Kontrast zu einer Implementierung mit einer _Session_, wobei der Client (und nicht der Zustand) anhand einer übermittelten Session-ID erkannt wird. In diesem Fall könnte es bei mehreren Instanzen zu fehlerhaften Ergebnissen kommen, da alle Instanzen über eine Session-ID laufen und damit nicht unabhängig sind.
 
-Diese Eigenschaft ist auch bei unsere Implementierung erkennbar, es kann eine ausgegebene ID mehrfach aufgerufen werden, wobei die Auswertung jeweils dann mit der nächsten ID korrekt fortgesetzt werden kann und das korrekte Ergebnis liefert.
+Diese Eigenschaft ist auch bei unserer Implementierung erkennbar, es kann eine ausgegebene ID mehrfach aufgerufen werden, wobei die Auswertung jeweils dann mit der nächsten ID korrekt fortgesetzt werden kann und das korrekte Ergebnis liefert.
 
 Eine Continuation kann als Repräsentation des Call-Stacks in einer Funktion aufgefasst werden.
 
@@ -451,11 +451,11 @@ def addAllCostsMap(items: List[String]) : Int = {
 }
 ```
 
-Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch `map` transformieren. Die Web-Transformation ist also "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten (bis auf primitive Operationen). Es benötigen alle Funktionen einen Continuation-Parameter, damit sie auch innerhalb anderer Programme im Web-Stil eingesetzt werden sollen. Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
+Würden wir auf dieser Implementation die Web-Transformation anwenden wollen, so müssten wir auch `map` transformieren. Die Web-Transformation ist nämlich "allumfassend" und betrifft alle Funktionen, die in einem Programm auftreten (bis auf primitive Operationen). Es benötigen alle Funktionen einen Continuation-Parameter, damit sie auch innerhalb anderer Programme im Web-Stil eingesetzt werden können. Wir müssen in diesem Fall also `map` im Web-Stil verfassen. Oben ist die "normale" Implementation von `map`, unten die Web-transformierte Variante:
 ```scala
 def map[X,Y](l: List[X], f: X => Y) : List[Y] = c match {
   case List() => List()
-  case first::rest => f(first)::map(rest,f)
+  case x::xs => f(x)::map(xs,f)
 }
 
 def map_k[X,Y](l: List[X],
@@ -475,7 +475,7 @@ Außerdem ist die Transformation global, es müssen alle verwendeten Funktionen 
 Aufgrund des Aspekts der Sequentialisierung ist die Transformation mit Continuations auch für das Programmieren von Compilern relevant. Man spricht bei diesem "Web-Stil" auch von _Continuation Passing Style_ (_CPS_).
 
 # Continuation Passing Style
-Programme in CPS besitzen die folgenden Eigenschaften:
+Programme in CPS haben die folgenden Eigenschaften:
 - Alle Zwischenwerte besitzen einen Namen.
 - Die Auswertungsschritte werden sequentialisiert (und die Auswertungsreihenfolge ist somit explizit).
 - Alle Ausdrücke erhalten einen Continuation-Parameter und liefern keinen Rückgabewert (Rückgabetyp `Nothing`), sondern rufen den Continuation-Parameter auf ihrem Ergebnis auf.
@@ -515,7 +515,7 @@ Weitere Beispiele der CPS-Transformation:
 ```scala
 // constant value
 val x: Int = 42
-def x_k (k: Int => Nothing) : Nothing = k(42)
+def x_k(k: Int => Nothing) : Nothing = k(42)
 
 // recursion with "context"
 def sum(n: Int) : Int = n match {
@@ -676,16 +676,16 @@ Die Continuation kann auch durch `set!` an einen globalen Identifier gebunden we
 
 
 # FAE mit First-Class-Continuations
-Nun wollen wir unseren FAE-Interpreter First-Class-Continuations als Sprachfeature hinzufügen. Wir ergänzen dazu das folgende Sprachkonstrukt:
+Nun wollen wir unserem FAE-Interpreter First-Class-Continuations als Sprachfeature hinzufügen. Wir ergänzen dazu das folgende Sprachkonstrukt:
 ```scala
 case class LetCC(param: String, body: Exp) extends Exp
 ```
 
 Bei einem Aufruf von `LetCC` soll, wie in Racket, die aktuelle Contination an den Bezeichner `param` gebunden werden, wobei die Bindung im Rumpf von `LetCC` gültig ist.
 
-In einem Programm, das bereits in CPS vorliegt, wäre das Bestimmen der aktuellen Continuation trivial. Für unsere Implementation von `LetCC` wollen wir aber nicht alle Programme transformieren, sondern stattdessen den Interpreter selbst in CPS verfassen. Continuations auf Interpreter-Ebene repräsentieren zugleich die noch durchzuführende Auswertung auf Ebene der Objektsprache. 
+In einem Programm, das bereits in CPS vorliegt, wäre das Bestimmen der aktuellen Continuation trivial. Für unsere Implementation von `LetCC` wollen wir aber nicht alle Programme transformieren, sondern stattdessen den Interpreter selbst in CPS verfassen. Continuations auf Interpreter-Ebene repräsentieren nämlich auch die noch durchzuführende Auswertung auf Ebene der Objektsprache. 
 
-Bei einer Implementierung durch die automatische CPS-Transformation von Programmen müsste jedes Programm erst transformiert werden. Der Interpreters muss hingegen nur ein Mal transformiert werden. Der erste Schritt zur Implementierung von `LetCC` ist also das Transformieren des Interpreters.
+Bei einer Implementierung durch die automatische CPS-Transformation von Programmen müsste jedes Programm erst transformiert werden. Der Interpreter muss hingegen nur ein Mal transformiert werden. Der erste Schritt zur Implementierung von `LetCC` ist also das Transformieren des Interpreters.
 
 ## CPS-Transformation des Interpreters
 Wir beginnen mit unserem FAE-Interpreter:
@@ -700,7 +700,7 @@ def eval(e: Exp, env: Env) : Value = e match {
   case f@Fun(_,_) => ClosureV(f,env)
   case App(f,a) => eval(f,env) match {
     case ClosureV(f,cEnv) =>
-      eval(f.body, cEnv+(f.param -> eval(a,env))) // call-by-value
+      eval(f.body, cEnv+(f.param -> eval(a,env)))
     case _ => sys.error("Can only apply functions")
   }
 }
@@ -740,7 +740,7 @@ def startEval(e: Exp) : Value = {
 
 Es wird `eval` eine Continuation überreicht, die das Ergebnis der Auswertung bindet und dann mit einem Fehler die Auswertung beendet (um den Rückgabetyp `Nothing` zu erfüllen). Die Auswertung selbst wird in einem Try-Catch-Block gestartet, um den Fehler abzufangen. Das durch die Continuation gebundene Ergebnis wird von `startEval` ausgegeben.
 
-Die CPS-Transformation des Interpreters hat zur Folge, dass der Interpreter nicht mehr vom Call-Stack der Hostsprache abhängig ist, da Programme in CPS diesen nicht verwenden.
+Die CPS-Transformation des Interpreters hat zur Folge, dass der Interpreter nicht mehr vom Call-Stack der Hostsprache abhängig ist, da nun jeder Funktionsaufruf ein Tail Call ist und die noch notwendigen Auswertungsschritte jeweils in Form der Continuation überreicht werden.
 
 ## Implementierung von 'LetCC'
 Jetzt wo der Interpreter selbst CPS-transformiert ist, können wir das neue Sprachkonstrukt `LetCC` mit wenig Aufwand ergänzen, da wir die Continuations auf Interpreter-Ebene als Continuations der Objektsprache nutzen können. Zuerst erweitern wir `Exp` um das Sprachkonstrukt `LetCC`:
@@ -776,7 +776,7 @@ Durch das "Wrappen" der Interpreter-Continuations (auf Ebene der Metasprache) k�
 # Delimited Continuations
 Die (_Undelimited_) Continuations, die wir bisher kennen gelernt haben, führen bei einem Aufruf zu einem "Sprung" (ähnlich zu einer `GOTO`-Anweisung), wobei die Auswertung nicht mehr zur Stelle des Aufrufs zurückkehrt. Somit ist keine Komposition (d.h. "Nacheinanderschalten" und damit Kombinieren) von Continuations möglich.
 
-Dies ist mit _Delimited Continuation_ möglich, sie repräsentieren nur einen Ausschnitt des Call-Stacks (während _Undelimited Continuations_ den gesamten Call-Stack repräsentieren) und besitzen wie gewöhnliche Funktionen einen Rückgabewert. Dadurch ist die Komposition von Delimited Continuations möglich, sie werden deshalb auch als _Composable Continuations_ bezeichnet.
+Dies ist mit _Delimited Continuation_ möglich, sie repräsentieren nur einen Ausschnitt des Call-Stacks (während _Undelimited Continuations_ den gesamten Call-Stack repräsentieren) und kehren wie gewöhnliche Funktionen zurück. Dadurch ist die Komposition von Delimited Continuations möglich, sie werden deshalb auch als _Composable Continuations_ bezeichnet.
 
 Delimited Continuations sind ein sehr mächtiges Sprachkonstrukt und erlauben bspw. die Programmierung von fortgeschrittenem Exception Handling oder Backtracking-Algorithmen.
 
@@ -900,10 +900,10 @@ Mit `unitOption` können wir `expr2` folgendermaßen ausdrücken:
 def expr2 =
   bindOption(f(27), (x: String) =>
     bindOption(g(x+"z"), (y: Boolean) =>
-      unit(!y)))
+      unitOption(!y)))
 ```
 
-Nun haben wir den Option-Stil abstrahiert, wir können aber einen Schritt weiter gehen und über den Typ `Option` abstrahieren, um beliebige Patterns auszudrücken. Dadurch erhalten wir das _Monad-Interface_.
+Nun haben wir den Option-Stil abstrahiert, wir können aber einen Schritt weiter gehen und über den Typ `Option` abstrahieren, um beliebige Patterns auszudrücken. Dabei erhalten wir das _Monad-Interface_.
 
 ## Definition
 ```scala
@@ -965,7 +965,7 @@ implicit def monadicSyntax[A, M[_]](m: M[A])(implicit mm: Monad[M]) = new {
 }
 ```
 
-Durch die obige implizite Definition, in der wir `map` und `flatMap` so definieren, dass sie gerade der `unit`- und der `bind`-Operation entsprechen, sorgen wir dafür, dass die For-Comprehension-Syntax für die `Monad`-Klasse genutzt werden kann.
+Durch die obige implizite Definition, in der wir `map` und `flatMap` so definieren, dass `map` der Kombination von `bind` und `unit` entspricht und `flatMap` der `bind`-Operation entspricht, sorgen wir dafür, dass die For-Comprehension-Syntax für die `Monad`-Klasse genutzt werden kann.
 
 Unser Option-Monad-Beispiel kann mit dieser Syntax wie folgt ausgedrückt werden:
 ```scala
@@ -1034,7 +1034,7 @@ object OptionMonad extends Monad[Option] {
 }	
 ```
 
-++**Identitäts-Monade:**++ Die _Identitäts-Monade_ ist die einfachste Monade, die normaler Funktionsapplikation entspricht. Die Übergabe der Identitäts-Monade an monadischen Code liefert den Code im gewöhnlichen Programmierstil.
+++**Identitäts-Monade:**++ Die _Identitäts-Monade_ ist die einfachste Monade und entspricht normaler Funktionsapplikation. Die Übergabe der Identitäts-Monade an monadischen Code liefert den Code im gewöhnlichen Programmierstil.
 
 ```scala
 type Id[X] = X   
@@ -1069,7 +1069,7 @@ trait StateMonad[S] extends Monad[({type M[A] = S => (A,S)})#M] {
 object ListMonad extends Monad[List] {
   override def bind[A,B](x: List[A], f: A => List[B]) : List[B] = x.flatMap(f)
   override def unit[A](a: A) = List(a)
-}  
+}
 ```
 
 ++**Continuation-Monade:**++ Die _Continuation-Monade_ kodiert CPS, es gilt `M[A] = (A => R) => R`, wobei `R` ein zusätzlicher Typparameter ist, der den Rückgabetyp von Continuations angibt.
@@ -1077,7 +1077,7 @@ object ListMonad extends Monad[List] {
 trait ContinuationMonad[R] extends Monad[({type M[A] = (A => R) => R})#M] {
   type Cont[X] = (X => R) => R
   override def bind[A,B](x: Cont[A], f: A => Cont[B]) : Cont[B] = 
-     k => x( a => f(a)(k))
+     k => x( a => f(a)(k) )
   override def unit[A](a: A) : Cont[A] = k => k(a)
   def callcc[A,B](f: (A => Cont[B]) => Cont[A]) : Cont[A] = 
     k => f( (a:A) => (_:B=>R) => k(a))(k)
@@ -1105,9 +1105,6 @@ class OptionTMonad[M[_]](val m: Monad[M]) extends Monad[OptionT[M]#x] {
 
 `lift` nimmt einen Wert vom Typ `M[A]` und macht daraus einen Wert vom Typ `M[Option[A]]`, umhüllt also den inneren Datentyp von `M` mit `Option`.
 
-:::warning
-IO-Monad?
-:::
 
 # Monadischer Interpreter
 ## Monadenbibliothek
@@ -1128,9 +1125,6 @@ Wir definieren den Typkonstruktor `M` innerhalb der Klasse und nicht als Typpara
 
 Zuerst legen wir Interfaces für die Monaden an, in denen wir jeweils die Typgleichung für `M` und ggf. weitere benötigte Typen definieren. In den Interfaces legen wir auch zusätzlich benötigte Funktion neben `bind` und `unit` in abstrakter Form an. Wir definieren dann alle Monaden bis auf die Identitäts-Monade in Form von Monadentransformern, diesmal mit einer zusätzlichen inneren Monade. Dabei implementieren wir alle abstrakten Funktionen nun (unter Berücksichtigung der inneren Monade) konkret. Durch Komposition mit der Identitäts-Monade erzeugen wir effektiv eine Fassung ohne innere Monade, wodurch wir diese nicht getrennt definieren müssen. 
 
-:::warning
-Interfacing, Transformer, Bausteinsystem
-:::
 
 # Defunktionalisierung
 :::info
@@ -1141,7 +1135,7 @@ Interfacing, Transformer, Bausteinsystem
 Eine **abstrakte Maschine** bezeichnet in der theoretischen Informatik einen endlichen Automaten dessen Zustandsmenge unendlich groß sein kann.
 :::
 
-In einem zu defunktionalisierenden Programm dürfen keine anonyme Funktionen auftreten. Um das Programm ohne anonyme Funktionen umzuschreiben, wird _Lambda Lifting_ (auch _Closure Conversion_ genannt) verwendet.
+In einem zu defunktionalisierenden Programm dürfen keine anonymen Funktionen auftreten. Um das Programm ohne anonyme Funktionen umzuschreiben, wird _Lambda Lifting_ (auch _Closure Conversion_ genannt) verwendet.
 
 ## Lambda Lifting
 Ziel von _Lambda Lifting_ ist es, lokale Funktionen in Top-Level-Funktionen umzuwandeln. Lambda-Lifting kommt auch häufig in Compilern zum Einsatz, bspw. findet man im Bytecode, der beim Kompilieren von Scala-Programmen erzeugt wird, globale Funktionsdefinition für alle anonymen Funktionen im Programm.
@@ -1262,9 +1256,9 @@ def addAndMulNToList(n: Int, l: List[Int]) : List[Int] =
 ```
 
 **Vorgehensweise:**
-1. Lege abstrakte Oberklasse `FunctionValue` an mit Unterklassen für alle Funktionen
-2. Lege `apply`-Funktion mit Fällen für alle Unterklassen von `FunctionValue` an, kopiere Rümpfe der Top-Level-Funktionen in die Fälle.
-3. Ersetze Typ von Higher-Order-Parametern mit `FunctionValue`
+1. Lege für jede Art von Higher-Order-Funktion (d.h. für jede Signatur aus Eingabe und Ausgabe) abstrakte Oberklasse an mit Unterklassen für jede verwendete Funktion des entsprechenden Typs.
+2. Lege `apply`-Funktion für jede Funktionsart mit Fällen für alle Unterklassen an, kopiere Rümpfe der Top-Level-Funktionen in die Fälle.
+3. Ersetze Typ von Higher-Order-Parametern mit entsprechendem Function-Value-Typ.
 4. Forme Aufrufe der Higher-Order-Funktionen mit `apply` um (`f(x)` wird zu `apply(f,x)`)
 
 
@@ -1299,10 +1293,10 @@ Es sind aber durchaus Typsysteme möglich, die entweder Completeness oder Soundn
 
 Für unsere Sprachen wird die Syntax jeweils durch eine _kontextfreie Grammatik_ in Form der Case Classes definiert. Typkorrektheit ist aber keine kontextfreie Eigenschaft, was etwa an folgendem Programm deutlich wird:
 ```scala
-wth("x", Add("x",3))
+wth("x", 2, Add("x",3))
 ```
 
-Um hier feststellen zu können, ob `"x"` gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext betrachtet werden, in dem `"x"` auftritt. Typkorrektheit ist in diesem Fall also offensichtlich eine _kontextsensitive_ Eigenschaft und kann deshalb nicht direkt in der Grammatik der Sprache definiert werden. Aus diesem Grund ist ein Typsystem als zusätzlicher "Filter" notwendig, um Typkorrektheit zu garantieren. Dies gilt für die meisten Programmiersprachen.
+Um hier feststellen zu können, ob `"x"` im inneren `Add`-Ausdruck gebunden ist und ob es sich dabei um eine Zahl handelt, muss der Kontext (also der `wth`-Ausdruck) betrachtet werden. Typkorrektheit ist in diesem Fall also offensichtlich eine _kontextsensitive_ Eigenschaft und kann deshalb nicht direkt in der Grammatik der Sprache definiert werden. Aus diesem Grund ist ein Typsystem als zusätzlicher "Filter" notwendig, um Typkorrektheit zu garantieren. Dies gilt für die meisten Programmiersprachen.
 
 Ein wichtiger Gesichtspunkt von Typsystemen ist auch deren Nachvollziehbarkeit für Programmierer, es muss verständlich sein, wann und warum Fehler erkannt werden. Um diese Nachvollziehbarkeit zu gewährleisten sind Typchecker meist kompositional, d.h. der Typ eines Ausdrucks ergibt sich durch die Typen seiner Unterausdrücke.
 
@@ -1339,7 +1333,7 @@ def eval(e: Exp) : Exp = e match {
 }
 ```
 
-Am Interpreter ist bereits erkennbar, welche Typfehler auftreten können: Eine Additionsoperation, bei der nicht beide Summanden Zahlen sind, oder ein `If`-Ausdruck, dessen Bedingung nicht zu einem `Bool` auswertet. Um diese Fehler zu erkennen, wollen wir Werte Klassifizieren und nach Typ unterscheiden. Wir wollen zwischen Zahlen und Booleans unterscheiden.
+Am Interpreter ist bereits erkennbar, welche Typfehler auftreten können: Eine Additionsoperation, bei der nicht beide Summanden Zahlen sind, oder ein `If`-Ausdruck, dessen Bedingung nicht zu einem `Bool` auswertet. Um diese Fehler zu erkennen, wollen wir Werte nach Typ klassifizieren. Wir entscheiden uns dazu, zwischen Zahlen und Booleans unterscheiden.
 
 Wir definieren eine neue abstrakte Klasse `Type` mit den zwei konkreten Unterklassen `NumType` und `BoolType`. Diese entsprechen den zwei Wertetypen, die die Auswertung eines Ausdrucks ergeben kann.
 ```scala
@@ -1389,7 +1383,7 @@ Falls `typeCheck(e) == t`, so gilt `eval(e) == v` mit `typeCheck(v) == t` ++oder
 :::
 
 ## Simply-Typed Lambda Calculus (STLC)
-Wir beginnen mit substitutionsbasierten Interpreter für den ungetypten Lambda-Kalkül (FAE), da ohne getrennte Werte (`Value`) und Closures die Implementation eines Typsystem deutlich einfacher möglich ist. Wir ergänzen Funktionen um eine Annotation des Parametertyps, die vom Interpreter ignoriert wird. Diese Sprache ist die einfachste Form des _Simply-Typed Lambda Calculus_ (_STLC_).
+Wir beginnen mit dem substitutionsbasierten Interpreter für den ungetypten Lambda-Kalkül (FAE), da ohne getrennte Werte (`Value`) und Closures die Implementation eines Typsystem deutlich einfacher möglich ist. Wir ergänzen Funktionen um eine Annotation des Parametertyps, die vom Interpreter ignoriert wird. Diese Sprache ist die einfachste Form des _Simply-Typed Lambda Calculus_ (_STLC_).
 
 Zusätzlich fügen wir einige gängige Erweiterungen für den STLC hinzu, nämlich ein Sprachkonstrukt `JUnit`, Bindungen mit `Let` (ohne Typannotationen), Typ-Annotationen für beliebige Ausdrücke, Produkttypen (Tupel) und Summentypen (mit zwei Alternativen):
 ```scala
@@ -1401,7 +1395,7 @@ case class Id(name: String) extends Exp
 case class Add(lhs: Exp, rhs: Exp) extends Exp
 case class Fun(param: String, t: Type, body: Exp) extends Exp
 case class App (fun: Exp, arg: Exp) extends Exp
-case class Junit() extends Exp
+case class JUnit() extends Exp
 case class Let(x: String, xDef: Exp, body: Exp) extends Exp
 case class TypeAscription(e: Exp, t: Type) extends Exp
 
@@ -1420,7 +1414,7 @@ def freeVars(e: Exp) : Set[String] =  e match {
   case Id(x) => Set(x)
   case Fun(p,_,b) => freeVars(b)-x
   // ...
-  case Junit() => Set.empty
+  case JUnit() => Set.empty
   case Let(x,xDef,b) => freeVars(xDef)++(freeVars(b) - x)
   case Product(l,r) => freeVars(l)++freeVars(r)
   case SumLeft(e,_) => freeVars(e)
@@ -1443,7 +1437,7 @@ def subst(e : Exp, x: String, xDef: Exp) : Exp = e match {
       val newvar = freshName(fvs,y)
       Let(newvar,subst(ydef,x,xDef),subst(subst(body,y,Id(newvar)),x,xDef))
     }
-  case Junit() => e
+  case JUnit() => e
   // ...
 }
 
@@ -1475,7 +1469,7 @@ def eval(e: Exp) : Exp = e match {
     case SumRight(_,e2) => eval(App(fr,e2))
     case _ => sys.error("Can only eliminate sums")
   }
-  case _ => e // Num & Fun case
+  case _ => e // Num, Fun & JUnit
 }
 ```
 
@@ -1483,14 +1477,14 @@ Wir legen ein Typsystem an, das Zahlen, Funktionen, JUnit, Produkttypen und Summ
 ```scala
 case class NumType() extends Type
 case class FunType(from: Type, to: Type) extends Type
-case class JunitType() extends Type
+case class JUnitType() extends Type
 case class ProductType(left: Type, right: Type) extends Type
 case class SumType(left: Type, right: Type) extends Type
 ```
 
 `FunType()`, `ProductType()` und `SumType()` sind dabei rekursiv definiert und enthalten selbst jeweils zwei `Type`-Felder. Im Fall von Funktionen sind das der Parameter- und Ausgabetyp. Die Ergänzung der Annotation für den Argumenttyp bei Funktionen sorgt dafür, dass wir den `from`-Typ von Funktionen nicht "erraten" müssen. Der `to`-Typ kann unter Angabe des `from`-Typs problemlos durch Typechecking des Funktionsrumpfes bestimmt werden.
 
-Um mit Identifiern umzugehen, benötigt unser Typechecker ein zweites Argument, nämlich eine Typumgebung (die meist mit $\Gamma$ oder als _Symbol Table_ bezeichnet wird), in der der Typ von Identifiern hinterlegt wird, damit er im `Id`-Fall ausgelesen werden kann.
+Um mit Identifiern umzugehen, benötigt unser Typechecker ein zweites Argument, nämlich eine Typumgebung (die meist mit $\Gamma$ oder _Symbol Table_ bezeichnet wird), in der der Typ von Identifiern hinterlegt wird, damit er im `Id`-Fall ausgelesen werden kann.
 
 ```scala
 def typeCheck(e: Exp, gamma: Map[String,Type]) : Type = e match {
@@ -1549,7 +1543,7 @@ STLC ist nicht Turing-vollständig und in STLC können nur terminierende Program
 # Hindley-Milner-Typinferenz
 Zuletzt wollen wir noch ein Typsystem betrachten, das ohne jegliche Typannotationen auskommt und bei dem Typen _inferiert_ werden können. Dazu wird beim Typechecking eine Liste von _Constraints_ erzeugt und ähnlich wie bei einem linearen Gleichungssystem nach einer Belegung mit Typen gesucht, die alle Constraints erfüllt.
 
-Wir kehren dazu zum nicht-erweiterten STLC zurück, wobei wir den substitutionsbasierten Interpreter verwenden. Wir unterscheiden die Typen `FunType()` und `NumType()`, außerdem ergänzen wir Typvariablen.
+Wir kehren dazu zum nicht-erweiterten STLC zurück, wobei wir wieder den substitutionsbasierten Interpreter verwenden. Wir unterscheiden die Typen `FunType()` und `NumType()`, außerdem ergänzen wir Typvariablen.
 
 ```scala
 sealed abstract class Type
@@ -1561,7 +1555,7 @@ Da der Typ von Identifiern (d.h. Funktionsparametern) erst bei deren Verwendung 
 
 Bei den Constraints handelt es sich um Typgleichungen, bei denen der linke und rechte Typ übereinstimmen müssen. Diese werden als Tupel der Form `(Type,Type)` repräsentiert. Die Ausgabe von `typeCheck` ist eine Liste solcher Constraint-Tupel zusammen mit dem Typen des Ausdrucks `e`, bei dem es sich auch um eine Typvariable handeln kann. 
 
-Um Identifier mit ihrer jeweiligen Typvariable zu assoziieren, verwenden wir wieder eine Typumgebung `gamma`.
+Um Identifier mit ihrer jeweiligen Typvariable zu assoziieren, verwenden wir wieder eine Typumgebung $\Gamma$ (`g`).
 ```scala
 var typeVarCount: Int = 0
 def freshTypeVar() : Type = {
@@ -1594,14 +1588,14 @@ def typeCheck(e: Exp, g: Map[String,Type]) : (List[(Type,Type)],Type) = e match 
 
 Im `Num`-Fall wird eine leere Constraint-Liste und der Typ `NumType()` zurückgegeben. Im `Id`-Fall wird der Identifier `x` in der Typumgebung nachgeschlagen, wird ein Eintrag gefunden, so wird der entsprechende Typ und eine leere Constraint-Liste ausgegeben, ansonsten wird ein Fehler geworfen.
 
-Im `Add`-Fall werden erst Typechecking auf den Unterausdrücken durchgeführt, die Constraint-Liste wird um zwei Gleichungen erweitert: Der Typ beider Unterausdrücke muss mit `NumType()` übereinstimmen, da nur Zahlen addiert werden können. Es wird der Typ `NumType()` ausgegeben.
+Im `Add`-Fall wird erst Typechecking auf den Unterausdrücken durchgeführt, die Constraint-Liste wird um zwei Gleichungen erweitert: Der Typ beider Unterausdrücke muss mit `NumType()` übereinstimmen, da nur Zahlen addiert werden können. Es wird der Typ `NumType()` ausgegeben.
 
 Im `Fun`-Fall wird eine "frische" Typvariable für den `param`-Identifier erzeugt, `typeCheck` wird rekursiv auf dem Rumpf aufgerufen, wobei in der Typumgebung der Parameter an die neue Typvariable gebunden wird. Das Typechecking des Rumpfes ergibt die Constraint-Liste und den `to`-Typ der Funktion, für den `from`-Typ wird die neue Typvariable eingesetzt.
 
 Im `App`-Fall wird eine neue Typvariable `toType` für das Ergebnis der Funktionsapplikation erzeugt, anschließend wird rekursiv Typechecking auf beiden Unterausdrücken durchgeführt. Die Constraint-Liste wird erweitert um die Bedingung, dass der Typ der Funktion `FunType()` ist, wobei der `from`-Typ mit dem Typ des Arguments und der `to`-Typ mit `toType` übereinstimmt. Es wird `toType` ausgegeben.
 
 ## Unifikationsalgorithmus von Robinson
-Die `typeCheck`-Funktion trifft im Gegensatz zu der im [STLC-Typsystem](#Simply-Typed-Lambda-Calculus-STLC) (bis auf das Erkennen ungebundener Identifier) noch gar keine Aussage darüber, ob ein Ausdruck typkorrekt ist. Dazu muss für die von `typeCheck` ausgegebene Liste von Typgleichungen geprüft werden, ob sich alle Gleichungen _unifizieren_ lassen. Dazu verwenden wir den Unifikationsalgorithmus nach [Robinson](https://de.wikipedia.org/wiki/John_Alan_Robinson):
+Die `typeCheck`-Funktion trifft im Gegensatz zu der im [STLC-Typsystem](#Simply-Typed-Lambda-Calculus-STLC) (bis auf das Erkennen ungebundener Identifier) noch gar keine Aussage darüber, ob ein Ausdruck typkorrekt ist. Dazu muss für die von `typeCheck` ausgegebene Liste von Typgleichungen geprüft werden, ob sich alle Gleichungen _unifizieren_ lassen. Dazu verwenden wir den _Unifikationsalgorithmus nach [Robinson](https://de.wikipedia.org/wiki/John_Alan_Robinson)_:
 ```scala
 def substitution(x: String, s: Type): Type => Type = new Function[Type,Type] {
   def apply(t: Type) : Type = t match {
@@ -1633,7 +1627,7 @@ def unify(eq: List[(Type,Type)]) : Type => Type = eq match {
 
 `unify` bestimmt die einfachste Belegung der Typvariablen, die alle durch `typeCheck` generierten Gleichungen erfüllt, und gibt eine Funktion aus, die alle Typvariablen entsprechend dieser Belegung substituiert. 
 
-Stimmen im ersten Tupel der Liste von Gleichungen die linke und rechte Seite bereits überein, so wird `unify` einfach auf der Restliste aufgerufen. Steht links und rechts der Typ `FunType()`, so wird die Liste um zwei Bedingungen erweitert, dass der `from`- und `to`-Typ jeweils übereinstimmen (_generative Rekursion_).
+Stimmen im ersten Tupel der Liste von Gleichungen die linke und rechte Seite bereits überein, so wird `unify` einfach auf der Restliste aufgerufen. Steht links und rechts der Typ `FunType()`, so wird die Liste um zwei Bedingungen erweitert, nämlich dass der `from`- und `to`-Typ jeweils übereinstimmen. Hierbei handelt es sich um _generative Rekursion_.
 
 Steht im ersten Tupel links eine Typvariable und rechts ein anderer Typ, so wird mittels `freeTypeVars` geprüft, ob die Typvariable innerhalb des anderen Typs auftritt. Ist dies der Fall, so ist die Gleichung "selbstbezüglich" und kann unmöglich erfüllt werden (bspw. gibt es keinen Typ `X`, für den `X` und `FunType(X,X)` gleichbedeutend sind). In diesem Fall wird also ein Fehler geworfen.
 
@@ -1651,7 +1645,7 @@ def doTypeCheck(e: Exp): Type = {
 
 :::info
 **Completeness der Typinferenz:**
-Gibt es für ein Programm Typannotationen, mit denen es vom STLC-Typechecker akzeptiert wird, so wird akzeptiert der Typecheck mit Typinferenz auch die nicht-typannotierte Variante des Programms.
+Gibt es für ein Programm Typannotationen, mit denen es vom STLC-Typechecker akzeptiert wird, so akzeptiert der Typecheck mit Typinferenz auch die nicht-typannotierte Variante des Programms.
 
 **Soundness:**
 Für alle `e: Exp` gilt:
@@ -1685,13 +1679,3 @@ Bspw. würde also beim Typechecking des Ausdrucks `Let("id",Fun("x","x"),...)` d
 
 
 
-
-
-
-
-
-:::success
-- [ ] Mark & Sweep fertig zusammenfassen (???)
-- [ ] Alle Vorlesungen bis 16.10.
-- [ ] 2 Wochen für Lecture Notes, Wiederholungen, Lernen, Probeklausur, evtl. Altklausuren
-:::

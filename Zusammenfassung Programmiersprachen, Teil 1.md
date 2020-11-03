@@ -1,6 +1,6 @@
 ---
 title: Zusammenfassung Programmiersprachen, Teil 1
-description: Programmiersprachen 1, SoSe 2020, Klauso3
+description: Programmiersprachen 1, SoSe 2020, Prof. Ostermann
 langs: de
 
 ---
@@ -103,7 +103,8 @@ heiner.sayHello() // now prints "Hello, Heinrich Knacker"
 ```
 - Mit `var` definierte Felder einer Klasse sind mutierbar.
 - **Abstrakte Klassen** können mit dem Keyword `abstract` angelegt werden.
-- **Traits** sind Bausteine zur Konstruktion von Klassen und können nicht instanziiert werden. Sie lassen sich einer Klasse mit `with`/`extends` anfügen. Ist ein Trait _sealed_ (`sealed trait ...`), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. Dadurch kann bei Pattern Matching erkannt werden, ob alle Fälle (also alle Case Classes) abgedeckt sind.
+- **Traits** sind Bausteine zur Konstruktion von Klassen und können nicht instanziiert werden. Sie lassen sich einer Klasse mit `with`/`extends` anfügen. 
+- Ist ein Trait oder eine abstrakte Klasse _sealed_ (Keyword `sealed ...`), so müssen alle erbenden Klassen in der gleichen Datei definiert sein. Dadurch kann bei Pattern Matching erkannt werden, ob alle Fälle (also alle Case Classes) abgedeckt sind.
 ```scala
 abstract class Speaker {
     def sayCatchPhrase(): Unit // no function body, abstract
@@ -130,10 +131,9 @@ sealed abstract class UniPerson
 case class Student(val id: Int) extends UniPerson
 case class Professor(val subject: String) extends UniPerson
 
-def display(p: UniPerson) : String =
-  p match {
-    case Student(id) => s"Student number $id"
-    case Professor(subject) => s"Professor of $subject"
+def display(p: UniPerson) : String = p match {
+  case Student(id) => s"Student number $id"
+  case Professor(subject) => s"Professor of $subject"
 }
 ```
 
@@ -171,7 +171,7 @@ if (a > b) {
 val x = if (1 == 1) "a" else "b" // usable as ternary operator, "a" is bound to x
 ```
 
-- _For_-Schleifen: 
+- _For-Comprehensions_: 
 ```scala
 for (elem <- list) println(elem)
 
@@ -323,7 +323,7 @@ Wir verwenden für die Identifier den Datentyp `String`, für die Umgebung defin
 import scala.language.implicitConversions
 
 // ...
-case class Id(x: Symbol) extends Exp
+case class Id(x: String) extends Exp
 
 implicit def num2exp(n: Int) : Exp = Num(n)
 implicit def string2exp(s: String) : Exp = Id(s))
@@ -476,11 +476,11 @@ Es muss aber immer im `xDef`-Ausdruck substituiert werden, denn auch hier könne
 # First-Order-Funktionen (F1-WAE)
 Identifier ermöglichen Abstraktion bei mehrfach auftretenden, identischen Teilausdrücken (_"Magic Literals"_) -- bspw. kann damit eine Konstante gebunden werden, die in einer Berechnung häufig vorkommt. 
 
-Unterscheiden sich die Teilausdrucke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke `5*3+1`, `5*2+1` und `5*7+1` lassen sich etwa mit `f(x) = 5*x+1` schreiben als `f(3)`, `f(2)` und `f(7)`. Weitere Beispiele dieser Abstraktion wären die Funktionen `square(n) = n*n` und `avg(x,y) = (x+y)/2`.
+Unterscheiden sich die Teilausdrücke aber immer an einer oder an wenigen Stellen, so sind First-Order-Funktionen notwendig, um zu abstrahieren. Die Ausdrücke `5*3+1`, `5*2+1` und `5*7+1` lassen sich etwa mit `f(x) = 5*x+1` schreiben als `f(3)`, `f(2)` und `f(7)`. Weitere Beispiele dieser Abstraktion wären die Funktionen `square(n) = n*n` und `avg(x,y) = (x+y)/2`.
 
 First-Order-Funktionen werden über einen Bezeichner aufgerufen, können aber nicht als Parameter übergeben werden und sind nicht Ausdrücke (Typ `Exp`).
 
-Wir legen zwei Sprachkonstrukte für Funktionsaufrufe und Funktionsdefinitionen an. Aufrufe sind Expressions und bestehen aus dem Bezeichner der Funktion sowie einer Liste von Argumenten, Definitionen bestehen aus einer Liste von Parametern und einem Rumpf. In einer globalen Map werden Funktionsbezeichnern Funktionsdefinitionen zugewiesen, die Funktionen werden also außerhalb des Programms definiert (im Gegensatz zu Bindugeen mit `With`). 
+Wir legen zwei Sprachkonstrukte für Funktionsaufrufe und Funktionsdefinitionen an. Aufrufe sind Expressions und bestehen aus dem Bezeichner der Funktion sowie einer Liste von Argumenten, Definitionen bestehen aus einer Liste von Parametern und einem Rumpf. In einer globalen Map werden Funktionsbezeichnern Funktionsdefinitionen zugewiesen, die Funktionen werden also außerhalb des Programms definiert (im Gegensatz zu Bindungen mit `With`). 
 ```scala
 case class Call(f: String, args: List[Exp]) extends Exp
 
@@ -630,7 +630,7 @@ Die Variante mit einer neuen, leeren Umgebung wird _lexikalisches Scoping_ genan
 
 # Lexikalisches und dynamisches Scoping
 :::info
-**Lexikalisches (oder statisches) Scoping** bedeutet, dass der Scope eines bindenden Vorkommens syntaktisch beschränkt ist, bspw. auf einen Funktionsrumpf. Im Fall unserer Sprache wird für ein Vorkommen eines Identifiers durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des abstrakten Syntaxbaums (AST) bestimmt.
+**Lexikalisches (oder statisches) Scoping** bedeutet, dass der Scope eines bindenden Vorkommens syntaktisch beschränkt ist, bspw. auf einen Funktionsrumpf. In unserer Sprache wird für ein Vorkommen eines Identifiers der Wert durch das erste bindende Vorkommen auf dem Weg vom Identifier zur Wurzel des abstrakten Syntaxbaums (AST) bestimmt.
 
 **Dynamisches Scoping** bedeutet, dass für ein Vorkommen eines Identifiers der Wert durch das zuletzt ausgewertete bindende Vorkommen bestimmt wird. Eine Bindung gilt dadurch während der gesamten weiteren Programmausführung und ist nicht auf einen bestimmten Bereich im Programms beschränkt.
 
@@ -670,7 +670,7 @@ Nun können wir Funktionen direkt im Programm definieren und binden, wodurch wir
 def wth(x: String, xdef: Exp, body: Exp) : Exp = App(Fun(x, body), xdef)
 ```
 
-Ein `Fun`-Ausdruck hat nur einen Parameter und ein `App`-Ausdruck nur ein Argument (im Gegensatz zu unserer Implementation von [First-Order-Funktionen](#First-Order-Funktionen-F1-WAE)), wir können jedoch Funktionen mit mehreren Parametern durch Currying darstellen: $f(x,y)= x+y$ entspricht $\lambda x.\lambda y.x+y$.
+Ein `Fun`-Ausdruck hat nur einen Parameter und ein `App`-Ausdruck nur ein Argument (im Gegensatz zu unserer Implementation von [First-Order-Funktionen](#First-Order-Funktionen-F1-WAE)), wir können jedoch Funktionen mit mehreren Parametern durch Currying darstellen: $f(x,y)= x+y$ entspricht $f(x)(y) = x+y$ bzw. in der Notation des Lambda-Kalküls $\lambda x.\lambda y.x+y$.
 
 ## Accidental Captures
 Zuerst implementieren wir den Interpreter wieder durch Substitution:
@@ -889,7 +889,7 @@ case class Fun(param: String, body: Exp) extends Exp
 case class App(fun: Exp, arg: Exp) extends Exp
 ```
 
-Der Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist das Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
+Der Lambda-Kalkül ist Turing-vollständig, es können darin beliebige Berechnungen ausgedrückt werden. In seiner reinen Form ist es nicht unbedingt eine praktische oder sinnvolle Sprache, dennoch ist der Lambda-Kalkül von einem theoretischen Standpunkt relevant und betrachtenswert.
 
 In dieser Sprache ist jeder Wert eine Funktion (bzw. ein Closure), wodurch keine Typfehler auftreten können.
 ```scala
@@ -1106,10 +1106,11 @@ Die Auswertung dieses Ausdrucks würde einen Fehler liefern, da der Bezeichner `
 
 Aus diesem Grund ist es auch nicht möglich, mit einem Sprachkonstrukt `If0` rekursive Funktionen mit Abbruchbedingung zu definieren:
 ```scala
-val facAttempt = wth("fac", 
-                     Fun("n", If0("n", 1, Mul("n", App("fac", Add("n",-1))))), 
-                     App("fac",4))
-    
+val facAttempt = 
+  wth("fac", 
+      Fun("n", If0("n", 1, Mul("n", App("fac", Add("n",-1))))), 
+      App("fac",4))
+
 // With fac = (n => If (n==0) 1 Else n*fac(n-1)): 
 //   fac(4)
 ```
@@ -1134,7 +1135,7 @@ Es stellt sich aber die Frage, wie wir im `Letrec`-Fall vorgehen sollen. Zuerst 
 
 Selbst wenn man die Umgebung im Closure um eine Bindung für den Funktionsnamen erweitert, würde das nur einen rekursiven Aufruf ermöglichen, dann wäre der Funktionsname im Rumpf bereits wieder nicht gebunden. Für eine unbegrenzte Rekursionstiefe müsste für die Umgebung gelten: `env = Map("fac" -> ClosureV(Fun("n",...), env))`, sie müsste sich also zirkulär selbst referenzieren.
 
-Eine Möglichkeit, in imperativen Sprachen zirkuläre Strukturen zu definieren, ist durch Objektreferenzen (bspw. durch zwei Instanzen, die gegenseitig auf sich verweisen). Hierzu ist Mutation notwendig, es wird die erste Objektinstanz mit Null-Pointer erzeugt, dann die zweite Objektinstanz mit Pointer auf die erste, zuletzt wird der Pointer im ersten Objekt mutiert und auf das zweite gesetzt.
+Eine Möglichkeit, um zirkuläre Strukturen zu definieren, ist durch Objektreferenzen (bspw. durch zwei Instanzen, die gegenseitig auf sich verweisen). Hierzu ist Mutation notwendig, es wird die erste Objektinstanz mit Null-Pointer erzeugt, dann die zweite Objektinstanz mit Pointer auf die erste, zuletzt wird der Pointer im ersten Objekt mutiert und auf das zweite gesetzt.
 
 Wir legen eine entsprechende Datenstruktur in einem Objekt `Values` an. Diese besteht aus einem Trait `ValueHolder`, das durch die Klassen `Value` und `ValuePointer` implementiert wird. Instanzen von `Value` sind dabei selbst Werte, Instanzen von `ValuePointer` verweisen auf `Value`-Instanzen. Die `Value`-Subklassen `NumV` und `ClosureV` kennen wir bereits, der Umgebungstyp `Env` ist nun nicht mehr eine Map von `String` nach `Value` sondern von `String` nach `ValueHolder`. Damit diese zirkuläre Definition möglich ist (`ValueHolder -> Value -> ClosureV -> Env -> ValueHolder`), müssen die Definitionen innerhalb eines Objekts liegen.
 
@@ -1570,9 +1571,6 @@ class MarkAndSweepStore(size: Int) extends Store {
 Gibt es bei der Allokation noch (oder nach der Garbage Collection) freie Adressen, so wird das Array linear durchsucht, bis ein leeres Feld gefunden wird. Hier wird dann der Wert eingetragen, `free` wird dekrementiert und die Adresse wird ausgegeben.
 
 Die Markierung der noch erreichbaren Adressen ist nicht mehr durch eine Menge repräsentiert, sondern durch das Feld `marked` in jedem `Value`. Die `sweep`-Funktion ersetzt nicht markierte Werte im Store durch `null` (wobei `free` inkrementiert wird) und setzt die Markierung aller Werte auf `false` zurück.
-
-
-
 
 
 
